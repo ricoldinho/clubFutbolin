@@ -1,0 +1,61 @@
+# ------------------------------------------------------
+# 1. DEPENDENCIAS
+# ------------------------------------------------------
+# Nunca se suben. Se regeneran con 'npm install'
+node_modules/
+
+# ------------------------------------------------------
+# 2. COMPILACIÓN Y ARTEFACTOS (Build)
+# ------------------------------------------------------
+# Ignoramos la carpeta 'dist' porque es código generado por TypeScript.
+# Git solo debe tener el código fuente (.ts), no el resultado (.js).
+dist/
+build/
+coverage/  
+
+# ------------------------------------------------------
+# 3. SEGURIDAD Y VARIABLES DE ENTORNO (CRÍTICO)
+# ------------------------------------------------------
+# Bloquea todos los archivos de entorno
+.env
+.env.development
+.env.test
+.env.production
+.env.local
+
+# NOTA: Crearemos un .env.template que SÍ se subirá (sin valores reales)
+
+# ------------------------------------------------------
+# 4. LOGS Y DEPURACIÓN
+# ------------------------------------------------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ------------------------------------------------------
+# 5. SISTEMA OPERATIVO Y IDEs (Cursor/VSCode)
+# ------------------------------------------------------
+# Archivos basura de Mac y Windows
+.DS_Store
+Thumbs.db
+
+# Configuración del editor (Cursor/VSCode)
+# A veces es útil compartir configs de equipo, pero por defecto
+# es mejor que cada dev tenga su entorno personal limpio.
+.vscode/
+.idea/      # WebStorm / IntelliJ
+*.swp       # Vim
+*.swo
+
+# ------------------------------------------------------
+# 6. FASTIFY ESPECÍFICO
+# ------------------------------------------------------
+# Si en el futuro usamos subidas de archivos temporales
+uploads/
+tmp/

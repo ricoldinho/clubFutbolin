@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Servicio de Base de Datos
+  db:
+    image: postgres:15-alpine  # Usamos la versión Alpine (muy ligera)
+    container_name: club_futbolin_postgres
+    restart: always
+    ports:
+      - "${DB_PORT}:5432"      # Mapeamos puerto PC : puerto Contenedor
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
