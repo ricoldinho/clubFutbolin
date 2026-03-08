@@ -1,7 +1,7 @@
-import type { IPlayerRepository } from '@/modules/players/domain/Player.repository';
-import { Player } from '@/modules/players/domain/Player.entity';
-import type { Email } from '@/modules/players/domain/value-objects/Email.value-object';
-import type { PlayerId } from '@/modules/players/domain/value-objects/PlayerId.value-object';
+import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
+import { Player } from '@/domain/players/Player.entity';
+import type { Email } from '@/domain/players/value-objects/Email.value-object';
+import type { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 
 /**
  * Fake del repositorio de Player para tests. Almacena en memoria; findByEmail por valor de email.

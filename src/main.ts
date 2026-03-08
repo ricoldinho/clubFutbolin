@@ -1,6 +1,6 @@
 import Fastify, { FastifyInstance } from "fastify";
 import fastifyEnv from "@fastify/env";
-import { options } from "./config/env";
+import { options } from "./shared/config/env";
 
 const server: FastifyInstance = Fastify({
   logger: true, // Usaremos la config luego para el nivel de log

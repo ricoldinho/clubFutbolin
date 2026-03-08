@@ -52,7 +52,7 @@ No uses `@jest/globals` ni APIs de Jest; el proyecto usa Vitest.
 
 ## Ubicación de tests
 
-- Tests unitarios: `tests/unit/` (estructura espejo de `src/`). Usar alias `@/` para importar desde `src/` (ej: `import { Player } from '@/modules/players/domain/Player.entity'`).
+- Tests unitarios: `tests/unit/` (estructura espejo de `src/`: domain, application, shared, etc.). Usar alias `@/` para importar desde `src/` (ej: `import { Player } from '@/domain/players/Player.entity'`).
 - Tests de integración: `tests/integration/` o `tests/contracts/`.
 - Dobles reutilizables: `tests/doubles/`.
 
