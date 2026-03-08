@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { schema } from './env';
+import { schema } from '@/config/env';
 
 describe('env schema', () => {
   it('debe declarar PORT, NODE_ENV y LOG_LEVEL como requeridos', () => {

@@ -46,11 +46,13 @@ Reglas:
 - **beforeEach / afterEach:** para setup/teardown compartido (p. ej. limpiar DB en integración).
 - **vi.fn(), vi.spyOn(), vi.mock():** para dobles cuando haga falta; preferir Fakes en `tests/doubles/` cuando sea posible.
 
+**Mocks en memoria (obligatorio):** Los tests se ejecutan con mocks en memoria. No usar DB real, red ni disco en tests unitarios. Dependencias externas: `vi.mock()`, `vi.fn()` o Fakes en `tests/doubles/`. El setup global (`vitest.setup.ts`) aplica `mockReset` y `restoreMocks`.
+
 No uses `@jest/globals` ni APIs de Jest; el proyecto usa Vitest.
 
 ## Ubicación de tests
 
-- Tests unitarios de dominio: junto al código (`src/**/*.test.ts`) o en `tests/unit/` según convención del proyecto.
+- Tests unitarios: `tests/unit/` (estructura espejo de `src/`). Usar alias `@/` para importar desde `src/` (ej: `import { Player } from '@/modules/players/domain/Player.entity'`).
 - Tests de integración: `tests/integration/` o `tests/contracts/`.
 - Dobles reutilizables: `tests/doubles/`.
 
@@ -62,3 +64,4 @@ Comprobar si existe `vitest.config.ts` o `vite.config.ts` con configuración de 
 - [ ] Nombres de test descriptivos (comportamiento esperado, no implementación).
 - [ ] Sin lógica condicional ni bucles en el cuerpo del test.
 - [ ] Uso de Vitest (`describe`, `it`, `expect`, `vi.*`) y no de Jest.
+- [ ] Mocks en memoria: sin DB/red/disco real; usar `vi.mock`/`vi.fn` o Fakes en `tests/doubles/`.
