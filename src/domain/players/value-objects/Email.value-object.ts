@@ -1,3 +1,5 @@
+import { DomainValidationError } from '@/domain/shared/errors';
+
 /**
  * Value Object para email. Valida formato en creación (Fail Fast).
  */
@@ -14,10 +16,10 @@ export class Email {
   static create(value: string): Email {
     const trimmed = value.trim();
     if (!trimmed) {
-      throw new Error('Email no puede estar vacío');
+      throw new DomainValidationError('Email no puede estar vacío');
     }
     if (!EMAIL_REGEX.test(trimmed)) {
-      throw new Error(`Formato de email inválido: ${value}`);
+      throw new DomainValidationError(`Formato de email inválido: ${value}`);
     }
     return new Email(trimmed);
   }

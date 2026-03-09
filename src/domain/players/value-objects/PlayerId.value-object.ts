@@ -1,4 +1,5 @@
 import { v7 } from 'uuid';
+import { DomainValidationError } from '@/domain/shared/errors';
 
 /**
  * Identificador único del Player. UUID (recomendado v7) compatible con PostgreSQL uuid.
@@ -18,10 +19,12 @@ export class PlayerId {
   static fromString(value: string): PlayerId {
     const trimmed = value.trim();
     if (!trimmed) {
-      throw new Error('PlayerId no puede estar vacío');
+      throw new DomainValidationError('PlayerId no puede estar vacío');
     }
     if (!UUID_REGEX.test(trimmed)) {
-      throw new Error(`Formato de PlayerId inválido (se espera UUID): ${value}`);
+      throw new DomainValidationError(
+        `Formato de PlayerId inválido (se espera UUID): ${value}`,
+      );
     }
     return new PlayerId(trimmed);
   }

@@ -1,3 +1,5 @@
+import { DomainValidationError } from '@/domain/shared/errors';
+
 /**
  * Value Object para número de teléfono. Acepta dígitos, opcionalmente + al inicio.
  * Longitud típica: 9–15 dígitos (E.164 permite hasta 15).
@@ -19,12 +21,12 @@ export class PhoneNumber {
   static create(value: string): PhoneNumber {
     const digits = extractDigits(value);
     if (digits.length < MIN_DIGITS) {
-      throw new Error(
+      throw new DomainValidationError(
         `Número de teléfono inválido: debe tener al menos ${MIN_DIGITS} dígitos (recibidos: ${digits.length})`
       );
     }
     if (digits.length > MAX_DIGITS) {
-      throw new Error(
+      throw new DomainValidationError(
         `Número de teléfono inválido: máximo ${MAX_DIGITS} dígitos (recibidos: ${digits.length})`
       );
     }

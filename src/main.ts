@@ -1,10 +1,18 @@
-import Fastify, { FastifyInstance } from "fastify";
+import Fastify from "fastify";
 import fastifyEnv from "@fastify/env";
+import {
+  ZodTypeProvider,
+  validatorCompiler,
+  serializerCompiler,
+} from "fastify-type-provider-zod";
 import { options } from "./shared/config/env";
 
-const server: FastifyInstance = Fastify({
+const server = Fastify({
   logger: true, // Usaremos la config luego para el nivel de log
-});
+}).withTypeProvider<ZodTypeProvider>();
+
+server.setValidatorCompiler(validatorCompiler);
+server.setSerializerCompiler(serializerCompiler);
 
 const start = async () => {
   try {

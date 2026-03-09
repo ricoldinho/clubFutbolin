@@ -5,9 +5,16 @@ alwaysApply: true
 
 # Documentación de endpoints y funciones
 
-## Endpoints HTTP (Fastify)
+## Endpoints HTTP (Fastify + Zod)
 
 Siempre que crees o modifiques un endpoint HTTP en `src/adapters/http/**`:
+
+- **Usa Zod como fuente de verdad del input**, conectado a Fastify mediante `fastify-type-provider-zod`:
+  - Configuración global en `main.ts`:
+    - `Fastify(...).withTypeProvider<ZodTypeProvider>()`
+    - `server.setValidatorCompiler(validatorCompiler)`
+    - `server.setSerializerCompiler(serializerCompiler)`
+  - En cada ruta, pasa los schemas Zod en la opción `schema` (body, params, querystring).
 
 - **Añade un bloque de comentario JSDoc encima de cada ruta** (`server.get/post/put/delete`), con:
   - Método y path (`GET /players/:playerId`).
@@ -68,4 +75,10 @@ export class RegisterPlayer {
   - ❌ `// Llama al caso de uso` encima de `registerPlayer.execute(...)`.
   - ❌ `// Devuelve 200` justo antes de `reply.code(200)...`.
 - Reserva los comentarios para **intención, reglas de negocio, contratos HTTP y decisiones no obvias**, no para narrar línea a línea.
+
+## Tests HTTP con Fastify
+
+- Para tests de rutas HTTP que usan Fastify (`server.inject()`):
+  - Crea el servidor en un helper (por ejemplo `buildServer()`).
+  - En cada suite (`describe`), inicializa el servidor en `beforeEach` y **ciérralo siempre** en `afterEach` o `afterAll` con `await server.close()` para evitar que queden handles abiertos y los tests se queden colgados.
 

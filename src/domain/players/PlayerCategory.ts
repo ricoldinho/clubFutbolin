@@ -1,3 +1,5 @@
+import { DomainValidationError } from '@/domain/shared/errors';
+
 /**
  * Categoría de liga del jugador.
  */
@@ -17,7 +19,7 @@ export function isPlayerCategory(value: string): value is PlayerCategory {
 
 export function parsePlayerCategory(value: string): PlayerCategory {
   if (!isPlayerCategory(value)) {
-    throw new Error(
+    throw new DomainValidationError(
       `Categoría inválida: "${value}". Valores permitidos: ${Array.from(VALID_CATEGORIES).join(', ')}`
     );
   }

@@ -1,9 +1,22 @@
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
 import { GetPlayerById } from '@/application/use-cases/players/GetPlayerById.use-case';
 import { ListPlayers } from '@/application/use-cases/players/ListPlayers.use-case';
+import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 import type { Player } from '@/domain/players/Player.entity';
+import { Email } from '@/domain/players/value-objects/Email.value-object';
+import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
+import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
+import { parsePlayerCategory } from '@/domain/players/PlayerCategory';
+import { EmailAlreadyInUseError } from '@/domain/players/errors';
+import { DomainValidationError } from '@/domain/shared/errors';
+import {
+  getPlayerByIdParamsSchema,
+  registerPlayerBodySchema,
+  type RegisterPlayerBody,
+} from './schemas';
 
 /**
  * Plugin HTTP para las rutas de Player.
@@ -57,8 +70,66 @@ export async function playersRoutes(
   server: FastifyInstance,
   options: PlayersRoutesOptions,
 ): Promise<void> {
+  const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const getPlayerById = new GetPlayerById(options.repository);
   const listPlayers = new ListPlayers(options.repository);
+  const registerPlayer = new RegisterPlayer(options.repository);
+
+  /**
+   * POST /players
+   *
+   * Registra un nuevo Player.
+   * - 201: Player creado
+   * - 400: datos de entrada inválidos (Zod o Value Objects)
+   * - 409: email ya en uso
+   */
+  zodServer.post(
+    '/players',
+    {
+      schema: {
+        body: registerPlayerBodySchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const body = request.body as RegisterPlayerBody;
+
+        const props = {
+          name: body.name,
+          lastname: body.lastname,
+          nickname: body.nickname ?? null,
+          email: Email.create(body.email),
+          phoneNumber: PhoneNumber.create(body.phoneNumber),
+          league: body.league,
+          birthdate: Birthdate.create(body.birthdate),
+          category: parsePlayerCategory(body.category),
+        };
+
+        const player = await registerPlayer.execute(props);
+
+        return reply.code(201).send(toPlayerResponse(player));
+      } catch (error) {
+        if (error instanceof EmailAlreadyInUseError) {
+          request.log.info(
+            { err: error },
+            'Email ya en uso al registrar Player',
+          );
+          return reply.code(409).send({ message: error.message });
+        }
+
+        if (error instanceof DomainValidationError) {
+          request.log.warn(
+            { err: error },
+            'Error de validación de dominio al registrar Player',
+          );
+          return reply.code(400).send({ message: error.message });
+        }
+
+        request.log.error({ err: error }, 'Error inesperado registrando Player');
+        return reply.code(500).send({ message: 'Error interno del servidor' });
+      }
+    },
+  );
 
   /**
    * GET /players/:playerId
@@ -68,24 +139,38 @@ export async function playersRoutes(
    * - 404: Player no encontrado
    * - 400: playerId con formato inválido (no es UUID)
    */
-  server.get<{
-    Params: { playerId: string };
-    Reply: PlayerResponse | { message: string };
-  }>('/players/:playerId', async (request, reply) => {
-    try {
-      const playerId = PlayerId.fromString(request.params.playerId);
-      const player = await getPlayerById.execute(playerId);
+  zodServer.get(
+    '/players/:playerId',
+    {
+      schema: {
+        params: getPlayerByIdParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { playerId: rawId } = request.params as { playerId: string };
+        const playerId = PlayerId.fromString(rawId);
+        const player = await getPlayerById.execute(playerId);
 
-      if (player === null) {
-        return reply.code(404).send({ message: 'Player no encontrado' });
+        if (player === null) {
+          return reply.code(404).send({ message: 'Player no encontrado' });
+        }
+
+        return reply.code(200).send(toPlayerResponse(player));
+      } catch (error) {
+        if (error instanceof DomainValidationError) {
+          request.log.warn({ err: error }, 'PlayerId inválido');
+          return reply.code(400).send({ message: error.message });
+        }
+
+        request.log.error(
+          { err: error },
+          'Error inesperado obteniendo Player por id',
+        );
+        return reply.code(500).send({ message: 'Error interno del servidor' });
       }
-
-      return reply.code(200).send(toPlayerResponse(player));
-    } catch (error) {
-      request.log.error({ err: error }, 'Error obteniendo Player por id');
-      return reply.code(400).send({ message: 'Parámetro playerId inválido' });
-    }
-  });
+    },
+  );
 
   /**
    * GET /players
@@ -95,12 +180,23 @@ export async function playersRoutes(
    *
    * Más adelante se puede extender con paginación y filtros por querystring.
    */
-  server.get<{
-    Reply: PlayerResponse[];
-  }>('/players', async (_request, reply) => {
-    const players = await listPlayers.execute();
-    const response = players.map(toPlayerResponse);
-    return reply.code(200).send(response);
-  });
+  zodServer.get(
+    '/players',
+    async (request, reply) => {
+      try {
+        const players = await listPlayers.execute();
+        const response = players.map(toPlayerResponse);
+        return reply.code(200).send(response);
+      } catch (error) {
+        request.log.error(
+          { err: error },
+          'Error inesperado listando Players',
+        );
+        return reply
+          .code(500)
+          .send({ message: 'Error interno del servidor' });
+      }
+    },
+  );
 }
 
