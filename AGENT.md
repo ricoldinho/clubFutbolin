@@ -2,9 +2,10 @@
 
 ## Current Status 📍
 
-- **Phase:** Domain y casos de uso en marcha; siguiente: capa HTTP (Fastify) y/o persistencia (Prisma + Postgres).
-- **Next Task:** (1) Docker Compose + Prisma schema para Player. (2) Rutas Fastify + Zod para registrar/consultar Player.
+- **Phase:** Dominio Player, casos de uso (Result), capa HTTP (Fastify + Zod) y rutas `/players` hechas. Siguiente: persistencia (Prisma + Postgres).
+- **Next Task:** (1) Docker Compose + Prisma schema para Player. (2) Repositorio Prisma en `src/adapters/persistence/`.
 - **Ubicación de código:** Implementaciones de puertos (repos) → `src/adapters/persistence/`. Handlers y rutas HTTP → `src/adapters/http/`.
+- **Calidad:** En local y en CI se ejecutan `npm run lint` (ESLint), `npm run typecheck` (tsc --noEmit) y `npm run test:run` (Vitest). Reglas: no-console (usar logger Fastify), no-explicit-any.
 
 ## Architecture Decisions 🧠
 

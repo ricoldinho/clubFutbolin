@@ -25,7 +25,7 @@ const start = async () => {
     const port = server.config.PORT;
 
     // 2. RUTAS (Ejemplo temporal)
-    server.get("/", async (request, reply) => {
+    server.get("/", async (_request, _reply) => {
       // Podemos acceder a la config desde cualquier parte
       return {
         status: "OK",
@@ -35,7 +35,7 @@ const start = async () => {
 
     // 3. INICIO DEL SERVIDOR
     await server.listen({ port });
-    console.log(`🚀 Server running on port ${port}`);
+    server.log.info({ port }, 'Server running');
   } catch (err) {
     server.log.error(err);
     process.exit(1);

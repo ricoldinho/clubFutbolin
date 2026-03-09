@@ -9,10 +9,6 @@ import { playersRoutes } from '@/adapters/http/players/players.routes';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
 import { Player } from '@/domain/players/Player.entity';
-import { Email } from '@/domain/players/value-objects/Email.value-object';
-import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
-import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
-import { PlayerCategory } from '@/domain/players/PlayerCategory';
 
 function buildServer() {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
@@ -26,17 +22,14 @@ function buildServer() {
 }
 
 class FailingRepository implements IPlayerRepository {
-  // eslint-disable-next-line @typescript-eslint/require-await
   async findByEmail(): Promise<Player | null> {
     throw new Error('Infra error in findByEmail');
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async findById(): Promise<Player | null> {
     throw new Error('Infra error in findById');
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async save(): Promise<void> {
     throw new Error('Infra error in save');
   }
