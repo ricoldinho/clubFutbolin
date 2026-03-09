@@ -15,5 +15,7 @@ export interface IPlayerRepository {
 
   findById(id: PlayerId): Promise<Player | null>;
 
+  findAll(): Promise<Player[]>;
+
   save(player: Player): Promise<void>;
 }

@@ -1,0 +1,71 @@
+---
+description: Convenciones para documentar endpoints HTTP y funciones/casos de uso
+alwaysApply: true
+---
+
+# Documentación de endpoints y funciones
+
+## Endpoints HTTP (Fastify)
+
+Siempre que crees o modifiques un endpoint HTTP en `src/adapters/http/**`:
+
+- **Añade un bloque de comentario JSDoc encima de cada ruta** (`server.get/post/put/delete`), con:
+  - Método y path (`GET /players/:playerId`).
+  - Propósito resumido en 1–2 líneas.
+  - Códigos de estado relevantes (200, 201, 400, 404, 409, etc.).
+  - Notas de futuro (paginación, filtros) solo si son importantes.
+
+```ts
+/**
+ * GET /players/:playerId
+ *
+ * Obtiene un Player por identificador.
+ * - 200: Player encontrado
+ * - 404: Player no encontrado
+ * - 400: playerId con formato inválido (no es UUID)
+ */
+server.get('/players/:playerId', async (request, reply) => {
+  // ...
+});
+```
+
+- **Documenta el plugin de rutas** con un comentario que liste todos los endpoints que expone y el contexto:
+
+```ts
+/**
+ * Plugin HTTP para las rutas de Player.
+ *
+ * - GET /players           → Listar todos los players
+ * - GET /players/:playerId → Obtener un player por id
+ */
+export async function playersRoutes(...) { /* ... */ }
+```
+
+## Casos de uso y funciones de aplicación
+
+Para clases de caso de uso en `src/application/use-cases/**` y funciones clave en `src/application/**`:
+
+- **Usa un bloque JSDoc encima de la clase o función** que describa:
+  - Qué hace (1–2 frases, lenguaje de negocio).
+  - Entradas importantes (props, parámetros).
+  - Salida (qué devuelve, especialmente si usa Result pattern).
+  - Errores de dominio que puede lanzar y cómo mapean a HTTP, si aplica.
+
+```ts
+/**
+ * Registra un nuevo Player.
+ * Garantiza la invariante: un email solo puede pertenecer a un Player.
+ * Si el email ya existe, lanza EmailAlreadyInUseError (en HTTP sería 409 Conflict).
+ */
+export class RegisterPlayer {
+  // ...
+}
+```
+
+## Qué comentarios evitar
+
+- No añadas comentarios que solo repitan lo que ya dice el código:
+  - ❌ `// Llama al caso de uso` encima de `registerPlayer.execute(...)`.
+  - ❌ `// Devuelve 200` justo antes de `reply.code(200)...`.
+- Reserva los comentarios para **intención, reglas de negocio, contratos HTTP y decisiones no obvias**, no para narrar línea a línea.
+
