@@ -1,0 +1,48 @@
+---
+description: Patrón Result en casos de uso y su traducción a HTTP
+alwaysApply: true
+---
+
+# Patrón Result en casos de uso
+
+## Regla
+
+- **Los casos de uso devuelven `Result<T, E>`** (definido en `src/shared/result.ts`), no lanzan errores de dominio ni devuelven `null` para "no encontrado".
+- **Solo errores realmente excepcionales** (p. ej. fallos de infraestructura no recuperables en el repositorio) pueden propagarse con `throw`; la capa HTTP los captura y los traduce a 500.
+- **"No encontrado"** se modela como `Result.fail(new NotFoundError('Entidad', criterio))`, no como `null`.
+
+## API de Result
+
+- `Result.ok(value)` → éxito.
+- `Result.fail(error)` → fallo de dominio (ej. `EmailAlreadyInUseError`, `NotFoundError`).
+- Type guards: `isOk(result)`, `isFail(result)` (desde `@/shared/result`).
+
+## Capa HTTP
+
+- Tras llamar al caso de uso, comprobar `result.ok`:
+  - Si `result.ok === true`: usar `result.value` y responder 200/201 con el cuerpo adecuado.
+  - Si `result.ok === false`: pasar `result.error` a **`mapDomainErrorToHttp(result.error)`** y responder con el `statusCode` y `message` devueltos. Mantener el mismo criterio de logging (≥500 → error, 409 → info, resto 4xx → warn).
+- Los errores que sí se lanzan (validación de VOs en el handler, fallos de infra) se siguen capturando en `catch` y mapeando con `mapDomainErrorToHttp`.
+
+## Ejemplo de caso de uso
+
+```ts
+async execute(id: PlayerId): Promise<Result<Player, NotFoundError>> {
+  const player = await this.repository.findById(id);
+  if (player === null) {
+    return Result.fail(new NotFoundError('Player', id.value));
+  }
+  return Result.ok(player);
+}
+```
+
+## Ejemplo en handler
+
+```ts
+const result = await getPlayerById.execute(playerId);
+if (!result.ok) {
+  const { statusCode, message } = mapDomainErrorToHttp(result.error);
+  return reply.code(statusCode).send({ message });
+}
+return reply.code(200).send(toPlayerResponse(result.value));
+```

@@ -127,6 +127,25 @@ describe('players routes - Zod + Fastify integration', () => {
 
     expect(response.statusCode).toBe(404);
   });
+
+  it('devuelve 409 cuando el email ya está en uso en POST /players', async () => {
+    const payload = {
+      name: 'Manuel',
+      lastname: 'Rico',
+      nickname: null,
+      email: 'duplicado@example.com',
+      phoneNumber: '600123123',
+      league: ['Liga 1'],
+      birthdate: '1990-01-01',
+      category: 'PRIMERA',
+    };
+    const first = await server.inject({ method: 'POST', url: '/players', payload });
+    expect(first.statusCode).toBe(201);
+
+    const second = await server.inject({ method: 'POST', url: '/players', payload });
+    expect(second.statusCode).toBe(409);
+    expect(second.json()).toMatchObject({ message: expect.stringContaining('email') });
+  });
 });
 
 describe('players routes - errores de infraestructura', () => {

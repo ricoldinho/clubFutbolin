@@ -12,7 +12,7 @@
 - **Validation:** Zod for end-to-end type safety (Schema-to-Type), conectado a Fastify mediante `fastify-type-provider-zod`:
   - El servidor se crea con `.withTypeProvider<ZodTypeProvider>()` y usa `validatorCompiler`/`serializerCompiler` de ese paquete.
   - Cada endpoint HTTP debe declarar sus schemas Zod en la opción `schema` (body, params, querystring) para que Fastify valide antes de entrar al handler.
-- **Errors:** Result Pattern (Success/Failure objects) instead of throwing exceptions.
+- **Errors:** Result Pattern en casos de uso: devuelven `Result<T, E>` (éxito/fallo); la capa HTTP desempaqueta y traduce `Result.err` con `mapDomainErrorToHttp`. Solo infraestructura puede lanzar; ver `.cursor/rules/patron-result.mdc`.
 - **Identificadores (PostgreSQL):** UUID, preferiblemente **v7** (ordenado en el tiempo). Las entidades usan Value Objects de id (ej. `PlayerId`): `PlayerId.generate()` para nuevos, `PlayerId.fromString(uuid)` al cargar desde BD. En Postgres almacenar como tipo `uuid` (16 bytes); en dominio se trabaja con `PlayerId`, que valida formato UUID.
 - **Email único por Player:** Un email solo puede pertenecer a un Player. Se garantiza en el caso de uso `RegisterPlayer` (findByEmail + `EmailAlreadyInUseError`) y en BD con UNIQUE en la columna `email`. El handler HTTP debe mapear `EmailAlreadyInUseError` a **409 Conflict**.
 - **Casos de uso:** Clases con constructor (inyección de dependencias) y método `execute`; no funciones con dependencias como parámetro.
@@ -22,4 +22,9 @@
 - Docker Compose para PostgreSQL local.
 - Integración Prisma (schema, migraciones).
 - Validación con Zod en Fastify (body/query).
-- **Convención de errores de dominio:** Los casos de uso pueden lanzar errores de dominio (ej. `EmailAlreadyInUseError`); el handler HTTP debe capturarlos y mapear a códigos (409, 404, etc.), no dejar que el `throw` suba sin traducir.
+- **Taxonomía de errores de dominio y mapeo HTTP:**
+  - **Errores compartidos** en `src/domain/shared/errors.ts`: `DomainValidationError` (validación VO/parseo → 400), `NotFoundError` (entidad no encontrada → 404), `InfrastructureError` (fallos BD/red → 500).
+  - **Errores de contexto** en el propio dominio (ej. `src/domain/players/errors.ts`): p. ej. `EmailAlreadyInUseError` → 409.
+  - **Mapeo centralizado:** Usar `mapDomainErrorToHttp(error)` de `src/adapters/http/http-error-mapper.ts` en los handlers; no duplicar `if (error instanceof ...)`. Al añadir un nuevo error de dominio, registrar su mapeo en `http-error-mapper.ts`.
+  - Ver regla `.cursor/rules/errores-dominio-mapeo-http.mdc`.
+- **Patrón Result:** Casos de uso devuelven `Result<T, E>` (no `throw` de dominio ni `null` para no encontrado). HTTP traduce `Result.err` a códigos con `mapDomainErrorToHttp`. Ver `.cursor/rules/patron-result.mdc`.

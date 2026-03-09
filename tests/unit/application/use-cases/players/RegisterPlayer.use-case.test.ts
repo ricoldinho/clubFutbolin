@@ -6,6 +6,7 @@ import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
 import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
 import { EmailAlreadyInUseError } from '@/domain/players/errors';
+import { isOk } from '@/shared/result';
 
 describe('RegisterPlayer', () => {
   const baseProps = {
@@ -25,9 +26,12 @@ describe('RegisterPlayer', () => {
     const useCase = new RegisterPlayer(repository);
 
     // Act
-    const player = await useCase.execute(baseProps);
+    const result = await useCase.execute(baseProps);
 
     // Assert
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    const player = result.value;
     expect(player.email.value).toBe('luis@example.com');
     expect(player.id).toBeDefined();
     const found = await repository.findByEmail(baseProps.email);
@@ -35,15 +39,18 @@ describe('RegisterPlayer', () => {
     expect(found?.email.value).toBe('luis@example.com');
   });
 
-  it('debe lanzar EmailAlreadyInUseError si el email ya está registrado', async () => {
+  it('debe devolver Result.fail(EmailAlreadyInUseError) si el email ya está registrado', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
     const useCase = new RegisterPlayer(repository);
     await useCase.execute(baseProps);
 
-    // Act & Assert
-    await expect(
-      useCase.execute({ ...baseProps, name: 'Otro' })
-    ).rejects.toThrow(EmailAlreadyInUseError);
+    // Act
+    const result = await useCase.execute({ ...baseProps, name: 'Otro' });
+
+    // Assert
+    expect(isOk(result)).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBeInstanceOf(EmailAlreadyInUseError);
   });
 });

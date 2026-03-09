@@ -1,0 +1,30 @@
+---
+description: Convención por recurso HTTP (schemas Zod, routes, tests)
+alwaysApply: true
+---
+
+# Convención por recurso HTTP
+
+Al crear o extender un **recurso** expuesto por la API (ej. `players`, `teams`, `matches`), seguir siempre esta estructura y reglas.
+
+## Estructura por recurso
+
+Cada recurso bajo `src/adapters/http/<recurso>/` debe tener:
+
+1. **`schemas.ts`** — Schemas Zod como única fuente de verdad del input (body, params, querystring). Exportar schemas y tipos inferidos (`z.infer<typeof ...>`).
+2. **`<recurso>.routes.ts`** (ej. `players.routes.ts`) — Plugin Fastify que registra las rutas. Handlers **“tontos”**: solo leen request ya validada por Zod, convierten a Value Objects si hace falta, llaman al caso de uso y devuelven respuesta. Usar `mapDomainErrorToHttp` en los `catch`.
+
+## Tests obligatorios por recurso
+
+En `tests/unit/adapters/http/<recurso>/` (estructura espejo de `src/`):
+
+1. **`schemas.test.ts`** — Tests unitarios de los schemas Zod (payloads válidos e inválidos con `safeParse`). Sin mocks.
+2. **`<recurso>.routes.test.ts`** — Tests HTTP con `server.inject()`: happy path, 400/404/409/500 según el recurso. Usar dobles (ej. `InMemoryPlayerRepository`). En `afterEach`/`afterAll`, cerrar el servidor con `await server.close()`.
+
+## Regla de validación
+
+- **Ningún handler toca datos “sin validar”.** Todo input debe pasar por:
+  1. **Zod** (en la opción `schema` de la ruta) — Fastify rechaza antes de entrar al handler si no cumple.
+  2. **Value Objects** en el handler cuando el caso de uso requiera tipos de dominio (ej. `Email.create(body.email)`). Los VO pueden lanzar `DomainValidationError`, que el mapeador convierte en 400.
+
+No leer `request.body` / `request.params` y usarlos directamente en lógica de negocio sin validación Zod previa ni construcción de VOs donde corresponda.

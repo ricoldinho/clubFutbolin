@@ -11,3 +11,33 @@ export class DomainValidationError extends Error {
   }
 }
 
+/**
+ * Error genérico de "no encontrado" en el dominio.
+ * Úsalo cuando un agregado/entidad no existe para un criterio dado.
+ */
+export class NotFoundError extends Error {
+  constructor(entity: string, criteria?: string) {
+    super(
+      criteria
+        ? `${entity} no encontrado: ${criteria}`
+        : `${entity} no encontrado`,
+    );
+    this.name = 'NotFoundError';
+    Object.setPrototypeOf(this, NotFoundError.prototype);
+  }
+}
+
+/**
+ * Error de infraestructura: fallos de BD, red, etc.
+ * Úsalo en repositorios y adaptadores cuando algo externo falla.
+ */
+export class InfrastructureError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'InfrastructureError';
+    Object.setPrototypeOf(this, InfrastructureError.prototype);
+  }
+}

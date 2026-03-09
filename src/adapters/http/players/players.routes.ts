@@ -10,8 +10,7 @@ import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
 import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
 import { parsePlayerCategory } from '@/domain/players/PlayerCategory';
-import { EmailAlreadyInUseError } from '@/domain/players/errors';
-import { DomainValidationError } from '@/domain/shared/errors';
+import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import {
   getPlayerByIdParamsSchema,
   registerPlayerBodySchema,
@@ -105,28 +104,27 @@ export async function playersRoutes(
           category: parsePlayerCategory(body.category),
         };
 
-        const player = await registerPlayer.execute(props);
+        const result = await registerPlayer.execute(props);
 
-        return reply.code(201).send(toPlayerResponse(player));
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          if (statusCode === 409) {
+            request.log.info({ err: result.error }, 'Email ya en uso al registrar Player');
+          } else {
+            request.log.warn({ err: result.error }, 'Error de dominio al registrar Player');
+          }
+          return reply.code(statusCode).send({ message });
+        }
+
+        return reply.code(201).send(toPlayerResponse(result.value));
       } catch (error) {
-        if (error instanceof EmailAlreadyInUseError) {
-          request.log.info(
-            { err: error },
-            'Email ya en uso al registrar Player',
-          );
-          return reply.code(409).send({ message: error.message });
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        if (statusCode >= 500) {
+          request.log.error({ err: error }, 'Error inesperado registrando Player');
+        } else {
+          request.log.warn({ err: error }, 'Error de dominio al registrar Player');
         }
-
-        if (error instanceof DomainValidationError) {
-          request.log.warn(
-            { err: error },
-            'Error de validación de dominio al registrar Player',
-          );
-          return reply.code(400).send({ message: error.message });
-        }
-
-        request.log.error({ err: error }, 'Error inesperado registrando Player');
-        return reply.code(500).send({ message: 'Error interno del servidor' });
+        return reply.code(statusCode).send({ message });
       }
     },
   );
@@ -150,24 +148,26 @@ export async function playersRoutes(
       try {
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
-        const player = await getPlayerById.execute(playerId);
+        const result = await getPlayerById.execute(playerId);
 
-        if (player === null) {
-          return reply.code(404).send({ message: 'Player no encontrado' });
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          request.log.warn({ err: result.error }, 'Player no encontrado');
+          return reply.code(statusCode).send({ message });
         }
 
-        return reply.code(200).send(toPlayerResponse(player));
+        return reply.code(200).send(toPlayerResponse(result.value));
       } catch (error) {
-        if (error instanceof DomainValidationError) {
-          request.log.warn({ err: error }, 'PlayerId inválido');
-          return reply.code(400).send({ message: error.message });
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        if (statusCode >= 500) {
+          request.log.error(
+            { err: error },
+            'Error inesperado obteniendo Player por id',
+          );
+        } else {
+          request.log.warn({ err: error }, 'Error de dominio en GET /players/:playerId');
         }
-
-        request.log.error(
-          { err: error },
-          'Error inesperado obteniendo Player por id',
-        );
-        return reply.code(500).send({ message: 'Error interno del servidor' });
+        return reply.code(statusCode).send({ message });
       }
     },
   );
@@ -184,17 +184,19 @@ export async function playersRoutes(
     '/players',
     async (request, reply) => {
       try {
-        const players = await listPlayers.execute();
-        const response = players.map(toPlayerResponse);
+        const result = await listPlayers.execute();
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          return reply.code(statusCode).send({ message });
+        }
+        const response = result.value.map(toPlayerResponse);
         return reply.code(200).send(response);
       } catch (error) {
-        request.log.error(
-          { err: error },
-          'Error inesperado listando Players',
-        );
-        return reply
-          .code(500)
-          .send({ message: 'Error interno del servidor' });
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        if (statusCode >= 500) {
+          request.log.error({ err: error }, 'Error inesperado listando Players');
+        }
+        return reply.code(statusCode).send({ message });
       }
     },
   );

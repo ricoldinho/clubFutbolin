@@ -1,0 +1,26 @@
+---
+description: Taxonomía de errores de dominio y mapeo a HTTP
+alwaysApply: true
+---
+
+# Errores de dominio y mapeo HTTP
+
+## Taxonomía de errores
+
+- **Errores compartidos** (`src/domain/shared/errors.ts`):
+  - `DomainValidationError`: validación de Value Objects o parseos de dominio (datos inválidos según reglas de negocio). → HTTP **400**.
+  - `NotFoundError`: entidad/agregado no encontrado para un criterio dado. → HTTP **404**.
+  - `InfrastructureError`: fallos de BD, red, etc. en repositorios/adaptadores. → HTTP **500** (no exponer detalles al cliente).
+
+- **Errores de contexto**: cada bounded context puede tener sus propios errores (ej. `src/domain/players/errors.ts` → `EmailAlreadyInUseError` → **409**). Definirlos en el dominio del contexto y registrarlos en el mapeador HTTP.
+
+## Mapeo centralizado
+
+- Usar **`mapDomainErrorToHttp(error)`** de `src/adapters/http/http-error-mapper.ts` en los handlers HTTP.
+- No duplicar `if (error instanceof ...)` en cada ruta: un solo `catch` que llame al helper, loguee según `statusCode` (≥500 → error, 409 → info, resto 4xx → warn) y devuelva `reply.code(statusCode).send({ message })`.
+- **Al añadir un nuevo error de dominio:** (1) Crear la clase en `domain/shared/errors.ts` o en el dominio del contexto. (2) Añadir su rama en `http-error-mapper.ts` con el código HTTP correspondiente.
+
+## Contratos de dominio
+
+- Los **casos de uso** devuelven `Result<T, E>` con errores de dominio en el ramal `err`; no lanzan esos errores. La capa HTTP desempaqueta el Result y, en caso de fallo, usa `mapDomainErrorToHttp(result.error)` para responder. Ver `.cursor/rules/patron-result.mdc`.
+- Los **repositorios** pueden lanzar errores de infraestructura; la capa HTTP captura cualquier `throw` y lo traduce con `mapDomainErrorToHttp` (nunca dejar que un error suba sin traducir a código y cuerpo de respuesta).
