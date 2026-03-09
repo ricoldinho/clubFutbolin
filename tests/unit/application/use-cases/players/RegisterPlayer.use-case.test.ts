@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { registerPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
+import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
@@ -7,7 +7,7 @@ import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-ob
 import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
 import { EmailAlreadyInUseError } from '@/domain/players/errors';
 
-describe('registerPlayer', () => {
+describe('RegisterPlayer', () => {
   const baseProps = {
     name: 'Luis',
     lastname: 'García',
@@ -22,9 +22,10 @@ describe('registerPlayer', () => {
   it('debe registrar un Player y persistirlo', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
+    const useCase = new RegisterPlayer(repository);
 
     // Act
-    const player = await registerPlayer(repository, baseProps);
+    const player = await useCase.execute(baseProps);
 
     // Assert
     expect(player.email.value).toBe('luis@example.com');
@@ -37,11 +38,12 @@ describe('registerPlayer', () => {
   it('debe lanzar EmailAlreadyInUseError si el email ya está registrado', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
-    await registerPlayer(repository, baseProps);
+    const useCase = new RegisterPlayer(repository);
+    await useCase.execute(baseProps);
 
     // Act & Assert
     await expect(
-      registerPlayer(repository, { ...baseProps, name: 'Otro' })
+      useCase.execute({ ...baseProps, name: 'Otro' })
     ).rejects.toThrow(EmailAlreadyInUseError);
   });
 });
