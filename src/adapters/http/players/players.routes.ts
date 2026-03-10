@@ -4,6 +4,8 @@ import type { IPlayerRepository } from '@/application/ports/players/Player.repos
 import { GetPlayerById } from '@/application/use-cases/players/GetPlayerById.use-case';
 import { ListPlayers } from '@/application/use-cases/players/ListPlayers.use-case';
 import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
+import { DeletePlayer } from '@/application/use-cases/players/DeletePlayer.use-case';
+import { UpdatePlayer } from '@/application/use-cases/players/UpdatePlayer.use-case';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 import type { Player } from '@/domain/players/Player.entity';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
@@ -14,7 +16,9 @@ import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import {
   getPlayerByIdParamsSchema,
   registerPlayerBodySchema,
+  updatePlayerBodySchema,
   type RegisterPlayerBody,
+  type UpdatePlayerBody,
 } from './schemas';
 
 /**
@@ -62,8 +66,12 @@ function toPlayerResponse(player: Player): PlayerResponse {
 /**
  * Registra las rutas HTTP relacionadas con Player.
  *
- * - GET /players           → Listar todos los players
- * - GET /players/:playerId → Obtener un player por id
+ * Endpoints:
+ * - GET    /players             → Listar todos los Players
+ * - GET    /players/:playerId   → Obtener un Player por id
+ * - POST   /players             → Registrar un nuevo Player
+ * - PATCH  /players/:playerId   → Actualizar datos de un Player existente
+ * - DELETE /players/:playerId   → Eliminar un Player
  */
 export async function playersRoutes(
   server: FastifyInstance,
@@ -73,6 +81,8 @@ export async function playersRoutes(
   const getPlayerById = new GetPlayerById(options.repository);
   const listPlayers = new ListPlayers(options.repository);
   const registerPlayer = new RegisterPlayer(options.repository);
+  const deletePlayer = new DeletePlayer(options.repository);
+  const updatePlayer = new UpdatePlayer(options.repository);
 
   /**
    * POST /players
@@ -166,6 +176,127 @@ export async function playersRoutes(
           );
         } else {
           request.log.warn({ err: error }, 'Error de dominio en GET /players/:playerId');
+        }
+        return reply.code(statusCode).send({ message });
+      }
+    },
+  );
+
+  /**
+   * DELETE /players/:playerId
+   *
+   * Elimina un Player por identificador.
+   * - 204: Player eliminado
+   * - 404: Player no encontrado
+   * - 400: playerId con formato inválido (no es UUID)
+   */
+  zodServer.delete(
+    '/players/:playerId',
+    {
+      schema: {
+        params: getPlayerByIdParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { playerId: rawId } = request.params as { playerId: string };
+        const playerId = PlayerId.fromString(rawId);
+        const result = await deletePlayer.execute(playerId);
+
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          request.log.warn({ err: result.error }, 'Player no encontrado al eliminar');
+          return reply.code(statusCode).send({ message });
+        }
+
+        return reply.code(204).send();
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        if (statusCode >= 500) {
+          request.log.error(
+            { err: error },
+            'Error inesperado eliminando Player por id',
+          );
+        } else {
+          request.log.warn({ err: error }, 'Error de dominio en DELETE /players/:playerId');
+        }
+        return reply.code(statusCode).send({ message });
+      }
+    },
+  );
+
+  /**
+   * PATCH /players/:playerId
+   *
+   * Actualiza los datos de un Player existente.
+   * - 200: Player actualizado
+   * - 404: Player no encontrado
+   * - 400: body inválido o playerId con formato inválido
+   * - 409: email ya en uso
+   */
+  zodServer.patch(
+    '/players/:playerId',
+    {
+      schema: {
+        params: getPlayerByIdParamsSchema,
+        body: updatePlayerBodySchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { playerId: rawId } = request.params as { playerId: string };
+        const body = request.body as UpdatePlayerBody;
+        const playerId = PlayerId.fromString(rawId);
+
+        const input = {
+          id: playerId,
+          name: body.name,
+          lastname: body.lastname,
+          nickname: body.nickname,
+          email: body.email ? Email.create(body.email) : undefined,
+          phoneNumber: body.phoneNumber
+            ? PhoneNumber.create(body.phoneNumber)
+            : undefined,
+          league: body.league,
+          birthdate: body.birthdate
+            ? Birthdate.create(body.birthdate)
+            : undefined,
+          category: body.category
+            ? parsePlayerCategory(body.category)
+            : undefined,
+        };
+
+        const result = await updatePlayer.execute(input);
+
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          if (statusCode === 409) {
+            request.log.info(
+              { err: result.error },
+              'Email ya en uso al actualizar Player',
+            );
+          } else {
+            request.log.warn(
+              { err: result.error },
+              'Error de dominio al actualizar Player',
+            );
+          }
+          return reply.code(statusCode).send({ message });
+        }
+
+        return reply.code(200).send(toPlayerResponse(result.value));
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        if (statusCode >= 500) {
+          request.log.error(
+            { err: error },
+            'Error inesperado actualizando Player',
+          );
+        } else {
+          request.log.warn(
+            { err: error },
+            'Error de dominio en PATCH /players/:playerId',
+          );
         }
         return reply.code(statusCode).send({ message });
       }

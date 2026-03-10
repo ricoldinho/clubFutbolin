@@ -18,4 +18,11 @@ export interface IPlayerRepository {
   findAll(): Promise<Player[]>;
 
   save(player: Player): Promise<void>;
+
+  /**
+   * Elimina un Player por id. Si no existe, no hace nada.
+   * El caso de uso es responsable de comprobar existencia previa si necesita
+   * devolver un NotFoundError.
+   */
+  delete(id: PlayerId): Promise<void>;
 }

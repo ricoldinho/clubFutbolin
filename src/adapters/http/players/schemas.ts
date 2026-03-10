@@ -18,6 +18,28 @@ export const registerPlayerBodySchema = z.object({
 export type RegisterPlayerBody = z.infer<typeof registerPlayerBodySchema>;
 
 /**
+ * Schema Zod para el body de PATCH /players/:playerId.
+ * Todos los campos son opcionales, pero debe venir al menos uno.
+ */
+export const updatePlayerBodySchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    lastname: z.string().min(1).optional(),
+    nickname: z.string().nullable().optional(),
+    email: z.string().email().optional(),
+    phoneNumber: z.string().min(9).max(20).optional(),
+    league: z.array(z.string()).optional(),
+    birthdate: z.string().optional(),
+    category: z.enum(['CUARTA', 'TERCERA', 'SEGUNDA', 'PRIMERA', 'ELITE']).optional(),
+  })
+  .refine(
+    (data) => Object.keys(data).length > 0,
+    { message: 'Debe enviarse al menos un campo para actualizar' },
+  );
+
+export type UpdatePlayerBody = z.infer<typeof updatePlayerBodySchema>;
+
+/**
  * Schema Zod para los params de GET /players/:playerId.
  */
 export const getPlayerByIdParamsSchema = z.object({

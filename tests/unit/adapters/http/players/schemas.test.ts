@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   registerPlayerBodySchema,
   getPlayerByIdParamsSchema,
+  updatePlayerBodySchema,
 } from '@/adapters/http/players/schemas';
 
 describe('registerPlayerBodySchema', () => {
@@ -55,4 +56,24 @@ describe('getPlayerByIdParamsSchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('updatePlayerBodySchema', () => {
+  it('acepta un payload con algunos campos opcionales', () => {
+    const payload = {
+      name: 'Nuevo nombre',
+      email: 'nuevo@example.com',
+    };
+
+    const result = updatePlayerBodySchema.safeParse(payload);
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rechaza un body vacío', () => {
+    const result = updatePlayerBodySchema.safeParse({});
+
+    expect(result.success).toBe(false);
+  });
+});
+
 

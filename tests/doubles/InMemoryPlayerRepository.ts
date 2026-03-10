@@ -17,7 +17,31 @@ export class InMemoryPlayerRepository implements IPlayerRepository {
     return this.players.find((p) => p.id?.equals(id)) ?? null;
   }
 
+  async findAll(): Promise<Player[]> {
+    return [...this.players];
+  }
+
   async save(player: Player): Promise<void> {
-    this.players.push(player);
+    const id = player.id;
+    if (!id) {
+      this.players.push(player);
+      return;
+    }
+
+    const index = this.players.findIndex((p) => p.id?.equals(id));
+    if (index === -1) {
+      this.players.push(player);
+      return;
+    }
+
+    this.players[index] = player;
+  }
+
+  async delete(id: PlayerId): Promise<void> {
+    const index = this.players.findIndex((p) => p.id?.equals(id));
+    if (index === -1) {
+      return;
+    }
+    this.players.splice(index, 1);
   }
 }

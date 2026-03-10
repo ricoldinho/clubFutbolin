@@ -1,0 +1,58 @@
+import { describe, it, expect } from 'vitest';
+import { DeletePlayer } from '@/application/use-cases/players/DeletePlayer.use-case';
+import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
+import { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { Email } from '@/domain/players/value-objects/Email.value-object';
+import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
+import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
+import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+import { NotFoundError } from '@/domain/shared/errors';
+import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
+import { isOk } from '@/shared/result';
+
+describe('DeletePlayer', () => {
+  it('devuelve Result.ok y elimina el Player existente', async () => {
+    // Arrange
+    const repository = new InMemoryPlayerRepository();
+    const registerPlayer = new RegisterPlayer(repository);
+    const deletePlayer = new DeletePlayer(repository);
+    const props = {
+      name: 'Luis',
+      lastname: 'García',
+      nickname: 'Luigi',
+      email: Email.create('luis@example.com'),
+      phoneNumber: PhoneNumber.create('+34612345678'),
+      league: ['Liga Provincial'],
+      birthdate: Birthdate.create('2005-03-15'),
+      category: PlayerCategory.PRIMERA,
+    };
+    const registerResult = await registerPlayer.execute(props);
+    if (!isOk(registerResult)) throw new Error('Expected register to succeed');
+    const playerId = registerResult.value.id as PlayerId;
+
+    // Act
+    const result = await deletePlayer.execute(playerId);
+
+    // Assert
+    expect(isOk(result)).toBe(true);
+    const found = await repository.findById(playerId);
+    expect(found).toBeNull();
+  });
+
+  it('devuelve Result.fail(NotFoundError) cuando el Player no existe', async () => {
+    // Arrange
+    const repository = new InMemoryPlayerRepository();
+    const deletePlayer = new DeletePlayer(repository);
+    const id = PlayerId.generate();
+
+    // Act
+    const result = await deletePlayer.execute(id);
+
+    // Assert
+    expect(isOk(result)).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBeInstanceOf(NotFoundError);
+    expect(result.error.message).toContain('Player');
+  });
+});
+
