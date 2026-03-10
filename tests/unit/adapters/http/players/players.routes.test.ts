@@ -30,8 +30,16 @@ class FailingRepository implements IPlayerRepository {
     throw new Error('Infra error in findById');
   }
 
+   async findAll(): Promise<Player[]> {
+     throw new Error('Infra error in findAll');
+   }
+
   async save(): Promise<void> {
     throw new Error('Infra error in save');
+  }
+
+  async delete(): Promise<void> {
+    throw new Error('Infra error in delete');
   }
 }
 
