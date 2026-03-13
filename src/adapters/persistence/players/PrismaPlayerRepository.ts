@@ -1,8 +1,16 @@
-import { PrismaClient, PlayerCategory as PrismaPlayerCategory } from '@prisma/client';
-import { Player } from '@/domain/players/Player.entity';
-import { Email, PhoneNumber, Birthdate, PlayerId } from '@/domain/players/value-objects';
-import { PlayerCategory, parsePlayerCategory } from '@/domain/players/PlayerCategory';
-import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
+import {
+  PrismaClient,
+  PlayerCategory as PrismaPlayerCategory,
+} from "@prisma/client";
+import { Player } from "@/domain/players/Player.entity";
+import {
+  Email,
+  PhoneNumber,
+  Birthdate,
+  PlayerId,
+} from "@/domain/players/value-objects";
+import { parsePlayerCategory } from "@/domain/players/PlayerCategory";
+import type { IPlayerRepository } from "@/application/ports/players/Player.repository";
 
 type PrismaPlayer = {
   id: string;
@@ -123,4 +131,3 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     });
   }
 }
-
