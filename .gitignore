@@ -60,3 +60,4 @@ Thumbs.db
 # Si en el futuro usamos subidas de archivos temporales
 uploads/
 tmp/
+/src/generated/prisma

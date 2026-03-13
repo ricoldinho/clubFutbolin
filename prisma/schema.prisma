@@ -1,0 +1,47 @@
+generator client {
+  // Cliente estándar de Prisma: import { PrismaClient } from '@prisma/client'
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enum alineado con tu PlayerCategory de dominio
+enum PlayerCategory {
+  CUARTA
+  TERCERA
+  SEGUNDA
+  PRIMERA
+  ELITE
+}
+
+// Modelo Player alineado con tu entidad y VOs
+model Player {
+  // Identidad: PlayerId (UUID v7 en dominio) → uuid en Postgres
+  id          String   @id @db.Uuid
+
+  // Email único (invariante de dominio + UNIQUE en BD)
+  email       String   @unique
+
+  name        String
+  lastname    String
+  nickname    String?      // string | null en dominio
+
+  // PhoneNumber: almacenas solo dígitos como string
+  phoneNumber String
+
+  // League: lista de strings (ej. ligas en las que juega)
+  // Si en el futuro quieres normalizarlo, puedes extraer a otra tabla.
+  league      String[]
+
+  // Birthdate: DateTime en BD, Birthdate VO en dominio
+  birthdate   DateTime
+
+  // Category: string en BD, PlayerCategory VO en dominio
+  category    PlayerCategory
+
+  // Auditoría básica (opcional pero útil)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

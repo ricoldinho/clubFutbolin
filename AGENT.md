@@ -23,6 +23,8 @@
 - Docker Compose para PostgreSQL local.
 - Integración Prisma (schema, migraciones).
 - Validación con Zod en Fastify (body/query).
+- **PrismaClient:** Una sola instancia por proceso; se crea en `buildServer` (o infraestructura) y se pasa a los repositorios. En tests de integración, cerrar con `prisma.$disconnect()` al terminar.
+- **BD de tests:** Los tests de integración y E2E usan una `DATABASE_URL` distinta (BD/schema de test). Está permitido borrar datos y resembrar en esa BD; nunca usar la BD de producción o desarrollo para tests automáticos.
 - **Taxonomía de errores de dominio y mapeo HTTP:**
   - **Errores compartidos** en `src/domain/shared/errors.ts`: `DomainValidationError` (validación VO/parseo → 400), `NotFoundError` (entidad no encontrada → 404), `InfrastructureError` (fallos BD/red → 500).
   - **Errores de contexto** en el propio dominio (ej. `src/domain/players/errors.ts`): p. ej. `EmailAlreadyInUseError` → 409.
