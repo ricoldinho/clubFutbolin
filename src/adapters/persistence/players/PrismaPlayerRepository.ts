@@ -91,7 +91,7 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         category: true,
       },
     });
-    return rows.map((row) => this.toDomain(row));
+    return rows.map((row: PrismaPlayer) => this.toDomain(row));
   }
 
   async save(player: Player): Promise<void> {
