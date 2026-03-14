@@ -3,11 +3,22 @@ import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import {
   DomainValidationError,
   NotFoundError,
+  ForbiddenError,
   InfrastructureError,
 } from '@/domain/shared/errors';
-import { EmailAlreadyInUseError } from '@/domain/players/errors';
+import {
+  EmailAlreadyInUseError,
+  InvalidCredentialsError,
+} from '@/domain/players/errors';
 
 describe('mapDomainErrorToHttp', () => {
+  it('mapea InvalidCredentialsError a 401 y mensaje del error', () => {
+    const err = new InvalidCredentialsError();
+    const result = mapDomainErrorToHttp(err);
+    expect(result.statusCode).toBe(401);
+    expect(result.message).toBe('Credenciales inválidas');
+  });
+
   it('mapea EmailAlreadyInUseError a 409 y mensaje del error', () => {
     const err = new EmailAlreadyInUseError('a@b.com');
     const result = mapDomainErrorToHttp(err);
@@ -20,6 +31,13 @@ describe('mapDomainErrorToHttp', () => {
     const result = mapDomainErrorToHttp(err);
     expect(result.statusCode).toBe(400);
     expect(result.message).toBe('Datos inválidos');
+  });
+
+  it('mapea ForbiddenError a 403 y mensaje del error', () => {
+    const err = new ForbiddenError();
+    const result = mapDomainErrorToHttp(err);
+    expect(result.statusCode).toBe(403);
+    expect(result.message).toContain('permiso');
   });
 
   it('mapea NotFoundError a 404 y mensaje del error', () => {

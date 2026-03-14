@@ -21,6 +21,11 @@ export default defineConfig({
         '**/*.d.ts',
         '**/ports/**/*.ts',
       ],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        branches: 81,
+      },
     },
   },
   resolve: {

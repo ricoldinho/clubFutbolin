@@ -18,6 +18,14 @@ export const schema = {
       type: "string",
       default: "info",
     },
+    JWT_SECRET: {
+      type: "string",
+      default: "dev-secret-change-in-production",
+    },
+    JWT_EXPIRES_IN: {
+      type: "string",
+      default: "7d",
+    },
   },
 };
 
@@ -27,6 +35,8 @@ export interface Envs {
   PORT: number;
   NODE_ENV: string;
   LOG_LEVEL: string;
+  JWT_SECRET: string;
+  JWT_EXPIRES_IN: string;
 }
 
 // 3. Opciones para el plugin de Fastify

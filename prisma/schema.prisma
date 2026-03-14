@@ -16,6 +16,12 @@ enum PlayerCategory {
   ELITE
 }
 
+// Rol para autorización: USER (registro público), ADMIN (solo otro ADMIN puede asignarlo)
+enum PlayerRole {
+  USER
+  ADMIN
+}
+
 // Modelo Player alineado con tu entidad y VOs
 model Player {
   // Identidad: PlayerId (UUID v7 en dominio) → uuid en Postgres
@@ -40,6 +46,12 @@ model Player {
 
   // Category: string en BD, PlayerCategory VO en dominio
   category    PlayerCategory
+
+  // Rol: USER por defecto en registro; solo ADMIN puede asignar ADMIN a otro
+  role        PlayerRole @default(USER)
+
+  // Hash de contraseña (nunca en claro). Requerido para login.
+  passwordHash String
 
   // Auditoría básica (opcional pero útil)
   createdAt   DateTime @default(now())

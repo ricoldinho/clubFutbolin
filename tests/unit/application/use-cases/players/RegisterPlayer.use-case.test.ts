@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
+import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
@@ -18,12 +19,13 @@ describe('RegisterPlayer', () => {
     league: ['Liga Provincial'],
     birthdate: Birthdate.create('2005-03-15'),
     category: PlayerCategory.PRIMERA,
+    password: 'securepass123',
   };
 
-  it('debe registrar un Player y persistirlo', async () => {
+  it('debe registrar un Player y persistirlo con role USER', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
-    const useCase = new RegisterPlayer(repository);
+    const useCase = new RegisterPlayer(repository, new FakePasswordHasher());
 
     // Act
     const result = await useCase.execute(baseProps);
@@ -33,6 +35,7 @@ describe('RegisterPlayer', () => {
     if (!isOk(result)) return;
     const player = result.value;
     expect(player.email.value).toBe('luis@example.com');
+    expect(player.role).toBe('USER' as const);
     expect(player.id).toBeDefined();
     const found = await repository.findByEmail(baseProps.email);
     expect(found).not.toBeNull();
@@ -42,7 +45,7 @@ describe('RegisterPlayer', () => {
   it('debe devolver Result.fail(EmailAlreadyInUseError) si el email ya está registrado', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
-    const useCase = new RegisterPlayer(repository);
+    const useCase = new RegisterPlayer(repository, new FakePasswordHasher());
     await useCase.execute(baseProps);
 
     // Act

@@ -3,6 +3,7 @@ import { z } from 'zod';
 /**
  * Schema Zod para el body de POST /players.
  * Fuente de verdad del shape que acepta la API para registrar un Player.
+ * Incluye password; el nuevo Player tiene siempre role USER.
  */
 export const registerPlayerBodySchema = z.object({
   name: z.string().min(1),
@@ -13,9 +14,20 @@ export const registerPlayerBodySchema = z.object({
   league: z.array(z.string()).default([]),
   birthdate: z.string(), // Más adelante se puede refinar a ISO (yyyy-mm-dd)
   category: z.enum(['CUARTA', 'TERCERA', 'SEGUNDA', 'PRIMERA', 'ELITE']),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
 });
 
 export type RegisterPlayerBody = z.infer<typeof registerPlayerBodySchema>;
+
+/**
+ * Schema Zod para el body de POST /auth/login.
+ */
+export const loginBodySchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+export type LoginBody = z.infer<typeof loginBodySchema>;
 
 /**
  * Schema Zod para el body de PATCH /players/:playerId.
@@ -31,6 +43,7 @@ export const updatePlayerBodySchema = z
     league: z.array(z.string()).optional(),
     birthdate: z.string().optional(),
     category: z.enum(['CUARTA', 'TERCERA', 'SEGUNDA', 'PRIMERA', 'ELITE']).optional(),
+    role: z.enum(['USER', 'ADMIN']).optional(),
   })
   .refine(
     (data) => Object.keys(data).length > 0,

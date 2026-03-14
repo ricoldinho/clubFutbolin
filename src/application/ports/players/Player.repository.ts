@@ -1,6 +1,17 @@
+import type { PlayerRole } from '@/domain/players/PlayerRole';
 import { Player } from '@/domain/players/Player.entity';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+
+/**
+ * DTO solo para login: datos necesarios para verificar contraseña y emitir JWT.
+ * No expone la entidad Player con datos sensibles.
+ */
+export interface PlayerLoginData {
+  playerId: PlayerId;
+  role: PlayerRole;
+  passwordHash: string;
+}
 
 /**
  * Puerto del repositorio de Player (implementado en adapters/persistence, ej. Prisma).
@@ -17,7 +28,17 @@ export interface IPlayerRepository {
 
   findAll(): Promise<Player[]>;
 
-  save(player: Player): Promise<void>;
+  /**
+   * Persiste un Player. En registro (create) se debe pasar passwordHash.
+   * En actualización (update) no se pasa; se mantiene el hash existente.
+   */
+  save(player: Player, passwordHash?: string): Promise<void>;
+
+  /**
+   * Datos para login: busca por email y devuelve id, role y hash (nunca la entidad completa).
+   * Si no existe, devuelve null.
+   */
+  findLoginDataByEmail(email: Email): Promise<PlayerLoginData | null>;
 
   /**
    * Elimina un Player por id. Si no existe, no hace nada.

@@ -8,7 +8,10 @@ import {
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaPlayerRepository } from "./adapters/persistence/players/PrismaPlayerRepository";
+import { BcryptPasswordHasher } from "./adapters/auth/BcryptPasswordHasher";
+import { JoseJwtService } from "./adapters/auth/JoseJwtService";
 import { playersRoutes } from "./adapters/http/players/players.routes";
+import { authRoutes } from "./adapters/http/auth/auth.routes";
 import { options } from "./shared/config/env";
 
 export async function buildServer() {
@@ -33,14 +36,26 @@ export async function buildServer() {
     const adapter = new PrismaPg({ connectionString });
     prisma = new PrismaClient({ adapter });
     const playerRepository = new PrismaPlayerRepository(prisma);
+    const passwordHasher = new BcryptPasswordHasher();
+    const jwtService = new JoseJwtService(
+      server.config.JWT_SECRET,
+      server.config.JWT_EXPIRES_IN,
+    );
 
     server.addHook("onClose", async () => {
       await prisma!.$disconnect();
     });
 
     // 2. Rutas HTTP
+    await server.register(authRoutes, {
+      repository: playerRepository,
+      passwordHasher,
+      jwtService,
+    });
     await server.register(playersRoutes, {
       repository: playerRepository,
+      passwordHasher,
+      jwtService,
     });
 
     // Healthcheck básico

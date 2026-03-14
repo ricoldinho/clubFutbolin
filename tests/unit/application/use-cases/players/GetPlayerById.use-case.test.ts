@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { GetPlayerById } from '@/application/use-cases/players/GetPlayerById.use-case';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
+import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
+import { PlayerRole } from '@/domain/players/PlayerRole';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
@@ -11,10 +13,10 @@ import { isOk } from '@/shared/result';
 import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
 
 describe('GetPlayerById', () => {
-  it('devuelve Result.ok(Player) cuando el Player existe', async () => {
+  it('devuelve Result.ok(Player) cuando el Player existe y el actor es el mismo', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
-    const registerPlayer = new RegisterPlayer(repository);
+    const registerPlayer = new RegisterPlayer(repository, new FakePasswordHasher());
     const getPlayerById = new GetPlayerById(repository);
     const props = {
       name: 'Luis',
@@ -25,13 +27,15 @@ describe('GetPlayerById', () => {
       league: ['Liga Provincial'],
       birthdate: Birthdate.create('2005-03-15'),
       category: PlayerCategory.PRIMERA,
+      password: 'password123',
     };
     const registerResult = await registerPlayer.execute(props);
     if (!isOk(registerResult)) throw new Error('Expected register to succeed');
     const playerId = registerResult.value.id as PlayerId;
+    const actor = { id: playerId, role: PlayerRole.USER };
 
     // Act
-    const result = await getPlayerById.execute(playerId);
+    const result = await getPlayerById.execute(playerId, actor);
 
     // Assert
     expect(isOk(result)).toBe(true);
@@ -45,9 +49,10 @@ describe('GetPlayerById', () => {
     const repository = new InMemoryPlayerRepository();
     const getPlayerById = new GetPlayerById(repository);
     const id = PlayerId.generate();
+    const actor = { id: PlayerId.generate(), role: PlayerRole.USER };
 
     // Act
-    const result = await getPlayerById.execute(id);
+    const result = await getPlayerById.execute(id, actor);
 
     // Assert
     expect(isOk(result)).toBe(false);

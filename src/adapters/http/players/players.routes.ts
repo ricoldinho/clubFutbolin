@@ -1,18 +1,22 @@
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
+import type { IPasswordHasher } from '@/application/ports/auth/PasswordHasher.port';
+import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import { GetPlayerById } from '@/application/use-cases/players/GetPlayerById.use-case';
 import { ListPlayers } from '@/application/use-cases/players/ListPlayers.use-case';
 import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
 import { DeletePlayer } from '@/application/use-cases/players/DeletePlayer.use-case';
 import { UpdatePlayer } from '@/application/use-cases/players/UpdatePlayer.use-case';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+import { parsePlayerRole } from '@/domain/players/PlayerRole';
 import type { Player } from '@/domain/players/Player.entity';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
 import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
 import { parsePlayerCategory } from '@/domain/players/PlayerCategory';
 import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
+import { createRequireAuth } from '@/adapters/http/auth/auth-plugin';
 import {
   getPlayerByIdParamsSchema,
   registerPlayerBodySchema,
@@ -26,11 +30,12 @@ import {
  *
  * Convenciones:
  * - Prefijo de recurso: /players
- * - Casos de uso de solo lectura: GetPlayerById, ListPlayers
- * - La capa HTTP traduce los errores a códigos de estado (400, 404, ...)
+ * - POST /players y POST /auth/login son públicos; el resto requieren JWT.
  */
 interface PlayersRoutesOptions extends FastifyPluginOptions {
   repository: IPlayerRepository;
+  passwordHasher: IPasswordHasher;
+  jwtService: IJwtService;
 }
 
 /**
@@ -47,6 +52,7 @@ interface PlayerResponse {
   league: string[];
   birthdate: string;
   category: string;
+  role: string;
 }
 
 function toPlayerResponse(player: Player): PlayerResponse {
@@ -60,6 +66,7 @@ function toPlayerResponse(player: Player): PlayerResponse {
     league: [...player.league],
     birthdate: player.birthdate.value.toISOString().slice(0, 10),
     category: player.category,
+    role: player.role,
   };
 }
 
@@ -78,9 +85,13 @@ export async function playersRoutes(
   options: PlayersRoutesOptions,
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
+  const requireAuth = createRequireAuth(options.jwtService);
   const getPlayerById = new GetPlayerById(options.repository);
   const listPlayers = new ListPlayers(options.repository);
-  const registerPlayer = new RegisterPlayer(options.repository);
+  const registerPlayer = new RegisterPlayer(
+    options.repository,
+    options.passwordHasher,
+  );
   const deletePlayer = new DeletePlayer(options.repository);
   const updatePlayer = new UpdatePlayer(options.repository);
 
@@ -103,7 +114,7 @@ export async function playersRoutes(
       try {
         const body = request.body as RegisterPlayerBody;
 
-        const props = {
+        const result = await registerPlayer.execute({
           name: body.name,
           lastname: body.lastname,
           nickname: body.nickname ?? null,
@@ -112,9 +123,8 @@ export async function playersRoutes(
           league: body.league,
           birthdate: Birthdate.create(body.birthdate),
           category: parsePlayerCategory(body.category),
-        };
-
-        const result = await registerPlayer.execute(props);
+          password: body.password,
+        });
 
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
@@ -142,14 +152,16 @@ export async function playersRoutes(
   /**
    * GET /players/:playerId
    *
-   * Obtiene un Player por identificador.
+   * Obtiene un Player por identificador. Requiere autenticación; solo el propio Player o ADMIN.
    * - 200: Player encontrado
+   * - 401: sin token o token inválido
+   * - 403: sin permiso para ver este jugador
    * - 404: Player no encontrado
-   * - 400: playerId con formato inválido (no es UUID)
    */
   zodServer.get(
     '/players/:playerId',
     {
+      preHandler: [requireAuth],
       schema: {
         params: getPlayerByIdParamsSchema,
       },
@@ -158,11 +170,15 @@ export async function playersRoutes(
       try {
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
-        const result = await getPlayerById.execute(playerId);
+        const actor = {
+          id: PlayerId.fromString(request.user!.playerId),
+          role: parsePlayerRole(request.user!.role),
+        };
+        const result = await getPlayerById.execute(playerId, actor);
 
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
-          request.log.warn({ err: result.error }, 'Player no encontrado');
+          request.log.warn({ err: result.error }, 'Player no encontrado o sin permiso');
           return reply.code(statusCode).send({ message });
         }
 
@@ -185,14 +201,16 @@ export async function playersRoutes(
   /**
    * DELETE /players/:playerId
    *
-   * Elimina un Player por identificador.
+   * Elimina un Player. Requiere autenticación; solo el propio Player o ADMIN.
    * - 204: Player eliminado
+   * - 401: sin token o token inválido
+   * - 403: sin permiso
    * - 404: Player no encontrado
-   * - 400: playerId con formato inválido (no es UUID)
    */
   zodServer.delete(
     '/players/:playerId',
     {
+      preHandler: [requireAuth],
       schema: {
         params: getPlayerByIdParamsSchema,
       },
@@ -201,11 +219,15 @@ export async function playersRoutes(
       try {
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
-        const result = await deletePlayer.execute(playerId);
+        const actor = {
+          id: PlayerId.fromString(request.user!.playerId),
+          role: parsePlayerRole(request.user!.role),
+        };
+        const result = await deletePlayer.execute(playerId, actor);
 
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
-          request.log.warn({ err: result.error }, 'Player no encontrado al eliminar');
+          request.log.warn({ err: result.error }, 'Player no encontrado o sin permiso al eliminar');
           return reply.code(statusCode).send({ message });
         }
 
@@ -228,15 +250,18 @@ export async function playersRoutes(
   /**
    * PATCH /players/:playerId
    *
-   * Actualiza los datos de un Player existente.
+   * Actualiza los datos de un Player. Requiere autenticación.
+   * Solo un ADMIN puede asignar role ADMIN a otro.
    * - 200: Player actualizado
+   * - 401: sin token o token inválido
+   * - 403: sin permiso (ej. USER intentando asignar ADMIN)
    * - 404: Player no encontrado
-   * - 400: body inválido o playerId con formato inválido
    * - 409: email ya en uso
    */
   zodServer.patch(
     '/players/:playerId',
     {
+      preHandler: [requireAuth],
       schema: {
         params: getPlayerByIdParamsSchema,
         body: updatePlayerBodySchema,
@@ -247,9 +272,14 @@ export async function playersRoutes(
         const { playerId: rawId } = request.params as { playerId: string };
         const body = request.body as UpdatePlayerBody;
         const playerId = PlayerId.fromString(rawId);
+        const actor = {
+          id: PlayerId.fromString(request.user!.playerId),
+          role: parsePlayerRole(request.user!.role),
+        };
 
         const input = {
           id: playerId,
+          actor,
           name: body.name,
           lastname: body.lastname,
           nickname: body.nickname,
@@ -264,6 +294,7 @@ export async function playersRoutes(
           category: body.category
             ? parsePlayerCategory(body.category)
             : undefined,
+          role: body.role ? parsePlayerRole(body.role) : undefined,
         };
 
         const result = await updatePlayer.execute(input);
@@ -306,13 +337,13 @@ export async function playersRoutes(
   /**
    * GET /players
    *
-   * Lista todos los Players.
+   * Lista todos los Players. Requiere autenticación (cualquier role).
    * - 200: lista (posiblemente vacía)
-   *
-   * Más adelante se puede extender con paginación y filtros por querystring.
+   * - 401: sin token o token inválido
    */
   zodServer.get(
     '/players',
+    { preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const result = await listPlayers.execute();

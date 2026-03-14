@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Player } from '@/domain/players/Player.entity';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { PlayerRole } from '@/domain/players/PlayerRole';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
 import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
@@ -16,6 +17,7 @@ describe('Player', () => {
     league: ['Liga Provincial', 'Liga Autonómica'],
     birthdate: Birthdate.create('2005-03-15'),
     category: PlayerCategory.PRIMERA,
+    role: PlayerRole.USER,
   };
 
   it('debe crear un Player con todas las propiedades', () => {

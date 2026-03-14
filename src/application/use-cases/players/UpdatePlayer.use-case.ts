@@ -2,15 +2,22 @@ import { Player } from '@/domain/players/Player.entity';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 import { EmailAlreadyInUseError } from '@/domain/players/errors';
-import { NotFoundError } from '@/domain/shared/errors';
+import { NotFoundError, ForbiddenError } from '@/domain/shared/errors';
 import type { Email } from '@/domain/players/value-objects/Email.value-object';
 import type { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
 import type { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object';
 import type { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { PlayerRole } from '@/domain/players/PlayerRole';
 import { Result } from '@/shared/result';
+
+export interface UpdatePlayerActor {
+  id: PlayerId;
+  role: PlayerRole;
+}
 
 export interface UpdatePlayerInput {
   id: PlayerId;
+  actor: UpdatePlayerActor;
   name?: string;
   lastname?: string;
   nickname?: string | null;
@@ -19,14 +26,18 @@ export interface UpdatePlayerInput {
   league?: string[];
   birthdate?: Birthdate;
   category?: PlayerCategory;
+  role?: PlayerRole;
 }
 
-type UpdatePlayerError = NotFoundError | EmailAlreadyInUseError;
+type UpdatePlayerError = NotFoundError | EmailAlreadyInUseError | ForbiddenError;
 
 /**
  * Actualiza los datos de un Player existente.
+ * Solo el propio Player o un ADMIN pueden actualizar.
  * - Si no existe, devuelve Result.fail(NotFoundError) (HTTP → 404).
+ * - Si el actor no tiene permiso (no es el propio jugador ni ADMIN), Result.fail(ForbiddenError) (HTTP → 403).
  * - Si el nuevo email ya está en uso por otro Player, devuelve Result.fail(EmailAlreadyInUseError) (HTTP → 409).
+ * - Solo un actor con role ADMIN puede asignar role ADMIN a otro Player; si no, Result.fail(ForbiddenError) (HTTP → 403).
  */
 export class UpdatePlayer {
   constructor(private readonly repository: IPlayerRepository) {}
@@ -35,6 +46,20 @@ export class UpdatePlayer {
     const existing = await this.repository.findById(input.id);
     if (existing === null) {
       return Result.fail(new NotFoundError('Player', input.id.value));
+    }
+
+    const isSelf = input.actor.id.equals(input.id);
+    const isAdmin = input.actor.role === PlayerRole.ADMIN;
+    if (!isSelf && !isAdmin) {
+      return Result.fail(new ForbiddenError());
+    }
+
+    if (input.role !== undefined && input.role === PlayerRole.ADMIN) {
+      if (input.actor.role !== PlayerRole.ADMIN) {
+        return Result.fail(
+          new ForbiddenError('Solo un administrador puede asignar el rol ADMIN'),
+        );
+      }
     }
 
     if (input.email !== undefined) {
@@ -58,6 +83,7 @@ export class UpdatePlayer {
       league: input.league !== undefined ? input.league : existing.league,
       birthdate: input.birthdate ?? existing.birthdate,
       category: input.category ?? existing.category,
+      role: input.role ?? existing.role,
     });
 
     await this.repository.save(updated);

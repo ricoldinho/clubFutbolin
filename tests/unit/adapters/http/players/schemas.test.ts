@@ -6,7 +6,7 @@ import {
 } from '@/adapters/http/players/schemas';
 
 describe('registerPlayerBodySchema', () => {
-  it('acepta un payload válido', () => {
+  it('acepta un payload válido con password', () => {
     const payload = {
       name: 'Manuel',
       lastname: 'Rico',
@@ -16,6 +16,7 @@ describe('registerPlayerBodySchema', () => {
       league: ['Liga 1'],
       birthdate: '1990-01-01',
       category: 'PRIMERA',
+      password: 'password123',
     };
 
     const result = registerPlayerBodySchema.safeParse(payload);

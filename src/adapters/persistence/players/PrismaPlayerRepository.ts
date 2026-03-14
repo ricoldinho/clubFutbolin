@@ -10,7 +10,12 @@ import {
   PlayerId,
 } from "@/domain/players/value-objects";
 import { parsePlayerCategory } from "@/domain/players/PlayerCategory";
-import type { IPlayerRepository } from "@/application/ports/players/Player.repository";
+import { parsePlayerRole } from "@/domain/players/PlayerRole";
+import { InfrastructureError } from "@/domain/shared/errors";
+import type {
+  IPlayerRepository,
+  PlayerLoginData,
+} from "@/application/ports/players/Player.repository";
 
 type PrismaPlayer = {
   id: string;
@@ -22,6 +27,7 @@ type PrismaPlayer = {
   league: string[];
   birthdate: Date;
   category: PrismaPlayerCategory;
+  role: string;
 };
 
 export class PrismaPlayerRepository implements IPlayerRepository {
@@ -38,6 +44,7 @@ export class PrismaPlayerRepository implements IPlayerRepository {
       league: row.league,
       birthdate: Birthdate.create(row.birthdate),
       category: parsePlayerCategory(row.category as unknown as string),
+      role: parsePlayerRole(row.role),
     });
   }
 
@@ -54,9 +61,10 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         league: true,
         birthdate: true,
         category: true,
+        role: true,
       },
     });
-    return row ? this.toDomain(row) : null;
+    return row ? this.toDomain(row as PrismaPlayer) : null;
   }
 
   async findById(id: PlayerId): Promise<Player | null> {
@@ -72,9 +80,10 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         league: true,
         birthdate: true,
         category: true,
+        role: true,
       },
     });
-    return row ? this.toDomain(row) : null;
+    return row ? this.toDomain(row as PrismaPlayer) : null;
   }
 
   async findAll(): Promise<Player[]> {
@@ -89,16 +98,29 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         league: true,
         birthdate: true,
         category: true,
+        role: true,
       },
     });
     return rows.map((row: PrismaPlayer) => this.toDomain(row));
   }
 
-  async save(player: Player): Promise<void> {
+  async findLoginDataByEmail(email: Email): Promise<PlayerLoginData | null> {
+    const row = await this.prisma.player.findUnique({
+      where: { email: email.value },
+      select: { id: true, role: true, passwordHash: true },
+    });
+    if (!row) return null;
+    return {
+      playerId: PlayerId.fromString(row.id),
+      role: parsePlayerRole(row.role as string),
+      passwordHash: row.passwordHash,
+    };
+  }
+
+  async save(player: Player, passwordHash?: string): Promise<void> {
     const id = player.id?.value ?? PlayerId.generate().value;
 
-    const data = {
-      id,
+    const baseData = {
       email: player.email.value,
       name: player.name,
       lastname: player.lastname,
@@ -107,21 +129,37 @@ export class PrismaPlayerRepository implements IPlayerRepository {
       league: [...player.league],
       birthdate: player.birthdate.value,
       category: player.category as PrismaPlayerCategory,
+      role: player.role as string,
     };
 
+    const existing = await this.prisma.player.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    let createPasswordHash: string;
+    if (existing) {
+      createPasswordHash = passwordHash ?? '';
+    } else {
+      if (passwordHash === undefined || passwordHash === '') {
+        throw new InfrastructureError(
+          'Password hash is required when creating a new player',
+        );
+      }
+      createPasswordHash = passwordHash;
+    }
+
     await this.prisma.player.upsert({
-      where: { id: data.id },
+      where: { id },
       update: {
-        email: data.email,
-        name: data.name,
-        lastname: data.lastname,
-        nickname: data.nickname,
-        phoneNumber: data.phoneNumber,
-        league: data.league,
-        birthdate: data.birthdate,
-        category: data.category,
+        ...baseData,
+        ...(passwordHash !== undefined && { passwordHash }),
       },
-      create: data,
+      create: {
+        id,
+        ...baseData,
+        passwordHash: createPasswordHash,
+      },
     });
   }
 

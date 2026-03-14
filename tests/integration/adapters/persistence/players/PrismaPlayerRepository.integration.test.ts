@@ -10,6 +10,7 @@ import {
   PlayerId,
 } from '@/domain/players/value-objects';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { PlayerRole } from '@/domain/players/PlayerRole';
 
 // Prisma 7 exige un adapter en el constructor; el setup de integración ya ha asignado DATABASE_URL.
 const adapter = new PrismaPg({
@@ -28,6 +29,7 @@ function makePlayer(overrides: Partial<{
   league: string[];
   birthdate: Date | string;
   category: PlayerCategory;
+  role: PlayerRole;
 }> = {}): Player {
   const defaults = {
     name: 'Juan',
@@ -38,6 +40,7 @@ function makePlayer(overrides: Partial<{
     league: ['Liga A'],
     birthdate: new Date('1995-05-15'),
     category: PlayerCategory.TERCERA,
+    role: PlayerRole.USER,
   };
   const opts = { ...defaults, ...overrides };
   const props = {
@@ -50,6 +53,7 @@ function makePlayer(overrides: Partial<{
     league: opts.league,
     birthdate: Birthdate.create(opts.birthdate),
     category: opts.category,
+    role: opts.role,
   };
   return Player.create(props as Parameters<typeof Player.create>[0]);
 }
@@ -72,7 +76,7 @@ describe('PrismaPlayerRepository (integración)', () => {
       lastname: 'López',
     });
 
-    await repository.save(player);
+    await repository.save(player, 'testPasswordHash');
 
     const found = await repository.findById(id);
     expect(found).not.toBeNull();
@@ -99,8 +103,8 @@ describe('PrismaPlayerRepository (integración)', () => {
   it('findAll: devuelve todos los jugadores guardados', async () => {
     const p1 = makePlayer({ email: 'all1@example.com', name: 'One' });
     const p2 = makePlayer({ email: 'all2@example.com', name: 'Two' });
-    await repository.save(p1);
-    await repository.save(p2);
+    await repository.save(p1, 'hash1');
+    await repository.save(p2, 'hash2');
 
     const list = await repository.findAll();
     expect(list).toHaveLength(2);
@@ -110,7 +114,7 @@ describe('PrismaPlayerRepository (integración)', () => {
 
   it('findByEmail: recupera por email', async () => {
     const player = makePlayer({ email: 'byemail@example.com' });
-    await repository.save(player);
+    await repository.save(player, 'hash');
 
     const found = await repository.findByEmail(Email.create('byemail@example.com'));
     expect(found).not.toBeNull();
@@ -122,10 +126,48 @@ describe('PrismaPlayerRepository (integración)', () => {
     expect(found).toBeNull();
   });
 
+  it('findLoginDataByEmail: devuelve playerId, role y passwordHash cuando el email existe', async () => {
+    const id = PlayerId.generate();
+    const player = makePlayer({
+      id,
+      email: 'login@example.com',
+    });
+    const storedHash = '$2b$10$storedHashForLoginTest';
+    await repository.save(player, storedHash);
+
+    const loginData = await repository.findLoginDataByEmail(Email.create('login@example.com'));
+
+    expect(loginData).not.toBeNull();
+    expect(loginData!.playerId.value).toBe(id.value);
+    expect(loginData!.role).toBe(PlayerRole.USER);
+    expect(loginData!.passwordHash).toBe(storedHash);
+  });
+
+  it('findLoginDataByEmail: devuelve role ADMIN cuando el jugador tiene role ADMIN', async () => {
+    const id = PlayerId.generate();
+    const player = makePlayer({
+      id,
+      email: 'admin-login@example.com',
+      role: PlayerRole.ADMIN,
+    });
+    await repository.save(player, 'adminHash');
+
+    const loginData = await repository.findLoginDataByEmail(Email.create('admin-login@example.com'));
+
+    expect(loginData).not.toBeNull();
+    expect(loginData!.role).toBe(PlayerRole.ADMIN);
+    expect(loginData!.passwordHash).toBe('adminHash');
+  });
+
+  it('findLoginDataByEmail: devuelve null cuando el email no existe', async () => {
+    const loginData = await repository.findLoginDataByEmail(Email.create('noexiste-login@example.com'));
+    expect(loginData).toBeNull();
+  });
+
   it('delete: elimina el jugador y findById ya no lo encuentra', async () => {
     const id = PlayerId.generate();
     const player = makePlayer({ id, email: 'todelete@example.com' });
-    await repository.save(player);
+    await repository.save(player, 'hash');
 
     await repository.delete(id);
 

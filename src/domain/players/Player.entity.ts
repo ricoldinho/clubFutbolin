@@ -3,6 +3,7 @@ import { PhoneNumber } from './value-objects/PhoneNumber.value-object';
 import { Birthdate } from './value-objects/Birthdate.value-object';
 import { PlayerId } from './value-objects/PlayerId.value-object';
 import { PlayerCategory } from './PlayerCategory';
+import type { PlayerRole } from './PlayerRole';
 
 /**
  * Entidad de dominio Player.
@@ -20,6 +21,7 @@ export interface PlayerProps {
   league: readonly string[];
   birthdate: Birthdate;
   category: PlayerCategory;
+  role: PlayerRole;
 }
 
 export interface PlayerIdProps extends PlayerProps {
@@ -36,6 +38,7 @@ export class Player {
   readonly league: readonly string[];
   readonly birthdate: Birthdate;
   readonly category: PlayerCategory;
+  readonly role: PlayerRole;
 
   private constructor(props: PlayerProps | PlayerIdProps) {
     const withId = props as PlayerIdProps;
@@ -50,6 +53,7 @@ export class Player {
     this.league = Array.isArray(props.league) ? [...props.league] : [];
     this.birthdate = props.birthdate;
     this.category = props.category;
+    this.role = props.role;
   }
 
   static create(props: PlayerProps | PlayerIdProps): Player {

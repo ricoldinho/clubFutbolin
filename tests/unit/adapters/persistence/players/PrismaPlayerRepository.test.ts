@@ -8,6 +8,8 @@ import {
   PlayerId,
 } from '@/domain/players/value-objects';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { PlayerRole } from '@/domain/players/PlayerRole';
+import { InfrastructureError } from '@/domain/shared/errors';
 
 function makePrismaRow(overrides: Partial<{
   id: string;
@@ -19,6 +21,7 @@ function makePrismaRow(overrides: Partial<{
   league: string[];
   birthdate: Date;
   category: string;
+  role: string;
 }> = {}) {
   return {
     id: '123e4567-e89b-12d3-a456-426614174000',
@@ -30,6 +33,7 @@ function makePrismaRow(overrides: Partial<{
     league: ['Liga 1'],
     birthdate: new Date('1990-01-01'),
     category: 'PRIMERA',
+    role: 'USER',
     ...overrides,
   };
 }
@@ -45,6 +49,7 @@ function makePlayer(overrides: Partial<{ id: PlayerId }> = {}) {
     league: ['Liga 1'],
     birthdate: Birthdate.create(new Date('1990-01-01')),
     category: PlayerCategory.PRIMERA,
+    role: PlayerRole.USER,
   });
 }
 
@@ -150,6 +155,7 @@ describe('PrismaPlayerRepository', () => {
 
   describe('save', () => {
     it('llama a upsert con datos del Player (con id)', async () => {
+      mockFindUnique.mockResolvedValue({ id: makePlayer().id!.value });
       mockUpsert.mockResolvedValue(undefined);
 
       const player = makePlayer();
@@ -166,16 +172,46 @@ describe('PrismaPlayerRepository', () => {
           league: [...player.league],
           birthdate: player.birthdate.value,
           category: player.category,
+          role: player.role,
         }),
         create: expect.objectContaining({
           id: player.id!.value,
           email: player.email.value,
           name: player.name,
+          role: player.role,
         }),
       });
     });
 
+    it('lanza InfrastructureError si se crea un Player sin passwordHash', async () => {
+      mockFindUnique.mockResolvedValue(null);
+
+      const playerWithoutId = Player.create({
+        name: 'Nuevo',
+        lastname: 'Jugador',
+        nickname: null,
+        email: Email.create('nologin@example.com'),
+        phoneNumber: PhoneNumber.create('600000001'),
+        league: [],
+        birthdate: Birthdate.create(new Date('2000-01-01')),
+        category: PlayerCategory.PRIMERA,
+        role: PlayerRole.USER,
+      });
+
+      try {
+        await repository.save(playerWithoutId);
+        expect.fail('debería haber lanzado');
+      } catch (err) {
+        expect(err).toBeInstanceOf(InfrastructureError);
+        expect((err as Error).message).toBe(
+          'Password hash is required when creating a new player',
+        );
+      }
+      expect(mockUpsert).not.toHaveBeenCalled();
+    });
+
     it('genera id cuando el Player no tiene id (creación)', async () => {
+      mockFindUnique.mockResolvedValue(null);
       mockUpsert.mockResolvedValue(undefined);
 
       const playerWithoutId = Player.create({
@@ -187,9 +223,10 @@ describe('PrismaPlayerRepository', () => {
         league: [],
         birthdate: Birthdate.create(new Date('2000-01-01')),
         category: PlayerCategory.PRIMERA,
+        role: PlayerRole.USER,
       });
 
-      await repository.save(playerWithoutId);
+      await repository.save(playerWithoutId, 'fakePasswordHash');
 
       expect(mockUpsert).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -28,6 +28,18 @@ export class NotFoundError extends Error {
 }
 
 /**
+ * Error de autorización: el actor no tiene permiso para esta acción.
+ * Ej.: un USER intenta asignar role ADMIN a otro Player.
+ */
+export class ForbiddenError extends Error {
+  constructor(message = 'No tienes permiso para realizar esta acción') {
+    super(message);
+    this.name = 'ForbiddenError';
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
+  }
+}
+
+/**
  * Error de infraestructura: fallos de BD, red, etc.
  * Úsalo en repositorios y adaptadores cuando algo externo falla.
  */

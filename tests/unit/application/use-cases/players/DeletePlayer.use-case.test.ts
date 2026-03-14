@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { DeletePlayer } from '@/application/use-cases/players/DeletePlayer.use-case';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
+import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
+import { PlayerRole } from '@/domain/players/PlayerRole';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PhoneNumber } from '@/domain/players/value-objects/PhoneNumber.value-object';
@@ -11,10 +13,10 @@ import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.u
 import { isOk } from '@/shared/result';
 
 describe('DeletePlayer', () => {
-  it('devuelve Result.ok y elimina el Player existente', async () => {
+  it('devuelve Result.ok y elimina el Player existente cuando el actor es el mismo', async () => {
     // Arrange
     const repository = new InMemoryPlayerRepository();
-    const registerPlayer = new RegisterPlayer(repository);
+    const registerPlayer = new RegisterPlayer(repository, new FakePasswordHasher());
     const deletePlayer = new DeletePlayer(repository);
     const props = {
       name: 'Luis',
@@ -25,13 +27,15 @@ describe('DeletePlayer', () => {
       league: ['Liga Provincial'],
       birthdate: Birthdate.create('2005-03-15'),
       category: PlayerCategory.PRIMERA,
+      password: 'password123',
     };
     const registerResult = await registerPlayer.execute(props);
     if (!isOk(registerResult)) throw new Error('Expected register to succeed');
     const playerId = registerResult.value.id as PlayerId;
+    const actor = { id: playerId, role: PlayerRole.USER };
 
     // Act
-    const result = await deletePlayer.execute(playerId);
+    const result = await deletePlayer.execute(playerId, actor);
 
     // Assert
     expect(isOk(result)).toBe(true);
@@ -44,9 +48,10 @@ describe('DeletePlayer', () => {
     const repository = new InMemoryPlayerRepository();
     const deletePlayer = new DeletePlayer(repository);
     const id = PlayerId.generate();
+    const actor = { id: PlayerId.generate(), role: PlayerRole.USER };
 
     // Act
-    const result = await deletePlayer.execute(id);
+    const result = await deletePlayer.execute(id, actor);
 
     // Assert
     expect(isOk(result)).toBe(false);

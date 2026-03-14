@@ -1,9 +1,13 @@
 import {
   DomainValidationError,
   NotFoundError,
+  ForbiddenError,
   InfrastructureError,
 } from '@/domain/shared/errors';
-import { EmailAlreadyInUseError } from '@/domain/players/errors';
+import {
+  EmailAlreadyInUseError,
+  InvalidCredentialsError,
+} from '@/domain/players/errors';
 
 /**
  * Resultado del mapeo de un error de dominio/inesperado a respuesta HTTP.
@@ -19,8 +23,16 @@ export interface HttpErrorMapping {
  * Añade aquí los nuevos errores de dominio según la taxonomía del proyecto.
  */
 export function mapDomainErrorToHttp(error: unknown): HttpErrorMapping {
+  if (error instanceof InvalidCredentialsError) {
+    return { statusCode: 401, message: error.message };
+  }
+
   if (error instanceof EmailAlreadyInUseError) {
     return { statusCode: 409, message: error.message };
+  }
+
+  if (error instanceof ForbiddenError) {
+    return { statusCode: 403, message: error.message };
   }
 
   if (error instanceof DomainValidationError) {

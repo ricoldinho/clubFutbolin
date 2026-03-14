@@ -7,8 +7,14 @@ import {
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { playersRoutes } from '@/adapters/http/players/players.routes';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
-import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
+import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
+import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
+import type { IPlayerRepository, PlayerLoginData } from '@/application/ports/players/Player.repository';
 import { Player } from '@/domain/players/Player.entity';
+import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+
+const TEST_JWT_SECRET = 'test-secret';
+const TEST_JWT_EXPIRES = '1h';
 
 function buildServer() {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
@@ -16,9 +22,16 @@ function buildServer() {
   app.setSerializerCompiler(serializerCompiler);
 
   const repository = new InMemoryPlayerRepository();
-  app.register(playersRoutes, { repository });
+  const passwordHasher = new FakePasswordHasher();
+  const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+  app.register(playersRoutes, { repository, passwordHasher, jwtService });
 
-  return app;
+  return { app, jwtService };
+}
+
+async function authHeaders(jwtService: JoseJwtService, playerId: string, role = 'USER') {
+  const token = await jwtService.sign({ sub: playerId, role });
+  return { Authorization: `Bearer ${token}` };
 }
 
 class FailingRepository implements IPlayerRepository {
@@ -30,9 +43,13 @@ class FailingRepository implements IPlayerRepository {
     throw new Error('Infra error in findById');
   }
 
-   async findAll(): Promise<Player[]> {
-     throw new Error('Infra error in findAll');
-   }
+  async findAll(): Promise<Player[]> {
+    throw new Error('Infra error in findAll');
+  }
+
+  async findLoginDataByEmail(): Promise<PlayerLoginData | null> {
+    return null;
+  }
 
   async save(): Promise<void> {
     throw new Error('Infra error in save');
@@ -49,16 +66,21 @@ function buildServerWithFailingRepository() {
   app.setSerializerCompiler(serializerCompiler);
 
   const repository = new FailingRepository();
-  app.register(playersRoutes, { repository });
+  const passwordHasher = new FakePasswordHasher();
+  const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+  app.register(playersRoutes, { repository, passwordHasher, jwtService });
 
   return app;
 }
 
 describe('players routes - Zod + Fastify integration', () => {
-  let server: ReturnType<typeof buildServer>;
+  let server: ReturnType<typeof buildServer>['app'];
+  let jwtService: JoseJwtService;
 
   beforeEach(async () => {
-    server = buildServer();
+    const built = buildServer();
+    server = built.app;
+    jwtService = built.jwtService;
     await server.ready();
   });
 
@@ -75,10 +97,11 @@ describe('players routes - Zod + Fastify integration', () => {
         lastname: 'Rico',
         nickname: null,
         email: 'no-es-email',
-        phoneNumber: '600123123',
+        phoneNumber: '60012345678',
         league: ['Liga 1'],
         birthdate: '1990-01-01',
         category: 'PRIMERA',
+        password: 'password123',
       },
     });
 
@@ -98,6 +121,7 @@ describe('players routes - Zod + Fastify integration', () => {
         league: ['Liga 1'],
         birthdate: '1990-01-01',
         category: 'PRIMERA',
+        password: 'password123',
       },
     });
 
@@ -111,14 +135,22 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(body.id).toBeDefined();
   });
 
-  it('devuelve 200 y lista vacía en GET /players cuando no hay registros', async () => {
-    // Act
+  it('devuelve 401 en GET /players sin token', async () => {
     const response = await server.inject({
       method: 'GET',
       url: '/players',
     });
+    expect(response.statusCode).toBe(401);
+  });
 
-    // Assert
+  it('devuelve 200 y lista vacía en GET /players cuando no hay registros', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
+    const response = await server.inject({
+      method: 'GET',
+      url: '/players',
+      headers,
+    });
+
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(Array.isArray(body)).toBe(true);
@@ -126,7 +158,6 @@ describe('players routes - Zod + Fastify integration', () => {
   });
 
   it('devuelve 200 y lista con players en GET /players', async () => {
-    // Arrange
     const payload = {
       name: 'Manuel',
       lastname: 'Rico',
@@ -136,6 +167,7 @@ describe('players routes - Zod + Fastify integration', () => {
       league: ['Liga 1'],
       birthdate: '1990-01-01',
       category: 'PRIMERA',
+      password: 'password123',
     };
     const createResponse = await server.inject({
       method: 'POST',
@@ -144,13 +176,13 @@ describe('players routes - Zod + Fastify integration', () => {
     });
     expect(createResponse.statusCode).toBe(201);
 
-    // Act
+    const headers = await authHeaders(jwtService, createResponse.json().id);
     const response = await server.inject({
       method: 'GET',
       url: '/players',
+      headers,
     });
 
-    // Assert
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(Array.isArray(body)).toBe(true);
@@ -162,26 +194,85 @@ describe('players routes - Zod + Fastify integration', () => {
     });
   });
 
+  it('devuelve 401 en GET /players/:playerId sin token', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: '/players/123e4567-e89b-12d3-a456-426614174000',
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
   it('devuelve 400 cuando playerId de GET /players/:playerId no es UUID', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'GET',
       url: '/players/not-a-uuid',
+      headers,
     });
 
     expect(response.statusCode).toBe(400);
   });
 
   it('devuelve 404 cuando el player no existe en GET /players/:playerId', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'GET',
       url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      headers,
     });
 
     expect(response.statusCode).toBe(404);
   });
 
+  it('devuelve 403 en GET /players/:playerId cuando un USER pide otro jugador', async () => {
+    const [r1, r2] = await Promise.all([
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Usuario',
+          lastname: 'Uno',
+          nickname: null,
+          email: 'user1-forbidden@example.com',
+          phoneNumber: '600111111',
+          league: [],
+          birthdate: '1990-01-01',
+          category: 'PRIMERA',
+          password: 'password123',
+        },
+      }),
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Otro',
+          lastname: 'Jugador',
+          nickname: null,
+          email: 'user2-forbidden@example.com',
+          phoneNumber: '600222222',
+          league: [],
+          birthdate: '1991-01-01',
+          category: 'PRIMERA',
+          password: 'password456',
+        },
+      }),
+    ]);
+    expect(r1.statusCode).toBe(201);
+    expect(r2.statusCode).toBe(201);
+    const id1 = (r1.json() as { id: string }).id;
+    const id2 = (r2.json() as { id: string }).id;
+    const headers = await authHeaders(jwtService, id1, 'USER');
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/players/${id2}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it('actualiza un player existente en PATCH /players/:playerId y devuelve 200', async () => {
-    // Arrange: crear player primero
     const createResponse = await server.inject({
       method: 'POST',
       url: '/players',
@@ -194,22 +285,23 @@ describe('players routes - Zod + Fastify integration', () => {
         league: ['Liga 1'],
         birthdate: '1990-01-01',
         category: 'PRIMERA',
+        password: 'password123',
       },
     });
     expect(createResponse.statusCode).toBe(201);
     const created = createResponse.json() as { id: string };
+    const headers = await authHeaders(jwtService, created.id);
 
-    // Act
     const patchResponse = await server.inject({
       method: 'PATCH',
       url: `/players/${created.id}`,
+      headers,
       payload: {
         name: 'Manuel Actualizado',
         nickname: 'Manny',
       },
     });
 
-    // Assert
     expect(patchResponse.statusCode).toBe(200);
     const body = patchResponse.json();
     expect(body.name).toBe('Manuel Actualizado');
@@ -217,9 +309,11 @@ describe('players routes - Zod + Fastify integration', () => {
   });
 
   it('devuelve 404 en PATCH /players/:playerId cuando el player no existe', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'PATCH',
       url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      headers,
       payload: {
         name: 'No existe',
       },
@@ -228,8 +322,56 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(response.statusCode).toBe(404);
   });
 
+  it('devuelve 403 en PATCH /players/:playerId cuando un USER intenta actualizar otro jugador', async () => {
+    const [r1, r2] = await Promise.all([
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Usuario',
+          lastname: 'Uno',
+          nickname: null,
+          email: 'user1-patch-forbidden@example.com',
+          phoneNumber: '600111111',
+          league: [],
+          birthdate: '1990-01-01',
+          category: 'PRIMERA',
+          password: 'password123',
+        },
+      }),
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Otro',
+          lastname: 'Jugador',
+          nickname: null,
+          email: 'user2-patch-forbidden@example.com',
+          phoneNumber: '600222222',
+          league: [],
+          birthdate: '1991-01-01',
+          category: 'PRIMERA',
+          password: 'password456',
+        },
+      }),
+    ]);
+    expect(r1.statusCode).toBe(201);
+    expect(r2.statusCode).toBe(201);
+    const id1 = (r1.json() as { id: string }).id;
+    const id2 = (r2.json() as { id: string }).id;
+    const headers = await authHeaders(jwtService, id1, 'USER');
+
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/players/${id2}`,
+      headers,
+      payload: { name: 'Intentando cambiar otro' },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it('devuelve 400 cuando el body de PATCH /players/:playerId es inválido (email incorrecto)', async () => {
-    // Arrange: crear player primero
     const createResponse = await server.inject({
       method: 'POST',
       url: '/players',
@@ -242,26 +384,26 @@ describe('players routes - Zod + Fastify integration', () => {
         league: ['Liga 1'],
         birthdate: '1990-01-01',
         category: 'PRIMERA',
+        password: 'password123',
       },
     });
     expect(createResponse.statusCode).toBe(201);
     const created = createResponse.json() as { id: string };
+    const headers = await authHeaders(jwtService, created.id);
 
-    // Act
     const response = await server.inject({
       method: 'PATCH',
       url: `/players/${created.id}`,
+      headers,
       payload: {
         email: 'no-es-email',
       },
     });
 
-    // Assert
     expect(response.statusCode).toBe(400);
   });
 
   it('devuelve 409 cuando el email ya está en uso en PATCH /players/:playerId', async () => {
-    // Arrange: crear dos players
     const payload1 = {
       name: 'Jugador 1',
       lastname: 'Uno',
@@ -271,6 +413,7 @@ describe('players routes - Zod + Fastify integration', () => {
       league: ['Liga 1'],
       birthdate: '1990-01-01',
       category: 'PRIMERA',
+      password: 'password1',
     };
     const payload2 = {
       name: 'Jugador 2',
@@ -281,6 +424,7 @@ describe('players routes - Zod + Fastify integration', () => {
       league: ['Liga 2'],
       birthdate: '1991-02-02',
       category: 'SEGUNDA',
+      password: 'password2',
     };
 
     const r1 = await server.inject({ method: 'POST', url: '/players', payload: payload1 });
@@ -288,22 +432,21 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(r1.statusCode).toBe(201);
     expect(r2.statusCode).toBe(201);
     const created2 = r2.json() as { id: string };
+    const headers = await authHeaders(jwtService, created2.id);
 
-    // Act
     const response = await server.inject({
       method: 'PATCH',
       url: `/players/${created2.id}`,
+      headers,
       payload: {
         email: payload1.email,
       },
     });
 
-    // Assert
     expect(response.statusCode).toBe(409);
   });
 
   it('elimina un player existente en DELETE /players/:playerId y devuelve 204', async () => {
-    // Arrange: crear player primero
     const createResponse = await server.inject({
       method: 'POST',
       url: '/players',
@@ -316,40 +459,94 @@ describe('players routes - Zod + Fastify integration', () => {
         league: ['Liga 1'],
         birthdate: '1990-01-01',
         category: 'PRIMERA',
+        password: 'password123',
       },
     });
     expect(createResponse.statusCode).toBe(201);
     const created = createResponse.json() as { id: string };
+    const headers = await authHeaders(jwtService, created.id);
 
-    // Act
     const deleteResponse = await server.inject({
       method: 'DELETE',
       url: `/players/${created.id}`,
+      headers,
     });
 
-    // Assert
     expect(deleteResponse.statusCode).toBe(204);
 
     const getAfterDelete = await server.inject({
       method: 'GET',
       url: `/players/${created.id}`,
+      headers,
     });
     expect(getAfterDelete.statusCode).toBe(404);
   });
 
   it('devuelve 404 en DELETE /players/:playerId cuando el player no existe', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'DELETE',
       url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      headers,
     });
 
     expect(response.statusCode).toBe(404);
   });
 
+  it('devuelve 403 en DELETE /players/:playerId cuando un USER intenta eliminar otro jugador', async () => {
+    const [r1, r2] = await Promise.all([
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Usuario',
+          lastname: 'Uno',
+          nickname: null,
+          email: 'user1-delete-forbidden@example.com',
+          phoneNumber: '600111111',
+          league: [],
+          birthdate: '1990-01-01',
+          category: 'PRIMERA',
+          password: 'password123',
+        },
+      }),
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Otro',
+          lastname: 'Jugador',
+          nickname: null,
+          email: 'user2-delete-forbidden@example.com',
+          phoneNumber: '600222222',
+          league: [],
+          birthdate: '1991-01-01',
+          category: 'PRIMERA',
+          password: 'password456',
+        },
+      }),
+    ]);
+    expect(r1.statusCode).toBe(201);
+    expect(r2.statusCode).toBe(201);
+    const id1 = (r1.json() as { id: string }).id;
+    const id2 = (r2.json() as { id: string }).id;
+    const headers = await authHeaders(jwtService, id1, 'USER');
+
+    const response = await server.inject({
+      method: 'DELETE',
+      url: `/players/${id2}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it('devuelve 400 cuando playerId de PATCH /players/:playerId no es UUID', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'PATCH',
       url: '/players/not-a-uuid',
+      headers,
       payload: {
         name: 'Nuevo nombre',
       },
@@ -359,9 +556,11 @@ describe('players routes - Zod + Fastify integration', () => {
   });
 
   it('devuelve 400 cuando playerId de DELETE /players/:playerId no es UUID', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'DELETE',
       url: '/players/not-a-uuid',
+      headers,
     });
 
     expect(response.statusCode).toBe(400);
@@ -377,6 +576,7 @@ describe('players routes - Zod + Fastify integration', () => {
       league: ['Liga 1'],
       birthdate: '1990-01-01',
       category: 'PRIMERA',
+      password: 'password123',
     };
     const first = await server.inject({ method: 'POST', url: '/players', payload });
     expect(first.statusCode).toBe(201);
@@ -404,6 +604,7 @@ describe('players routes - errores de infraestructura', () => {
         league: ['Liga 1'],
         birthdate: '1990-01-01',
         category: 'PRIMERA',
+        password: 'password123',
       },
     });
 
@@ -415,10 +616,13 @@ describe('players routes - errores de infraestructura', () => {
   it('devuelve 500 cuando el repositorio falla en GET /players/:playerId', async () => {
     const server = buildServerWithFailingRepository();
     await server.ready();
+    const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    const headers = await authHeaders(jwtService, '123e4567-e89b-12d3-a456-426614174000');
 
     const response = await server.inject({
       method: 'GET',
       url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      headers,
     });
 
     await server.close();
@@ -429,10 +633,13 @@ describe('players routes - errores de infraestructura', () => {
   it('devuelve 500 cuando el repositorio falla en DELETE /players/:playerId', async () => {
     const server = buildServerWithFailingRepository();
     await server.ready();
+    const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    const headers = await authHeaders(jwtService, '123e4567-e89b-12d3-a456-426614174000');
 
     const response = await server.inject({
       method: 'DELETE',
       url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      headers,
     });
 
     await server.close();
@@ -443,10 +650,13 @@ describe('players routes - errores de infraestructura', () => {
   it('devuelve 500 cuando el repositorio falla en GET /players', async () => {
     const server = buildServerWithFailingRepository();
     await server.ready();
+    const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
 
     const response = await server.inject({
       method: 'GET',
       url: '/players',
+      headers,
     });
 
     await server.close();
@@ -457,10 +667,13 @@ describe('players routes - errores de infraestructura', () => {
   it('devuelve 500 cuando el repositorio falla en PATCH /players/:playerId', async () => {
     const server = buildServerWithFailingRepository();
     await server.ready();
+    const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    const headers = await authHeaders(jwtService, '123e4567-e89b-12d3-a456-426614174000');
 
     const response = await server.inject({
       method: 'PATCH',
       url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      headers,
       payload: { name: 'Test' },
     });
 
