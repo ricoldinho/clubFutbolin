@@ -1,0 +1,38 @@
+---
+description: Orden y buenas prácticas al añadir tablas y migraciones Prisma para evitar migraciones fallidas en BD limpia (CI, clones nuevos)
+alwaysApply: false
+globs: prisma/**/*
+---
+
+# Prisma: orden de migraciones y nuevas tablas
+
+## Cómo se aplican las migraciones
+
+- Prisma aplica las migraciones en **orden lexicográfico por nombre de carpeta** (p. ej. `20260315000000_init` antes que `20260320000000_add_team`).
+- En una BD **limpia** (nuevo clone, CI, `migrate reset`), se ejecutan en ese orden. Si una migración hace `ALTER TABLE "X"` pero la tabla `X` se crea en una migración **posterior**, fallará con `relation "X" does not exist`.
+
+## Reglas para no romper el orden
+
+1. **Generar migraciones con Prisma, no a mano**
+   - Usar siempre `npx prisma migrate dev --name descripcion_corta` para crear una nueva migración.
+   - Prisma asigna un timestamp al nombre (ej. `20260320120000_descripcion_corta`), así que la nueva migración se aplica **después** de las ya existentes. Las tablas que crees o alteres ya existirán o estarán creadas en migraciones anteriores.
+
+2. **Nuevas tablas**
+   - Añade el `model` en `prisma/schema.prisma` y ejecuta `prisma migrate dev --name add_nombre_tabla`. La migración generada tendrá un nombre con timestamp posterior al baseline; se aplicará en orden correcto.
+
+3. **Nuevas columnas en tablas existentes**
+   - Añade el campo en el `model` y ejecuta `prisma migrate dev --name add_campo_a_tabla`. La migración generada será un `ALTER TABLE` que se aplica después de todas las migraciones previas (donde la tabla ya fue creada). Orden correcto.
+
+4. **No crear carpetas de migración a mano** con timestamps arbitrarios (p. ej. una migración `20260101000000_alter_something` que altere una tabla creada en `20260315000000_init`). Eso invierte el orden y rompe BD limpias.
+
+5. **No renombrar** carpetas de migraciones ya aplicadas (Prisma lo desaconseja; rompe el historial en `_prisma_migrations`).
+
+## Si hay que consolidar historial (baseline único)
+
+- Si en el pasado quedaron migraciones en orden incorrecto o quieres un único baseline: crear **una sola** migración que defina todo el esquema actual (CREATE TYPE, CREATE TABLE con todas las columnas). Eliminar las migraciones antiguas del directorio `prisma/migrations/` (solo las carpetas; mantener `migration_lock.toml`). Quien tenga BDs con las migraciones viejas debe hacer `prisma migrate reset` (o migrar datos) antes de seguir. Ver AGENT.md Tech Debt si se documenta el baseline actual.
+
+## Resumen
+
+- **Siempre** `prisma migrate dev --name ...` para nuevas migraciones.
+- **Nunca** crear a mano una migración cuyo nombre (timestamp) sea anterior a la migración que crea las tablas que esa migración altera o usa.
+- Así se evita el error en CI y en cualquier BD limpia al hacer `migrate deploy` o `migrate reset`.

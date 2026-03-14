@@ -25,6 +25,7 @@
 - **Bundler pendiente:** Build actual es `tsc` + `tsconfig-paths` en runtime. Ver `docs/bundler-pendiente.md` para migración a tsup u otro bundler.
 - Validación con Zod en Fastify (body/query).
 - **PrismaClient:** Una sola instancia por proceso; se crea en `buildServer` (o infraestructura) y se pasa a los repositorios. En tests de integración, cerrar con `prisma.$disconnect()` al terminar.
+- **Migraciones Prisma (orden):** Las migraciones se aplican en orden lexicográfico por nombre de carpeta. Para no romper BD limpias (CI, clones), **siempre** generar nuevas migraciones con `npx prisma migrate dev --name descripcion`; no crear carpetas de migración a mano con timestamps que inviertan el orden (p. ej. un ALTER antes del CREATE TABLE). Ver `.cursor/rules/prisma-migraciones-orden.mdc`.
 - **BD de tests:** Los tests de integración y E2E usan una `DATABASE_URL` distinta (BD/schema de test). Está permitido borrar datos y resembrar en esa BD; nunca usar la BD de producción o desarrollo para tests automáticos.
 - **Taxonomía de errores de dominio y mapeo HTTP:**
   - **Errores compartidos** en `src/domain/shared/errors.ts`: `DomainValidationError` (validación VO/parseo → 400), `NotFoundError` (entidad no encontrada → 404), `InfrastructureError` (fallos BD/red → 500).

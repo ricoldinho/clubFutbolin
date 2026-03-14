@@ -18,6 +18,7 @@ description: Schema Prisma, migraciones e implementación de repositorios (ej. I
 - **Email único:** Columna `email` con restricción UNIQUE (AGENT.md).
 - **PrismaClient singleton:** Crear una sola instancia de `PrismaClient` por proceso y compartirla entre repositorios. Cerrar el cliente al finalizar la app o los tests.
 - **BD de test:** Definir una `DATABASE_URL` específica para tests (otra BD/schema). Limpiar tablas entre tests sin afectar a desarrollo/producción.
+- **Orden de migraciones:** Siempre generar migraciones con `prisma migrate dev --name descripcion`. No crear carpetas de migración a mano con timestamps que dejen un ALTER (o dependencia) antes del CREATE TABLE correspondiente; en BD limpia (CI) fallaría. Ver `.cursor/rules/prisma-migraciones-orden.mdc`.
 
 ## Referencias
 

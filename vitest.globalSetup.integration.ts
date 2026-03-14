@@ -36,6 +36,8 @@ export default function globalSetup(): void {
 
   process.env.DATABASE_URL = urlTest;
 
+  // Si la BD de test tiene una migración marcada como fallida (P3009), hay que limpiarla una vez
+  // desde tu terminal (fuera de Cursor): DATABASE_URL=<tu DATABASE_URL_TEST> npx prisma migrate reset --force
   execSync('npx prisma migrate deploy', {
     stdio: 'inherit',
     env: process.env,

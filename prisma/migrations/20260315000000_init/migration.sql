@@ -1,6 +1,9 @@
 -- CreateEnum
 CREATE TYPE "PlayerCategory" AS ENUM ('CUARTA', 'TERCERA', 'SEGUNDA', 'PRIMERA', 'ELITE');
 
+-- CreateEnum
+CREATE TYPE "PlayerRole" AS ENUM ('USER', 'ADMIN');
+
 -- CreateTable
 CREATE TABLE "Player" (
     "id" UUID NOT NULL,
@@ -12,6 +15,8 @@ CREATE TABLE "Player" (
     "league" TEXT[],
     "birthdate" TIMESTAMP(3) NOT NULL,
     "category" "PlayerCategory" NOT NULL,
+    "role" "PlayerRole" NOT NULL DEFAULT 'USER',
+    "passwordHash" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
