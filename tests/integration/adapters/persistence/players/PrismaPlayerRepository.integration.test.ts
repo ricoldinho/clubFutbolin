@@ -1,0 +1,135 @@
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaPlayerRepository } from '@/adapters/persistence/players/PrismaPlayerRepository';
+import { Player } from '@/domain/players/Player.entity';
+import {
+  Email,
+  PhoneNumber,
+  Birthdate,
+  PlayerId,
+} from '@/domain/players/value-objects';
+import { PlayerCategory } from '@/domain/players/PlayerCategory';
+
+// Prisma 7 exige un adapter en el constructor; el setup de integración ya ha asignado DATABASE_URL.
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
+const prisma = new PrismaClient({ adapter });
+const repository = new PrismaPlayerRepository(prisma);
+
+function makePlayer(overrides: Partial<{
+  id: PlayerId;
+  email: string;
+  name: string;
+  lastname: string;
+  nickname: string | null;
+  phoneNumber: string;
+  league: string[];
+  birthdate: Date | string;
+  category: PlayerCategory;
+}> = {}): Player {
+  const defaults = {
+    name: 'Juan',
+    lastname: 'García',
+    nickname: 'Juani' as string | null,
+    email: 'juan.garcia@example.com',
+    phoneNumber: '612345678',
+    league: ['Liga A'],
+    birthdate: new Date('1995-05-15'),
+    category: PlayerCategory.TERCERA,
+  };
+  const opts = { ...defaults, ...overrides };
+  const props = {
+    ...(opts.id && { id: opts.id }),
+    name: opts.name,
+    lastname: opts.lastname,
+    nickname: opts.nickname,
+    email: Email.create(opts.email),
+    phoneNumber: PhoneNumber.create(opts.phoneNumber),
+    league: opts.league,
+    birthdate: Birthdate.create(opts.birthdate),
+    category: opts.category,
+  };
+  return Player.create(props as Parameters<typeof Player.create>[0]);
+}
+
+describe('PrismaPlayerRepository (integración)', () => {
+  beforeEach(async () => {
+    await prisma.player.deleteMany({});
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it('save: persiste un jugador nuevo y findById lo recupera', async () => {
+    const id = PlayerId.generate();
+    const player = makePlayer({
+      id,
+      email: 'save-findbyid@example.com',
+      name: 'Ana',
+      lastname: 'López',
+    });
+
+    await repository.save(player);
+
+    const found = await repository.findById(id);
+    expect(found).not.toBeNull();
+    expect(found!.email.value).toBe('save-findbyid@example.com');
+    expect(found!.name).toBe('Ana');
+    expect(found!.lastname).toBe('López');
+    expect(found!.nickname).toBe('Juani');
+    expect(found!.phoneNumber.value).toBe('612345678');
+    expect(found!.league).toEqual(['Liga A']);
+    expect(found!.category).toBe(PlayerCategory.TERCERA);
+  });
+
+  it('findById: devuelve null si el jugador no existe', async () => {
+    const id = PlayerId.generate();
+    const found = await repository.findById(id);
+    expect(found).toBeNull();
+  });
+
+  it('findAll: devuelve lista vacía cuando no hay jugadores', async () => {
+    const list = await repository.findAll();
+    expect(list).toEqual([]);
+  });
+
+  it('findAll: devuelve todos los jugadores guardados', async () => {
+    const p1 = makePlayer({ email: 'all1@example.com', name: 'One' });
+    const p2 = makePlayer({ email: 'all2@example.com', name: 'Two' });
+    await repository.save(p1);
+    await repository.save(p2);
+
+    const list = await repository.findAll();
+    expect(list).toHaveLength(2);
+    const emails = list.map((p) => p.email.value).sort();
+    expect(emails).toEqual(['all1@example.com', 'all2@example.com']);
+  });
+
+  it('findByEmail: recupera por email', async () => {
+    const player = makePlayer({ email: 'byemail@example.com' });
+    await repository.save(player);
+
+    const found = await repository.findByEmail(Email.create('byemail@example.com'));
+    expect(found).not.toBeNull();
+    expect(found!.email.value).toBe('byemail@example.com');
+  });
+
+  it('findByEmail: devuelve null si el email no existe', async () => {
+    const found = await repository.findByEmail(Email.create('noexiste@example.com'));
+    expect(found).toBeNull();
+  });
+
+  it('delete: elimina el jugador y findById ya no lo encuentra', async () => {
+    const id = PlayerId.generate();
+    const player = makePlayer({ id, email: 'todelete@example.com' });
+    await repository.save(player);
+
+    await repository.delete(id);
+
+    const found = await repository.findById(id);
+    expect(found).toBeNull();
+  });
+});

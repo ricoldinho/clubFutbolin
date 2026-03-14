@@ -1,0 +1,26 @@
+---
+description: Cuándo añadir tests de integración y e2e
+alwaysApply: true
+---
+
+# Tests de integración y e2e al añadir código
+
+Además de los tests unitarios, hay que **añadir o actualizar tests de integración o e2e** cuando el código nuevo toque persistencia real o flujos HTTP completos contra la BD.
+
+## Cuándo añadir integración o e2e
+
+- **Nuevo repositorio o adaptador de persistencia** (ej. nuevo `*Repository` con Prisma) → Añadir tests en `tests/integration/` que usen la BD de test: crear/leer/actualizar/borrar y comprobar que el adaptador se comporta igual que el contrato (ver `docs/testing-db.md`).
+- **Nuevas rutas HTTP que persisten datos** → Valorar un test e2e en `tests/integration/` o `tests/e2e/`: levantar el servidor con `PrismaPlayerRepository` y BD de test, hacer `server.inject()` a la ruta y comprobar respuesta y estado en BD.
+- **Cambio en esquema Prisma o en comportamiento del repositorio** → Actualizar los tests de integración existentes que cubran ese adaptador; si no existen, añadirlos.
+
+## Dónde van
+
+- **Integración (adaptador + BD real):** `tests/integration/` — mismo layout que `src/` cuando aplique (ej. `tests/integration/adapters/persistence/players/`). Requieren `DATABASE_URL_TEST` y Postgres de test levantado (`docker compose -f docker-compose.test.yml up -d`).
+- **E2E (HTTP + app + BD):** `tests/integration/` o `tests/e2e/` — construir el servidor con `buildServer()` (o equivalente) usando la BD de test, inyectar peticiones y comprobar respuestas y efectos en BD.
+
+## Cómo ejecutarlos
+
+- Solo integración: `npm run test:integration`.
+- Antes: tener Postgres de test arriba y `DATABASE_URL_TEST` en `.env` (ver `.env.example` y `docs/testing-db.md`).
+
+No hacer commit de nuevo código de persistencia o de rutas que persisten sin los tests unitarios correspondientes; añadir tests de integración o e2e cuando el cambio lo justifique (nuevo adaptador, nuevo flujo crítico).

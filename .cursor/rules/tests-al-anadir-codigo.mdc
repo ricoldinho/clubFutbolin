@@ -17,11 +17,12 @@ Cada vez que se **añada código nuevo** en `src/` o se **modifique comportamien
 
 - **Unitarios:** `tests/unit/` — estructura espejo de `src/` (domain, application, adapters, shared). Patrón AAA, Vitest, dobles en `tests/doubles/`.
 - **HTTP/rutas:** `tests/unit/adapters/http/<recurso>/` — `schemas.test.ts` y `<recurso>.routes.test.ts` con `server.inject()`.
-- **Persistencia:** tests unitarios con Prisma mockeado en `tests/unit/adapters/persistence/` o de integración con BD de test si existe.
+- **Persistencia:** tests unitarios con Prisma mockeado en `tests/unit/adapters/persistence/`; además, tests de **integración** con BD real en `tests/integration/` (ver regla de tests integración/e2e).
 
 ## Al terminar un cambio
 
 - Ejecutar `npm run test:coverage` y comprobar que los tests pasan y que el código nuevo está cubierto.
+- Si tocaste persistencia o flujos HTTP completos, ejecutar también `npm run test:integration` (con la BD de test levantada) y añadir tests de integración/e2e si aplica.
 - No hacer commit de código en `src/` sin los tests asociados, salvo que sea solo refactor sin cambio de comportamiento (en ese caso los tests ya existentes deben seguir pasando).
 
-Si hace falta recordatorio de cómo escribir tests (AAA, Vitest, mocks), usar la skill/criterios de testing del proyecto.
+Si hace falta recordatorio de cómo escribir tests (AAA, Vitest, mocks), usar la skill/criterios de testing del proyecto. Para integración/e2e, ver la regla de tests de integración y e2e y `docs/testing-db.md`.

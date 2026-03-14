@@ -11,6 +11,25 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: clubfutbolin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/clubfutbolin_test
+      DATABASE_URL_TEST: postgresql://test:test@localhost:5432/clubfutbolin_test
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -29,8 +48,6 @@ jobs:
         continue-on-error: true
 
       - name: Generate Prisma Client
-        env:
-          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
         run: npx prisma generate
 
       - name: Lint
@@ -42,5 +59,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Tests
+      - name: Unit tests
         run: npm run test:coverage
+
+      - name: Integration tests
+        run: npm run test:integration

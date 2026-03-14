@@ -6,6 +6,7 @@ import {
   serializerCompiler,
 } from "fastify-type-provider-zod";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaPlayerRepository } from "./adapters/persistence/players/PrismaPlayerRepository";
 import { playersRoutes } from "./adapters/http/players/players.routes";
 import { options } from "./shared/config/env";
@@ -13,9 +14,6 @@ import { options } from "./shared/config/env";
 export async function buildServer() {
   let prisma: PrismaClient | undefined;
   try {
-    prisma = new PrismaClient();
-    const playerRepository = new PrismaPlayerRepository(prisma);
-
     const server = Fastify({
       logger: true,
     }).withTypeProvider<ZodTypeProvider>();
@@ -23,15 +21,22 @@ export async function buildServer() {
     server.setValidatorCompiler(validatorCompiler);
     server.setSerializerCompiler(serializerCompiler);
 
-    // Cerrar Prisma cuando Fastify se apaga (evita fugas de conexiones)
-    if (prisma) {
-      server.addHook("onClose", async () => {
-        await prisma!.$disconnect();
-      });
-    }
-
-    // 1. REGISTRO DE CONFIGURACIÓN (Primero que nada)
+    // 1. Cargar config (incluye .env) antes de crear Prisma
     await server.register(fastifyEnv, options);
+
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error(
+        "DATABASE_URL no está definida. Añádela a .env (ver .env.example)."
+      );
+    }
+    const adapter = new PrismaPg({ connectionString });
+    prisma = new PrismaClient({ adapter });
+    const playerRepository = new PrismaPlayerRepository(prisma);
+
+    server.addHook("onClose", async () => {
+      await prisma!.$disconnect();
+    });
 
     // 2. Rutas HTTP
     await server.register(playersRoutes, {

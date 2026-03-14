@@ -1,0 +1,18 @@
+---
+description: Recordatorio migración a bundler para build de producción
+alwaysApply: false
+globs: package.json, **/Dockerfile*, **/.github/workflows/*.yml, docs/bundler-pendiente.md
+---
+
+# Bundler pendiente
+
+El proyecto usa **tsconfig-paths** en `dev` y `start` para resolver el alias `@/`. Está previsto migrar a un **bundler** (p. ej. tsup o esbuild) para que el build resuelva los paths en compile time y el despliegue no dependa de tsconfig-paths.
+
+## Cuándo tenerlo en cuenta
+
+- Al tocar los scripts **build**, **start** o el flujo de **despliegue** (CI, Dockerfile, etc.).
+- Al hablar de **optimización** del arranque en producción o de **dependencias de producción**.
+
+## Referencia
+
+Ver **`docs/bundler-pendiente.md`** para comparativa de bundlers (tsup, esbuild, webpack, Rollup), pros/contras y recomendación (tsup para esta API Node).
