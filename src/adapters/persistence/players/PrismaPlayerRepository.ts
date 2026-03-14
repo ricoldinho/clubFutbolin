@@ -1,6 +1,7 @@
 import {
   PrismaClient,
   PlayerCategory as PrismaPlayerCategory,
+  PlayerRole as PrismaPlayerRole,
 } from "@prisma/client";
 import { Player } from "@/domain/players/Player.entity";
 import {
@@ -27,7 +28,7 @@ type PrismaPlayer = {
   league: string[];
   birthdate: Date;
   category: PrismaPlayerCategory;
-  role: string;
+  role: PrismaPlayerRole;
 };
 
 export class PrismaPlayerRepository implements IPlayerRepository {
@@ -112,7 +113,7 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     if (!row) return null;
     return {
       playerId: PlayerId.fromString(row.id),
-      role: parsePlayerRole(row.role as string),
+      role: parsePlayerRole(row.role),
       passwordHash: row.passwordHash,
     };
   }
@@ -129,7 +130,7 @@ export class PrismaPlayerRepository implements IPlayerRepository {
       league: [...player.league],
       birthdate: player.birthdate.value,
       category: player.category as PrismaPlayerCategory,
-      role: player.role as string,
+      role: player.role as PrismaPlayerRole,
     };
 
     const existing = await this.prisma.player.findUnique({
