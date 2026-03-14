@@ -439,4 +439,33 @@ describe('players routes - errores de infraestructura', () => {
 
     expect(response.statusCode).toBe(500);
   });
+
+  it('devuelve 500 cuando el repositorio falla en GET /players', async () => {
+    const server = buildServerWithFailingRepository();
+    await server.ready();
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/players',
+    });
+
+    await server.close();
+
+    expect(response.statusCode).toBe(500);
+  });
+
+  it('devuelve 500 cuando el repositorio falla en PATCH /players/:playerId', async () => {
+    const server = buildServerWithFailingRepository();
+    await server.ready();
+
+    const response = await server.inject({
+      method: 'PATCH',
+      url: '/players/123e4567-e89b-12d3-a456-426614174000',
+      payload: { name: 'Test' },
+    });
+
+    await server.close();
+
+    expect(response.statusCode).toBe(500);
+  });
 });

@@ -1,0 +1,27 @@
+---
+description: Añadir o actualizar tests cuando se añade o modifica código
+alwaysApply: true
+---
+
+# Tests al añadir o modificar código
+
+Cada vez que se **añada código nuevo** en `src/` o se **modifique comportamiento** existente, hay que **añadir o actualizar tests** en paralelo. No dejar la cobertura para después.
+
+## Regla
+
+- **Nuevo archivo en `src/`** → Crear el test correspondiente en `tests/unit/` con la misma estructura (espejo de `src/`).
+- **Nueva función/caso de uso/ruta** → Añadir al menos un test que cubra el comportamiento (happy path y, si aplica, error).
+- **Cambio de lógica** → Ajustar o ampliar los tests afectados para que sigan pasando y reflejen el nuevo comportamiento.
+
+## Dónde van los tests
+
+- **Unitarios:** `tests/unit/` — estructura espejo de `src/` (domain, application, adapters, shared). Patrón AAA, Vitest, dobles en `tests/doubles/`.
+- **HTTP/rutas:** `tests/unit/adapters/http/<recurso>/` — `schemas.test.ts` y `<recurso>.routes.test.ts` con `server.inject()`.
+- **Persistencia:** tests unitarios con Prisma mockeado en `tests/unit/adapters/persistence/` o de integración con BD de test si existe.
+
+## Al terminar un cambio
+
+- Ejecutar `npm run test:coverage` y comprobar que los tests pasan y que el código nuevo está cubierto.
+- No hacer commit de código en `src/` sin los tests asociados, salvo que sea solo refactor sin cambio de comportamiento (en ese caso los tests ya existentes deben seguir pasando).
+
+Si hace falta recordatorio de cómo escribir tests (AAA, Vitest, mocks), usar la skill/criterios de testing del proyecto.

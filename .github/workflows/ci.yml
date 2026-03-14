@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -23,7 +24,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
       - name: Generate Prisma Client
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
         run: npx prisma generate
 
       - name: Lint
@@ -32,5 +39,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Build
+        run: npm run build
+
       - name: Tests
-        run: npm run test:run
+        run: npm run test:coverage

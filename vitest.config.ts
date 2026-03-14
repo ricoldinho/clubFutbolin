@@ -10,6 +10,18 @@ export default defineConfig({
     isolate: true,
     mockReset: true,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'lcov'],
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/main.ts',
+        '**/index.ts',
+        '**/*.d.ts',
+        '**/ports/**/*.ts',
+      ],
+    },
   },
   resolve: {
     alias: {

@@ -1,0 +1,220 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { PrismaPlayerRepository } from '@/adapters/persistence/players/PrismaPlayerRepository';
+import { Player } from '@/domain/players/Player.entity';
+import {
+  Email,
+  PhoneNumber,
+  Birthdate,
+  PlayerId,
+} from '@/domain/players/value-objects';
+import { PlayerCategory } from '@/domain/players/PlayerCategory';
+
+function makePrismaRow(overrides: Partial<{
+  id: string;
+  email: string;
+  name: string;
+  lastname: string;
+  nickname: string | null;
+  phoneNumber: string;
+  league: string[];
+  birthdate: Date;
+  category: string;
+}> = {}) {
+  return {
+    id: '123e4567-e89b-12d3-a456-426614174000',
+    email: 'test@example.com',
+    name: 'Manuel',
+    lastname: 'Rico',
+    nickname: null,
+    phoneNumber: '600123123',
+    league: ['Liga 1'],
+    birthdate: new Date('1990-01-01'),
+    category: 'PRIMERA',
+    ...overrides,
+  };
+}
+
+function makePlayer(overrides: Partial<{ id: PlayerId }> = {}) {
+  return Player.create({
+    id: overrides.id ?? PlayerId.fromString('123e4567-e89b-12d3-a456-426614174000'),
+    name: 'Manuel',
+    lastname: 'Rico',
+    nickname: null,
+    email: Email.create('test@example.com'),
+    phoneNumber: PhoneNumber.create('600123123'),
+    league: ['Liga 1'],
+    birthdate: Birthdate.create(new Date('1990-01-01')),
+    category: PlayerCategory.PRIMERA,
+  });
+}
+
+describe('PrismaPlayerRepository', () => {
+  const mockFindUnique = vi.fn();
+  const mockFindMany = vi.fn();
+  const mockUpsert = vi.fn();
+  const mockDeleteMany = vi.fn();
+
+  const mockPrisma = {
+    player: {
+      findUnique: mockFindUnique,
+      findMany: mockFindMany,
+      upsert: mockUpsert,
+      deleteMany: mockDeleteMany,
+    },
+  };
+
+  let repository: PrismaPlayerRepository;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new PrismaPlayerRepository(mockPrisma as never);
+  });
+
+  describe('findByEmail', () => {
+    it('devuelve null cuando no hay fila', async () => {
+      mockFindUnique.mockResolvedValue(null);
+
+      const result = await repository.findByEmail(Email.create('other@example.com'));
+
+      expect(result).toBeNull();
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { email: 'other@example.com' },
+        select: expect.any(Object),
+      });
+    });
+
+    it('devuelve Player de dominio cuando hay fila', async () => {
+      const row = makePrismaRow({ email: 'a@b.com' });
+      mockFindUnique.mockResolvedValue(row);
+
+      const result = await repository.findByEmail(Email.create('a@b.com'));
+
+      expect(result).not.toBeNull();
+      expect(result?.email.value).toBe('a@b.com');
+      expect(result?.name).toBe('Manuel');
+    });
+  });
+
+  describe('findById', () => {
+    it('devuelve null cuando no hay fila', async () => {
+      mockFindUnique.mockResolvedValue(null);
+
+      const id = PlayerId.fromString('123e4567-e89b-12d3-a456-426614174000');
+      const result = await repository.findById(id);
+
+      expect(result).toBeNull();
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: id.value },
+        select: expect.any(Object),
+      });
+    });
+
+    it('devuelve Player de dominio cuando hay fila', async () => {
+      const row = makePrismaRow();
+      mockFindUnique.mockResolvedValue(row);
+
+      const id = PlayerId.fromString(row.id);
+      const result = await repository.findById(id);
+
+      expect(result).not.toBeNull();
+      expect(result?.id?.value).toBe(row.id);
+      expect(result?.email.value).toBe(row.email);
+    });
+  });
+
+  describe('findAll', () => {
+    it('devuelve lista vacía cuando no hay filas', async () => {
+      mockFindMany.mockResolvedValue([]);
+
+      const result = await repository.findAll();
+
+      expect(result).toEqual([]);
+    });
+
+    it('devuelve lista de Players cuando hay filas', async () => {
+      const id1 = '123e4567-e89b-12d3-a456-426614174001';
+      const id2 = '123e4567-e89b-12d3-a456-426614174002';
+      const rows = [
+        makePrismaRow({ id: id1 }),
+        makePrismaRow({ id: id2, email: 'b@b.com' }),
+      ];
+      mockFindMany.mockResolvedValue(rows);
+
+      const result = await repository.findAll();
+
+      expect(result).toHaveLength(2);
+      expect(result[0].id?.value).toBe(id1);
+      expect(result[1].email.value).toBe('b@b.com');
+    });
+  });
+
+  describe('save', () => {
+    it('llama a upsert con datos del Player (con id)', async () => {
+      mockUpsert.mockResolvedValue(undefined);
+
+      const player = makePlayer();
+      await repository.save(player);
+
+      expect(mockUpsert).toHaveBeenCalledWith({
+        where: { id: player.id!.value },
+        update: expect.objectContaining({
+          email: player.email.value,
+          name: player.name,
+          lastname: player.lastname,
+          nickname: player.nickname,
+          phoneNumber: player.phoneNumber.value,
+          league: [...player.league],
+          birthdate: player.birthdate.value,
+          category: player.category,
+        }),
+        create: expect.objectContaining({
+          id: player.id!.value,
+          email: player.email.value,
+          name: player.name,
+        }),
+      });
+    });
+
+    it('genera id cuando el Player no tiene id (creación)', async () => {
+      mockUpsert.mockResolvedValue(undefined);
+
+      const playerWithoutId = Player.create({
+        name: 'Nuevo',
+        lastname: 'Jugador',
+        nickname: null,
+        email: Email.create('nuevo@example.com'),
+        phoneNumber: PhoneNumber.create('600000000'),
+        league: [],
+        birthdate: Birthdate.create(new Date('2000-01-01')),
+        category: PlayerCategory.PRIMERA,
+      });
+
+      await repository.save(playerWithoutId);
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            email: 'nuevo@example.com',
+            name: 'Nuevo',
+          }),
+        }),
+      );
+      const createPayload = mockUpsert.mock.calls[0][0].create;
+      expect(createPayload.id).toBeDefined();
+      expect(typeof createPayload.id).toBe('string');
+    });
+  });
+
+  describe('delete', () => {
+    it('llama a deleteMany con el id', async () => {
+      mockDeleteMany.mockResolvedValue({ count: 1 });
+
+      const id = PlayerId.fromString('123e4567-e89b-12d3-a456-426614174000');
+      await repository.delete(id);
+
+      expect(mockDeleteMany).toHaveBeenCalledWith({
+        where: { id: id.value },
+      });
+    });
+  });
+});
