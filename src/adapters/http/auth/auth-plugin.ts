@@ -22,3 +22,21 @@ export function createRequireAuth(jwtService: IJwtService) {
     request.user = { playerId: payload.sub, role: payload.role };
   };
 }
+
+/**
+ * Crea un preHandler que exige JWT válido Y role ADMIN.
+ * Combina auth + verificación de rol. Si no es ADMIN, responde 403.
+ */
+export function createRequireAdmin(jwtService: IJwtService) {
+  const requireAuth = createRequireAuth(jwtService);
+  return async function requireAdmin(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    await requireAuth(request, reply);
+    if (reply.sent) return;
+    if (request.user?.role !== 'ADMIN') {
+      return reply.code(403).send({ message: 'Se requieren permisos de administrador' });
+    }
+  };
+}

@@ -23,7 +23,6 @@ export interface UpdatePlayerInput {
   nickname?: string | null;
   email?: Email;
   phoneNumber?: PhoneNumber;
-  league?: string[];
   birthdate?: Birthdate;
   category?: PlayerCategory;
   role?: PlayerRole;
@@ -80,7 +79,6 @@ export class UpdatePlayer {
       nickname: input.nickname !== undefined ? input.nickname : existing.nickname,
       email: input.email ?? existing.email,
       phoneNumber: input.phoneNumber ?? existing.phoneNumber,
-      league: input.league !== undefined ? input.league : existing.league,
       birthdate: input.birthdate ?? existing.birthdate,
       category: input.category ?? existing.category,
       role: input.role ?? existing.role,

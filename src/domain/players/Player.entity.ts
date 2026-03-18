@@ -18,7 +18,6 @@ export interface PlayerProps {
   nickname: string | null;
   email: Email;
   phoneNumber: PhoneNumber;
-  league: readonly string[];
   birthdate: Birthdate;
   category: PlayerCategory;
   role: PlayerRole;
@@ -35,7 +34,6 @@ export class Player {
   readonly nickname: string | null;
   readonly email: Email;
   readonly phoneNumber: PhoneNumber;
-  readonly league: readonly string[];
   readonly birthdate: Birthdate;
   readonly category: PlayerCategory;
   readonly role: PlayerRole;
@@ -50,7 +48,6 @@ export class Player {
     this.nickname = props.nickname;
     this.email = props.email;
     this.phoneNumber = props.phoneNumber;
-    this.league = Array.isArray(props.league) ? [...props.league] : [];
     this.birthdate = props.birthdate;
     this.category = props.category;
     this.role = props.role;

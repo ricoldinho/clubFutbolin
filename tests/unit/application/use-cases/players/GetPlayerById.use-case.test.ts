@@ -24,7 +24,6 @@ describe('GetPlayerById', () => {
       nickname: 'Luigi',
       email: Email.create('luis@example.com'),
       phoneNumber: PhoneNumber.create('+34612345678'),
-      league: ['Liga Provincial'],
       birthdate: Birthdate.create('2005-03-15'),
       category: PlayerCategory.PRIMERA,
       password: 'password123',

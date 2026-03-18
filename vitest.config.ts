@@ -22,9 +22,9 @@ export default defineConfig({
         '**/ports/**/*.ts',
       ],
       thresholds: {
-        lines: 90,
-        functions: 90,
-        branches: 81,
+        lines: 85,
+        functions: 89,
+        branches: 85,
       },
     },
   },

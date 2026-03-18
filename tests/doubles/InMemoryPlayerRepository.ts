@@ -50,7 +50,6 @@ export class InMemoryPlayerRepository implements IPlayerRepository {
         nickname: player.nickname,
         email: player.email,
         phoneNumber: player.phoneNumber,
-        league: player.league,
         birthdate: player.birthdate,
         category: player.category,
         role: player.role,

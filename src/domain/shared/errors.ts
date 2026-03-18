@@ -12,6 +12,17 @@ export class DomainValidationError extends Error {
 }
 
 /**
+ * Error cuando ya existe una entidad con el criterio dado (ej. nombre duplicado).
+ */
+export class AlreadyExistsError extends Error {
+  constructor(entity: string, criteria: string) {
+    super(`${entity} ya existe: ${criteria}`);
+    this.name = 'AlreadyExistsError';
+    Object.setPrototypeOf(this, AlreadyExistsError.prototype);
+  }
+}
+
+/**
  * Error genérico de "no encontrado" en el dominio.
  * Úsalo cuando un agregado/entidad no existe para un criterio dado.
  */

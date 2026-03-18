@@ -18,7 +18,6 @@ function makePrismaRow(overrides: Partial<{
   lastname: string;
   nickname: string | null;
   phoneNumber: string;
-  league: string[];
   birthdate: Date;
   category: string;
   role: string;
@@ -30,7 +29,6 @@ function makePrismaRow(overrides: Partial<{
     lastname: 'Rico',
     nickname: null,
     phoneNumber: '600123123',
-    league: ['Liga 1'],
     birthdate: new Date('1990-01-01'),
     category: 'PRIMERA',
     role: 'USER',
@@ -46,7 +44,6 @@ function makePlayer(overrides: Partial<{ id: PlayerId }> = {}) {
     nickname: null,
     email: Email.create('test@example.com'),
     phoneNumber: PhoneNumber.create('600123123'),
-    league: ['Liga 1'],
     birthdate: Birthdate.create(new Date('1990-01-01')),
     category: PlayerCategory.PRIMERA,
     role: PlayerRole.USER,
@@ -169,7 +166,6 @@ describe('PrismaPlayerRepository', () => {
           lastname: player.lastname,
           nickname: player.nickname,
           phoneNumber: player.phoneNumber.value,
-          league: [...player.league],
           birthdate: player.birthdate.value,
           category: player.category,
           role: player.role,
@@ -192,7 +188,6 @@ describe('PrismaPlayerRepository', () => {
         nickname: null,
         email: Email.create('nologin@example.com'),
         phoneNumber: PhoneNumber.create('600000001'),
-        league: [],
         birthdate: Birthdate.create(new Date('2000-01-01')),
         category: PlayerCategory.PRIMERA,
         role: PlayerRole.USER,
@@ -220,7 +215,6 @@ describe('PrismaPlayerRepository', () => {
         nickname: null,
         email: Email.create('nuevo@example.com'),
         phoneNumber: PhoneNumber.create('600000000'),
-        league: [],
         birthdate: Birthdate.create(new Date('2000-01-01')),
         category: PlayerCategory.PRIMERA,
         role: PlayerRole.USER,

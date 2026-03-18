@@ -11,7 +11,6 @@ export const registerPlayerBodySchema = z.object({
   nickname: z.string().nullable().optional(),
   email: z.string().email(),
   phoneNumber: z.string().min(9).max(20),
-  league: z.array(z.string()).default([]),
   birthdate: z.string(), // Más adelante se puede refinar a ISO (yyyy-mm-dd)
   category: z.enum(['CUARTA', 'TERCERA', 'SEGUNDA', 'PRIMERA', 'ELITE']),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
@@ -40,7 +39,6 @@ export const updatePlayerBodySchema = z
     nickname: z.string().nullable().optional(),
     email: z.string().email().optional(),
     phoneNumber: z.string().min(9).max(20).optional(),
-    league: z.array(z.string()).optional(),
     birthdate: z.string().optional(),
     category: z.enum(['CUARTA', 'TERCERA', 'SEGUNDA', 'PRIMERA', 'ELITE']).optional(),
     role: z.enum(['USER', 'ADMIN']).optional(),

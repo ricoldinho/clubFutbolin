@@ -13,7 +13,6 @@ describe('registerPlayerBodySchema', () => {
       nickname: null,
       email: 'test@example.com',
       phoneNumber: '600123123',
-      league: ['Liga 1'],
       birthdate: '1990-01-01',
       category: 'PRIMERA',
       password: 'password123',
@@ -31,7 +30,6 @@ describe('registerPlayerBodySchema', () => {
       nickname: null,
       email: 'no-es-email',
       phoneNumber: '600123123',
-      league: ['Liga 1'],
       birthdate: '1990-01-01',
       category: 'PRIMERA',
     };

@@ -1,4 +1,5 @@
 import {
+  AlreadyExistsError,
   DomainValidationError,
   NotFoundError,
   ForbiddenError,
@@ -28,6 +29,10 @@ export function mapDomainErrorToHttp(error: unknown): HttpErrorMapping {
   }
 
   if (error instanceof EmailAlreadyInUseError) {
+    return { statusCode: 409, message: error.message };
+  }
+
+  if (error instanceof AlreadyExistsError) {
     return { statusCode: 409, message: error.message };
   }
 

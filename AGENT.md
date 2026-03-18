@@ -2,8 +2,8 @@
 
 ## Current Status 📍
 
-- **Phase:** Dominio Player, casos de uso (Result), capa HTTP (Fastify + Zod), rutas `/players`, persistencia con Prisma 7 (adapter pg) y Postgres, **autenticación JWT y roles (USER/ADMIN)**. BD de test para integración; CI con unit tests + integration tests (Postgres en el job).
-- **Next Task:** (1) Valorar bundler (tsup) y E2E cuando toque despliegue. (2) Nuevas funcionalidades de dominio según producto.
+- **Phase:** Dominio Player + **módulos leagues, teams, seasons, rosters** (dimensionalidad temporal). Casos de uso (Result), capa HTTP (Fastify + Zod), persistencia Prisma, autenticación JWT y roles (USER/ADMIN). Rutas: `/players`, `/leagues`, `/teams`, `/seasons`, `/rosters/*`. BD de test; CI con unit + integration tests.
+- **Next Task:** (1) Migración de BD: ejecutar `npx prisma migrate deploy` cuando la BD esté levantada. (2) Tests de integración para PrismaSeasonRepository, PrismaRosterRepository. (3) Valorar bundler y E2E.
 - **Ubicación de código:** Implementaciones de puertos (repos) → `src/adapters/persistence/`. Handlers y rutas HTTP → `src/adapters/http/`.
 - **Calidad:** En local y en CI se ejecutan `npm run lint` (ESLint), `npm run typecheck` (tsc --noEmit), `npm run test:coverage` (unit tests en `tests/unit/`) y `npm run test:integration` (tests en `tests/integration/`, con Postgres en el job). Reglas: no-console (usar logger Fastify), no-explicit-any.
 
@@ -16,7 +16,7 @@
 - **Errors:** Result Pattern en casos de uso: devuelven `Result<T, E>` (éxito/fallo); la capa HTTP desempaqueta y traduce `Result.err` con `mapDomainErrorToHttp`. Solo infraestructura puede lanzar; ver `.cursor/rules/patron-result.mdc`.
 - **Identificadores (PostgreSQL):** UUID, preferiblemente **v7** (ordenado en el tiempo). Las entidades usan Value Objects de id (ej. `PlayerId`): `PlayerId.generate()` para nuevos, `PlayerId.fromString(uuid)` al cargar desde BD. En Postgres almacenar como tipo `uuid` (16 bytes); en dominio se trabaja con `PlayerId`, que valida formato UUID.
 - **Email único por Player:** Un email solo puede pertenecer a un Player. Se garantiza en el caso de uso `RegisterPlayer` (findByEmail + `EmailAlreadyInUseError`) y en BD con UNIQUE en la columna `email`. El handler HTTP debe mapear `EmailAlreadyInUseError` a **409 Conflict**.
-- **Autenticación y roles:** Login con email + contraseña; se devuelve un JWT (header `Authorization: Bearer <token>` en peticiones posteriores). Registro (POST /players) es público; el nuevo Player tiene siempre **role USER**. Solo un Player con **role ADMIN** puede asignar role ADMIN a otro (PATCH /players/:id con `role: "ADMIN"`). Rutas GET /players, GET /players/:id, PATCH, DELETE requieren JWT válido; POST /players y POST /auth/login son públicos.
+- **Autenticación y roles:** Login con email + contraseña; JWT en `Authorization: Bearer <token>`. Registro (POST /players) público con role USER. Solo ADMIN puede asignar ADMIN. `createRequireAuth` exige JWT; `createRequireAdmin` exige JWT + role ADMIN. Rutas CRUD de leagues, teams, seasons, rosters (register, add/remove players) son Admin-only; List/Get públicos.
 - **Casos de uso:** Clases con constructor (inyección de dependencias) y método `execute`; no funciones con dependencias como parámetro.
 
 ## Tech Debt & Notes 📝

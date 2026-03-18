@@ -25,7 +25,6 @@ type PrismaPlayer = {
   lastname: string;
   nickname: string | null;
   phoneNumber: string;
-  league: string[];
   birthdate: Date;
   category: PrismaPlayerCategory;
   role: PrismaPlayerRole;
@@ -42,7 +41,6 @@ export class PrismaPlayerRepository implements IPlayerRepository {
       nickname: row.nickname,
       email: Email.create(row.email),
       phoneNumber: PhoneNumber.create(row.phoneNumber),
-      league: row.league,
       birthdate: Birthdate.create(row.birthdate),
       category: parsePlayerCategory(row.category as unknown as string),
       role: parsePlayerRole(row.role),
@@ -59,7 +57,6 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         lastname: true,
         nickname: true,
         phoneNumber: true,
-        league: true,
         birthdate: true,
         category: true,
         role: true,
@@ -78,7 +75,6 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         lastname: true,
         nickname: true,
         phoneNumber: true,
-        league: true,
         birthdate: true,
         category: true,
         role: true,
@@ -96,7 +92,6 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         lastname: true,
         nickname: true,
         phoneNumber: true,
-        league: true,
         birthdate: true,
         category: true,
         role: true,
@@ -127,7 +122,6 @@ export class PrismaPlayerRepository implements IPlayerRepository {
       lastname: player.lastname,
       nickname: player.nickname,
       phoneNumber: player.phoneNumber.value,
-      league: [...player.league],
       birthdate: player.birthdate.value,
       category: player.category as PrismaPlayerCategory,
       role: player.role as PrismaPlayerRole,

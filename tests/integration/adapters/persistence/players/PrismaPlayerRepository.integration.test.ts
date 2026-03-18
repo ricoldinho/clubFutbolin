@@ -26,7 +26,6 @@ function makePlayer(overrides: Partial<{
   lastname: string;
   nickname: string | null;
   phoneNumber: string;
-  league: string[];
   birthdate: Date | string;
   category: PlayerCategory;
   role: PlayerRole;
@@ -37,7 +36,6 @@ function makePlayer(overrides: Partial<{
     nickname: 'Juani' as string | null,
     email: 'juan.garcia@example.com',
     phoneNumber: '612345678',
-    league: ['Liga A'],
     birthdate: new Date('1995-05-15'),
     category: PlayerCategory.TERCERA,
     role: PlayerRole.USER,
@@ -50,7 +48,6 @@ function makePlayer(overrides: Partial<{
     nickname: opts.nickname,
     email: Email.create(opts.email),
     phoneNumber: PhoneNumber.create(opts.phoneNumber),
-    league: opts.league,
     birthdate: Birthdate.create(opts.birthdate),
     category: opts.category,
     role: opts.role,
@@ -85,7 +82,6 @@ describe('PrismaPlayerRepository (integración)', () => {
     expect(found!.lastname).toBe('López');
     expect(found!.nickname).toBe('Juani');
     expect(found!.phoneNumber.value).toBe('612345678');
-    expect(found!.league).toEqual(['Liga A']);
     expect(found!.category).toBe(PlayerCategory.TERCERA);
   });
 

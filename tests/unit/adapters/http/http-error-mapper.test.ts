@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import {
+  AlreadyExistsError,
   DomainValidationError,
   NotFoundError,
   ForbiddenError,
@@ -17,6 +18,13 @@ describe('mapDomainErrorToHttp', () => {
     const result = mapDomainErrorToHttp(err);
     expect(result.statusCode).toBe(401);
     expect(result.message).toBe('Credenciales inválidas');
+  });
+
+  it('mapea AlreadyExistsError a 409 y mensaje del error', () => {
+    const err = new AlreadyExistsError('Team', 'nombre "Equipo A"');
+    const result = mapDomainErrorToHttp(err);
+    expect(result.statusCode).toBe(409);
+    expect(result.message).toContain('Equipo A');
   });
 
   it('mapea EmailAlreadyInUseError a 409 y mensaje del error', () => {

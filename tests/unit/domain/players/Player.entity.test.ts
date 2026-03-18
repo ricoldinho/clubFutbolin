@@ -14,7 +14,6 @@ describe('Player', () => {
     nickname: 'Luigi',
     email: Email.create('luis.garcia@example.com'),
     phoneNumber: PhoneNumber.create('+34 612 345 678'),
-    league: ['Liga Provincial', 'Liga Autonómica'],
     birthdate: Birthdate.create('2005-03-15'),
     category: PlayerCategory.PRIMERA,
     role: PlayerRole.USER,
@@ -33,7 +32,6 @@ describe('Player', () => {
     expect(player.nickname).toBe('Luigi');
     expect(player.email.value).toBe('luis.garcia@example.com');
     expect(player.phoneNumber.value).toBe('34612345678');
-    expect(player.league).toEqual(['Liga Provincial', 'Liga Autonómica']);
     expect(player.birthdate.value).toEqual(new Date('2005-03-15'));
     expect(player.category).toBe(PlayerCategory.PRIMERA);
     expect(player.id).toBeUndefined();
@@ -61,17 +59,6 @@ describe('Player', () => {
 
     // Assert
     expect(fullName).toBe('Luis García');
-  });
-
-  it('debe aceptar league vacía y guardarla como array vacío', () => {
-    // Arrange
-    const props = { ...baseProps, league: [] };
-
-    // Act
-    const player = Player.create(props);
-
-    // Assert
-    expect(player.league).toEqual([]);
   });
 
   it('debe aceptar nickname null', () => {

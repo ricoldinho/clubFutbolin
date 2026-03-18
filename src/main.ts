@@ -8,10 +8,18 @@ import {
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaPlayerRepository } from "./adapters/persistence/players/PrismaPlayerRepository";
+import { PrismaLeagueRepository } from "./adapters/persistence/leagues/PrismaLeagueRepository";
+import { PrismaTeamRepository } from "./adapters/persistence/teams/PrismaTeamRepository";
+import { PrismaSeasonRepository } from "./adapters/persistence/seasons/PrismaSeasonRepository";
+import { PrismaRosterRepository } from "./adapters/persistence/rosters/PrismaRosterRepository";
 import { BcryptPasswordHasher } from "./adapters/auth/BcryptPasswordHasher";
 import { JoseJwtService } from "./adapters/auth/JoseJwtService";
 import { playersRoutes } from "./adapters/http/players/players.routes";
 import { authRoutes } from "./adapters/http/auth/auth.routes";
+import { leaguesRoutes } from "./adapters/http/leagues/leagues.routes";
+import { teamsRoutes } from "./adapters/http/teams/teams.routes";
+import { seasonsRoutes } from "./adapters/http/seasons/seasons.routes";
+import { rostersRoutes } from "./adapters/http/rosters/rosters.routes";
 import { options } from "./shared/config/env";
 
 export async function buildServer() {
@@ -36,6 +44,10 @@ export async function buildServer() {
     const adapter = new PrismaPg({ connectionString });
     prisma = new PrismaClient({ adapter });
     const playerRepository = new PrismaPlayerRepository(prisma);
+    const leagueRepository = new PrismaLeagueRepository(prisma);
+    const teamRepository = new PrismaTeamRepository(prisma);
+    const seasonRepository = new PrismaSeasonRepository(prisma);
+    const rosterRepository = new PrismaRosterRepository(prisma);
     const passwordHasher = new BcryptPasswordHasher();
     const jwtService = new JoseJwtService(
       server.config.JWT_SECRET,
@@ -55,6 +67,26 @@ export async function buildServer() {
     await server.register(playersRoutes, {
       repository: playerRepository,
       passwordHasher,
+      jwtService,
+    });
+    await server.register(leaguesRoutes, {
+      repository: leagueRepository,
+      jwtService,
+    });
+    await server.register(teamsRoutes, {
+      repository: teamRepository,
+      jwtService,
+    });
+    await server.register(seasonsRoutes, {
+      repository: seasonRepository,
+      leagueRepository,
+      teamRepository,
+      jwtService,
+    });
+    await server.register(rostersRoutes, {
+      repository: rosterRepository,
+      teamRepository,
+      seasonRepository,
       jwtService,
     });
 

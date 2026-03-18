@@ -49,7 +49,6 @@ interface PlayerResponse {
   nickname: string | null;
   email: string;
   phoneNumber: string;
-  league: string[];
   birthdate: string;
   category: string;
   role: string;
@@ -63,7 +62,6 @@ function toPlayerResponse(player: Player): PlayerResponse {
     nickname: player.nickname,
     email: player.email.value,
     phoneNumber: player.phoneNumber.value,
-    league: [...player.league],
     birthdate: player.birthdate.value.toISOString().slice(0, 10),
     category: player.category,
     role: player.role,
@@ -120,7 +118,6 @@ export async function playersRoutes(
           nickname: body.nickname ?? null,
           email: Email.create(body.email),
           phoneNumber: PhoneNumber.create(body.phoneNumber),
-          league: body.league,
           birthdate: Birthdate.create(body.birthdate),
           category: parsePlayerCategory(body.category),
           password: body.password,
@@ -287,7 +284,6 @@ export async function playersRoutes(
           phoneNumber: body.phoneNumber
             ? PhoneNumber.create(body.phoneNumber)
             : undefined,
-          league: body.league,
           birthdate: body.birthdate
             ? Birthdate.create(body.birthdate)
             : undefined,
