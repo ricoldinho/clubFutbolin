@@ -1,0 +1,64 @@
+@baseUrl = http://localhost:3000
+@token = {{login.response.body.token}}
+
+### Healthcheck
+GET {{baseUrl}}/
+
+###
+
+# @name registerPlayer
+POST {{baseUrl}}/players
+Content-Type: application/json
+
+{
+  "name": "Manuel",
+  "lastname": "Rico",
+  "nickname": "Manu",
+  "email": "manu@example.com",
+  "phoneNumber": "+34123456789",
+  "league": ["Liga1"],
+  "birthdate": "1990-01-01",
+  "category": "PRIMERA",
+  "password": "password-segura"
+}
+
+###
+
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "manu@example.com",
+  "password": "password-segura"
+}
+
+###
+
+# Usa el token de la respuesta del login
+GET {{baseUrl}}/players
+Authorization: Bearer {{login.response.body.token}}
+
+###
+
+# Obtener un jugador por id (sustituye por un id real)
+GET {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
+Authorization: Bearer {{login.response.body.token}}
+
+###
+
+# Actualizar parcialmente un jugador (id real necesario)550e8400-e29b-41d4-a716-44665544000
+PATCH {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nickname": "Nuevo nick",
+  "league": ["Liga1", "Liga3"]
+}
+
+###
+
+# Eliminar un jugador (id real necesario)
+DELETE {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
+Authorization: Bearer {{login.response.body.token}}
