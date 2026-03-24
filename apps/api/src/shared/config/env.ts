@@ -1,5 +1,30 @@
 // src/shared/config/env.ts
 
+import path from "node:path";
+import { existsSync } from "node:fs";
+
+/**
+ * `.env` en la raíz del monorepo (junto a `package.json` de workspaces).
+ *
+ * `__dirname` en runtime es `.../apps/api/{src|dist}/shared/config` (misma profundidad tras `tsc`).
+ * Hasta la raíz del repo hay 5 segmentos `..`: config → shared → src|dist → api → apps → raíz.
+ * (Con 4 quedaríamos en `apps/`, no en la raíz.)
+ */
+const monorepoRootEnvPath = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "..",
+  "..",
+  "..",
+  ".env",
+);
+
+/** Si no hay `.env` en la raíz, se intenta el del cwd (p. ej. `apps/api/.env`). */
+const dotenvPath = existsSync(monorepoRootEnvPath)
+  ? monorepoRootEnvPath
+  : path.resolve(process.cwd(), ".env");
+
 // 1. Definimos el Schema JSON estándar
 // Esto validará que las variables existan y tengan el tipo correcto.
 export const schema = {
@@ -43,6 +68,8 @@ export interface Envs {
 export const options = {
   confKey: "config", // Inyectará la config en server.config
   schema: schema,
-  dotenv: true, // Leerá automáticamente el archivo .env
+  dotenv: {
+    path: dotenvPath,
+  },
   data: process.env, // Fallback
 };

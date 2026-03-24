@@ -38,7 +38,7 @@ export async function buildServer() {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error(
-        "DATABASE_URL no está definida. Añádela a .env (ver .env.example)."
+        "DATABASE_URL no está definida. Copia .env.example a .env en la raíz del monorepo (o en apps/api) y define DATABASE_URL.",
       );
     }
     const adapter = new PrismaPg({ connectionString });
