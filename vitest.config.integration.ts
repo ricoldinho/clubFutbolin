@@ -14,6 +14,8 @@ export default defineConfig({
     globalSetup: ['vitest.globalSetup.integration.ts'],
     setupFiles: ['vitest.setup.integration.ts'],
     isolate: true,
+    /** Una sola BD compartida: si varios ficheros corren a la vez, los beforeEach pisan datos y violan FKs. */
+    fileParallelism: false,
     testTimeout: 10_000,
     hookTimeout: 15_000,
   },

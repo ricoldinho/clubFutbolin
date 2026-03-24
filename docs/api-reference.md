@@ -6,9 +6,10 @@ Esta referencia describe los endpoints HTTP expuestos actualmente por el backend
   - `<PORT>` viene de la configuración de entorno (`PORT` cargado por `fastify-env`).
 - **Formato**: JSON sobre HTTP.
 - **Autenticación**:
-  - `POST /players` y `POST /auth/login` son públicos.
-  - El resto de endpoints requieren JWT en el header:
-    - `Authorization: Bearer <token>`
+  - **Públicos** (sin JWT): `GET /`, `POST /auth/login`, `POST /players`, `GET /leagues`, `GET /leagues/:leagueId`, `GET /teams`, `GET /teams/by-name/:name`, `GET /seasons`, `GET /seasons/:seasonId`.
+  - **JWT** (`Authorization: Bearer <token>`):
+    - **Recurso Player**: `GET /players`, `GET /players/:playerId`, `PATCH /players/:playerId`, `DELETE /players/:playerId` (reglas: propio jugador o `ADMIN`; solo `ADMIN` puede asignar `role: ADMIN`).
+    - **Leagues, Teams, Seasons, Rosters**: mutaciones (POST, PATCH, DELETE) requieren JWT con **role `ADMIN`** (`createRequireAdmin`).
 
 > **Regla de mantenimiento**
 >
@@ -59,9 +60,10 @@ Esta referencia describe los endpoints HTTP expuestos actualmente por el backend
     ```json
     {
       "token": "<jwt-token>",
-      "expiresIn": 3600
+      "expiresIn": "1h"
     }
     ```
+    - `expiresIn` es el valor configurado en `JWT_EXPIRES_IN` (string, ej. `1h`, `3600s`).
   - `400 Bad Request`:
     - Body no cumple el schema (email inválido, password vacía, etc.).
   - `401 Unauthorized`:
@@ -88,15 +90,16 @@ Todos los endpoints de `Player` usan como prefijo `/players`.
   {
     "name": "Manuel",
     "lastname": "Rico",
-    "nickname": "Manu",              // opcional, puede ser null
+    "nickname": "Manu",
     "email": "manu@example.com",
     "phoneNumber": "+34123456789",
-    "league": ["Liga1", "Liga2"],    // opcional, por defecto []
-    "birthdate": "1990-01-01",       // string, idealmente yyyy-mm-dd
-    "category": "PRIMERA",           // CUARTA|TERCERA|SEGUNDA|PRIMERA|ELITE
-    "password": "password-segura"    // min 8 caracteres
+    "birthdate": "1990-01-01",
+    "category": "PRIMERA",
+    "password": "password-segura"
   }
   ```
+  - `nickname`: opcional, puede ser `null`.
+  - `category`: `CUARTA` | `TERCERA` | `SEGUNDA` | `PRIMERA` | `ELITE`.
   - Validado por `registerPlayerBodySchema`.
 - **Respuestas**:
   - `201 Created`:
@@ -108,7 +111,6 @@ Todos los endpoints de `Player` usan como prefijo `/players`.
       "nickname": "Manu",
       "email": "manu@example.com",
       "phoneNumber": "+34123456789",
-      "league": ["Liga1", "Liga2"],
       "birthdate": "1990-01-01",
       "category": "PRIMERA",
       "role": "USER"
@@ -133,36 +135,16 @@ Todos los endpoints de `Player` usan como prefijo `/players`.
   - Requiere `Authorization: Bearer <token>`.
   - Solo el propio jugador o un `ADMIN` puede acceder.
 - **Params (path)**:
-  - `playerId`: UUID v4 (string).
-    - Ejemplo: `/players/550e8400-e29b-41d4-a716-446655440000`
+  - `playerId`: UUID (string).
 - **Query params**: Ninguno.
 - **Body (request)**: No aplica.
 - **Respuestas**:
-  - `200 OK`:
-    ```json
-    {
-      "id": "uuid",
-      "name": "Manuel",
-      "lastname": "Rico",
-      "nickname": "Manu",
-      "email": "manu@example.com",
-      "phoneNumber": "+34123456789",
-      "league": ["Liga1", "Liga2"],
-      "birthdate": "1990-01-01",
-      "category": "PRIMERA",
-      "role": "USER"
-    }
-    ```
-  - `400 Bad Request`:
-    - `playerId` no es un UUID válido.
-  - `401 Unauthorized`:
-    - Sin token o token inválido.
-  - `403 Forbidden`:
-    - Token válido pero sin permiso (ej. otro usuario no ADMIN).
-  - `404 Not Found`:
-    - Jugador no existe.
-  - `5xx`:
-    - Error inesperado.
+  - `200 OK`: mismo shape que en registro (sin `password`).
+  - `400 Bad Request`: `playerId` no es un UUID válido.
+  - `401 Unauthorized`: sin token o token inválido.
+  - `403 Forbidden`: token válido pero sin permiso.
+  - `404 Not Found`: jugador no existe.
+  - `5xx`: error inesperado.
 
 ---
 
@@ -171,47 +153,14 @@ Todos los endpoints de `Player` usan como prefijo `/players`.
 ##### `GET /players`
 
 - **Descripción**: Devuelve una lista (posiblemente vacía) de jugadores.
-- **Auth**:
-  - Requiere `Authorization: Bearer <token>` (cualquier role).
+- **Auth**: Requiere `Authorization: Bearer <token>` (cualquier role).
 - **Query params**:
-  - Actualmente el endpoint acepta (vía `listPlayersQuerySchema`) pero todavía no utiliza:
-    - `page` (opcional): entero positivo.
-    - `pageSize` (opcional): entero positivo, máximo 100.
+  - Aceptados por schema pero aún no aplicados en el caso de uso: `page`, `pageSize` (opcionales).
 - **Body (request)**: No aplica.
 - **Respuestas**:
-  - `200 OK`:
-    ```json
-    [
-      {
-        "id": "uuid-1",
-        "name": "Manuel",
-        "lastname": "Rico",
-        "nickname": "Manu",
-        "email": "manu@example.com",
-        "phoneNumber": "+34123456789",
-        "league": ["Liga1", "Liga2"],
-        "birthdate": "1990-01-01",
-        "category": "PRIMERA",
-        "role": "USER"
-      },
-      {
-        "id": "uuid-2",
-        "name": "Otra",
-        "lastname": "Persona",
-        "nickname": null,
-        "email": "otra@example.com",
-        "phoneNumber": "+34987654321",
-        "league": [],
-        "birthdate": "1992-05-10",
-        "category": "SEGUNDA",
-        "role": "ADMIN"
-      }
-    ]
-    ```
-  - `401 Unauthorized`:
-    - Sin token o token inválido.
-  - `5xx`:
-    - Error inesperado.
+  - `200 OK`: array de jugadores (mismo shape que GET por id).
+  - `401 Unauthorized`: sin token o token inválido.
+  - `5xx`: error inesperado.
 
 ---
 
@@ -230,61 +179,21 @@ Todos los endpoints de `Player` usan como prefijo `/players`.
   - Todos los campos son opcionales, pero debe venir al menos uno:
   ```json
   {
-    "name": "Nuevo nombre",              // opcional
-    "lastname": "Nuevo apellido",        // opcional
-    "nickname": "Nuevo nick",           // opcional, puede ser null
-    "email": "nuevo@example.com",       // opcional
-    "phoneNumber": "+34111111111",      // opcional
-    "league": ["Liga1", "Liga3"],       // opcional
-    "birthdate": "1991-02-03",          // opcional
-    "category": "ELITE",                // opcional
-    "role": "ADMIN"                     // opcional, solo ADMIN puede hacerlo
+    "name": "Nuevo nombre",
+    "lastname": "Nuevo apellido",
+    "nickname": "Nuevo nick",
+    "email": "nuevo@example.com",
+    "phoneNumber": "+34111111111",
+    "birthdate": "1991-02-03",
+    "category": "ELITE",
+    "role": "ADMIN"
   }
   ```
-
-  - Ejemplo mínimo válido:
-  ```json
-  {
-    "nickname": null
-  }
-  ```
-
-  - Validado por `updatePlayerBodySchema`:
-    - Email con formato válido.
-    - `phoneNumber` entre 9 y 20 caracteres.
-    - `category` en `CUARTA|TERCERA|SEGUNDA|PRIMERA|ELITE`.
-    - `role` en `USER|ADMIN`.
-    - Body no vacío (`Debe enviarse al menos un campo para actualizar`).
-
+  - Validado por `updatePlayerBodySchema` (body no vacío, formatos coherentes).
 - **Respuestas**:
-  - `200 OK`:
-    ```json
-    {
-      "id": "uuid",
-      "name": "Actualizado",
-      "lastname": "Rico",
-      "nickname": "Nuevo nick",
-      "email": "manu@example.com",
-      "phoneNumber": "+34123456789",
-      "league": ["Liga1", "Liga3"],
-      "birthdate": "1990-01-01",
-      "category": "ELITE",
-      "role": "USER"
-    }
-    ```
-  - `400 Bad Request`:
-    - Body vacío (`{}`).
-    - Campos con formato inválido (email, phoneNumber, etc.).
-  - `401 Unauthorized`:
-    - Sin token o token inválido.
-  - `403 Forbidden`:
-    - Sin permiso (por ejemplo, USER que intenta asignar `ADMIN`).
-  - `404 Not Found`:
-    - Jugador no existe.
-  - `409 Conflict`:
-    - Intentar actualizar el email a uno ya usado por otro jugador.
-  - `5xx`:
-    - Error inesperado.
+  - `200 OK`: jugador actualizado.
+  - `400 Bad Request`: body vacío o campos inválidos.
+  - `401 Unauthorized` / `403 Forbidden` / `404 Not Found` / `409 Conflict` (email duplicado) / `5xx`.
 
 ---
 
@@ -293,29 +202,189 @@ Todos los endpoints de `Player` usan como prefijo `/players`.
 ##### `DELETE /players/:playerId`
 
 - **Descripción**: Elimina un jugador.
-- **Auth**:
-  - Requiere `Authorization: Bearer <token>`.
-  - Solo el propio jugador o un `ADMIN` puede eliminar.
-- **Params (path)**:
-  - `playerId`: UUID.
-- **Body (request)**: No aplica.
+- **Auth**: JWT; solo el propio jugador o `ADMIN`.
+- **Params (path)**: `playerId` UUID.
 - **Respuestas**:
-  - `204 No Content`:
-    - Jugador eliminado con éxito.
-  - `400 Bad Request`:
-    - `playerId` no es UUID válido.
-  - `401 Unauthorized`:
-    - Sin token o token inválido.
-  - `403 Forbidden`:
-    - Sin permiso.
-  - `404 Not Found`:
-    - Jugador no existe.
-  - `5xx`:
-    - Error inesperado o de infraestructura.
+  - `204 No Content`: eliminado.
+  - `400` / `401` / `403` / `404` / `5xx` según corresponda.
 
 ---
 
-### 4. Notas para nuevos endpoints
+### 4. Recurso `League`
+
+Prefijo `/leagues`. Listado y lectura son **públicos**; crear, actualizar y borrar requieren **JWT de ADMIN**.
+
+#### `POST /leagues`
+
+- **Auth**: `Authorization: Bearer <token>` con role `ADMIN`.
+- **Body**:
+  ```json
+  {
+    "name": "Liga Provincial",
+    "leagueCategory": "PRIMERA"
+  }
+  ```
+  - `leagueCategory`: `ELITE` | `PRO` | `AVANZADO` | `MASTER` | `PRIMERA` | `SEGUNDA` | `TERCERA` | `CUARTA`.
+- **Respuestas**: `201` con `{ "id", "name", "leagueCategory" }`; `400`; `401`; `403`; `409` (nombre duplicado); `5xx`.
+
+#### `GET /leagues`
+
+- **Auth**: No.
+- **Respuestas**: `200` array de `{ "id", "name", "leagueCategory" }`.
+
+#### `GET /leagues/:leagueId`
+
+- **Auth**: No.
+- **Params**: `leagueId` UUID.
+- **Respuestas**: `200`; `400` (UUID inválido); `404`; `5xx`.
+
+#### `PATCH /leagues/:leagueId`
+
+- **Auth**: ADMIN.
+- **Body** (al menos un campo):
+  ```json
+  {
+    "name": "Nuevo nombre",
+    "leagueCategory": "ELITE"
+  }
+  ```
+- **Respuestas**: `200`; `400`; `401`; `403`; `404`; `409` (nombre duplicado respecto a otra liga); `5xx`.
+
+#### `DELETE /leagues/:leagueId`
+
+- **Auth**: ADMIN.
+- **Respuestas**: `204`; `401`; `403`; `404`; `5xx`.
+
+---
+
+### 5. Recurso `Team`
+
+Prefijo `/teams`. Listado y búsqueda por nombre son **públicos**; crear, actualizar y borrar requieren **ADMIN**.
+
+#### `POST /teams`
+
+- **Auth**: ADMIN.
+- **Body**:
+  ```json
+  { "name": "Equipo Alpha" }
+  ```
+- **Respuestas**: `201` con `{ "id", "name", "createdAt" }` (ISO 8601); `409` nombre duplicado; `401`; `403`; `5xx`.
+
+#### `GET /teams`
+
+- **Auth**: No.
+- **Respuestas**: `200` array de equipos.
+
+#### `GET /teams/by-name/:name`
+
+- **Auth**: No.
+- **Params**: `name` en path (URL-encoded si hace falta).
+- **Respuestas**: `200` un equipo; `404` si no existe.
+
+#### `PATCH /teams/:teamId`
+
+- **Auth**: ADMIN.
+- **Body** (al menos `name`):
+  ```json
+  { "name": "Nuevo nombre" }
+  ```
+- **Respuestas**: `200`; `404`; `409` si el nombre ya lo usa otro equipo; `401`; `403`; `5xx`.
+
+#### `DELETE /teams/:teamId`
+
+- **Auth**: ADMIN.
+- **Respuestas**: `204`; `404`; `401`; `403`; `5xx`.
+
+---
+
+### 6. Recurso `Season`
+
+Prefijo `/seasons`. Listado y lectura son **públicos**; crear temporada y asignar ganadores requieren **ADMIN**.
+
+#### `POST /seasons`
+
+- **Auth**: ADMIN.
+- **Body**:
+  ```json
+  {
+    "year": 2025,
+    "leagueId": "uuid-de-la-liga"
+  }
+  ```
+  - `year`: entero entre 2000 y 2100.
+- **Respuestas**:
+  - `201` con `{ "id", "year", "leagueId", "championId", "secondId" }` (últimos dos pueden ser `null`).
+  - `404` si la liga no existe.
+  - `409` si ya existe una temporada con el mismo año en esa liga.
+
+#### `GET /seasons`
+
+- **Auth**: No.
+- **Respuestas**: `200` array de temporadas.
+
+#### `GET /seasons/:seasonId`
+
+- **Auth**: No.
+- **Params**: `seasonId` UUID.
+- **Respuestas**: `200`; `404`; `400`.
+
+#### `PATCH /seasons/:seasonId/winners`
+
+- **Auth**: ADMIN.
+- **Body**:
+  ```json
+  {
+    "championId": "uuid-equipo-campeon",
+    "secondId": "uuid-equipo-subcampeon"
+  }
+  ```
+  - Deben ser equipos distintos.
+- **Respuestas**: `200` temporada actualizada; `400` si campeón y subcampeón son el mismo; `404` temporada o equipo no encontrado; `401`; `403`; `5xx`.
+
+---
+
+### 7. Recurso `Roster` (plantillas por equipo-temporada)
+
+Prefijo `/rosters`. Todas las rutas requieren **JWT de ADMIN**.
+
+Los identificadores `teamSeasonId` y `playerId` son UUID.
+
+#### `POST /rosters/register`
+
+- **Descripción**: Inscribe un equipo en una temporada (crea un `TeamSeason` / plantilla vacía).
+- **Body**:
+  ```json
+  {
+    "teamId": "uuid",
+    "seasonId": "uuid"
+  }
+  ```
+- **Respuestas**:
+  - `201` con `{ "teamSeasonId", "teamId", "seasonId", "membersCount" }` (`membersCount` suele ser 0).
+  - `404` equipo o temporada no encontrados.
+  - `409` si el equipo ya está inscrito en esa temporada.
+
+#### `POST /rosters/:teamSeasonId/players`
+
+- **Descripción**: Añade un jugador a la plantilla (máximo 4 jugadores, sin duplicados).
+- **Body**:
+  ```json
+  {
+    "playerId": "uuid",
+    "position": "PORTERO"
+  }
+  ```
+  - `position`: `PORTERO` | `DELANTERO`.
+- **Respuestas**: `200` con `{ "membersCount" }`; `400` reglas de dominio (plantilla llena, duplicado); `404` roster no encontrado; `401`; `403`; `5xx`.
+
+#### `DELETE /rosters/:teamSeasonId/players/:playerId`
+
+- **Descripción**: Quita un jugador de la plantilla.
+- **Respuestas**: `200` con `{ "membersCount" }`; `400` si el jugador no está en la plantilla; `404`; `401`; `403`; `5xx`.
+
+---
+
+### 8. Notas para nuevos endpoints
 
 Al añadir un nuevo endpoint HTTP:
 
@@ -326,10 +395,6 @@ Al añadir un nuevo endpoint HTTP:
   - Llamada al caso de uso, que devuelve `Result<T, E>`.
   - `mapDomainErrorToHttp` para traducir errores de dominio a HTTP.
 - Actualiza:
-  - Este fichero `docs/api-reference.md` con:
-    - Endpoint, auth, params, body y respuestas esperadas.
-    - Ejemplos de request/response.
-  - Los tests:
-    - Unitarios de schema (`*.schemas.test.ts`).
-    - HTTP con `server.inject()` (`*.routes.test.ts`).
-
+  - Este fichero `docs/api-reference.md` con endpoint, auth, params, body y respuestas.
+  - `docs/api.http` con ejemplos ejecutables.
+  - Tests: `*.schemas.test.ts` y `*.routes.test.ts`.

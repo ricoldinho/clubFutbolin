@@ -1,5 +1,8 @@
 @baseUrl = http://localhost:3000
+# Token de un usuario (p. ej. tras register + login)
 @token = {{login.response.body.token}}
+# Token de un usuario ADMIN (crear un admin en BD o PATCH role; luego login con ese usuario)
+@adminToken = {{loginAdmin.response.body.token}}
 
 ### Healthcheck
 GET {{baseUrl}}/
@@ -16,7 +19,6 @@ Content-Type: application/json
   "nickname": "Manu",
   "email": "manu@example.com",
   "phoneNumber": "+34123456789",
-  "league": ["Liga1"],
   "birthdate": "1990-01-01",
   "category": "PRIMERA",
   "password": "password-segura"
@@ -35,30 +37,172 @@ Content-Type: application/json
 
 ###
 
-# Usa el token de la respuesta del login
-GET {{baseUrl}}/players
-Authorization: Bearer {{login.response.body.token}}
-
-###
-
-# Obtener un jugador por id (sustituye por un id real)
-GET {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
-Authorization: Bearer {{login.response.body.token}}
-
-###
-
-# Actualizar parcialmente un jugador (id real necesario)550e8400-e29b-41d4-a716-44665544000
-PATCH {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
+# Login como ADMIN (sustituye email/password por un admin real)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.token}}
 
 {
-  "nickname": "Nuevo nick",
-  "league": ["Liga1", "Liga3"]
+  "email": "admin@example.com",
+  "password": "tu-password-admin"
 }
 
 ###
 
-# Eliminar un jugador (id real necesario)
+GET {{baseUrl}}/players
+Authorization: Bearer {{token}}
+
+###
+
+# Sustituye por un id real (UUID)
+GET {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
+Authorization: Bearer {{token}}
+
+###
+
+PATCH {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nickname": "Nuevo nick"
+}
+
+###
+
 DELETE {{baseUrl}}/players/019cf777-4351-732e-8725-e6988cd4c822
-Authorization: Bearer {{login.response.body.token}}
+Authorization: Bearer {{token}}
+
+###
+
+### --- Leagues (lectura pública; escritura ADMIN) ---
+
+GET {{baseUrl}}/leagues
+
+###
+
+GET {{baseUrl}}/leagues/123e4567-e89b-12d3-a456-426614174000
+
+###
+
+POST {{baseUrl}}/leagues
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Liga Provincial",
+  "leagueCategory": "PRIMERA"
+}
+
+###
+
+PATCH {{baseUrl}}/leagues/123e4567-e89b-12d3-a456-426614174000
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Liga Provincial Actualizada",
+  "leagueCategory": "ELITE"
+}
+
+###
+
+DELETE {{baseUrl}}/leagues/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {{adminToken}}
+
+###
+
+### --- Teams (lectura pública; escritura ADMIN) ---
+
+GET {{baseUrl}}/teams
+
+###
+
+GET {{baseUrl}}/teams/by-name/Equipo%20Alpha
+
+###
+
+POST {{baseUrl}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Equipo Alpha"
+}
+
+###
+
+PATCH {{baseUrl}}/teams/123e4567-e89b-12d3-a456-426614174001
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Equipo Alpha Renombrado"
+}
+
+###
+
+DELETE {{baseUrl}}/teams/123e4567-e89b-12d3-a456-426614174001
+Authorization: Bearer {{adminToken}}
+
+###
+
+### --- Seasons (lectura pública; POST y PATCH winners ADMIN) ---
+
+GET {{baseUrl}}/seasons
+
+###
+
+GET {{baseUrl}}/seasons/123e4567-e89b-12d3-a456-426614174002
+
+###
+
+POST {{baseUrl}}/seasons
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "year": 2025,
+  "leagueId": "123e4567-e89b-12d3-a456-426614174000"
+}
+
+###
+
+PATCH {{baseUrl}}/seasons/123e4567-e89b-12d3-a456-426614174002/winners
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "championId": "123e4567-e89b-12d3-a456-426614174001",
+  "secondId": "123e4567-e89b-12d3-a456-426614174003"
+}
+
+###
+
+### --- Rosters (todo ADMIN): registrar equipo en temporada, añadir/quitar jugadores ---
+
+POST {{baseUrl}}/rosters/register
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamId": "123e4567-e89b-12d3-a456-426614174001",
+  "seasonId": "123e4567-e89b-12d3-a456-426614174002"
+}
+
+###
+
+# teamSeasonId = id del TeamSeason devuelto en POST /rosters/register
+POST {{baseUrl}}/rosters/123e4567-e89b-12d3-a456-426614174004/players
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "playerId": "123e4567-e89b-12d3-a456-426614174005",
+  "position": "PORTERO"
+}
+
+###
+
+DELETE {{baseUrl}}/rosters/123e4567-e89b-12d3-a456-426614174004/players/123e4567-e89b-12d3-a456-426614174005
+Authorization: Bearer {{adminToken}}

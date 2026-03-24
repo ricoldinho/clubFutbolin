@@ -1,7 +1,6 @@
 /**
- * Global setup para tests de integración: aplica migraciones Prisma a la BD de test.
- * Se ejecuta una vez antes de toda la suite. Requiere DATABASE_URL_TEST en .env
- * y Postgres de test levantado (docker compose -f docker-compose.test.yml up -d).
+ * Global setup para tests de integración: aplica migraciones pendientes (`migrate deploy`).
+ * Si la BD de test está en estado incoherente (P3018, “already exists”), ver recuperación en `docs/testing-db.md`.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -36,8 +35,6 @@ export default function globalSetup(): void {
 
   process.env.DATABASE_URL = urlTest;
 
-  // Si la BD de test tiene una migración marcada como fallida (P3009), hay que limpiarla una vez
-  // desde tu terminal (fuera de Cursor): DATABASE_URL=<tu DATABASE_URL_TEST> npx prisma migrate reset --force
   execSync('npx prisma migrate deploy', {
     stdio: 'inherit',
     env: process.env,

@@ -62,5 +62,8 @@ jobs:
       - name: Unit tests
         run: npm run test:coverage
 
+      - name: Apply Prisma migrations
+        run: npx prisma migrate deploy
+
       - name: Integration tests
         run: npm run test:integration

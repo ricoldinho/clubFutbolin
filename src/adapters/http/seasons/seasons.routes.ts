@@ -85,7 +85,10 @@ export async function seasonsRoutes(
   zodServer.get('/seasons', async (_request, reply) => {
     try {
       const result = await listSeasons.execute();
-      if (!result.ok) return reply.code(500).send({ message: 'Error' });
+      if (!result.ok) {
+        const { statusCode, message } = mapDomainErrorToHttp(result.error);
+        return reply.code(statusCode).send({ message });
+      }
       return reply.code(200).send(result.value.map(toSeasonResponse));
     } catch (error) {
       const { statusCode, message } = mapDomainErrorToHttp(error);

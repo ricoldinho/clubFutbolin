@@ -5,7 +5,6 @@ import type { Position } from '@/domain/rosters/Position';
 import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
 import { NotFoundError, DomainValidationError } from '@/domain/shared/errors';
 import { Result } from '@/shared/result';
-import { parsePosition } from '@/domain/rosters/Position';
 
 export type AddPlayerToRosterInput = {
   teamSeasonId: TeamSeasonId;
@@ -29,7 +28,7 @@ export class AddPlayerToRoster {
       return Result.fail(new NotFoundError('TeamSeason', input.teamSeasonId.value));
     }
     try {
-      const updated = roster.addPlayer(input.playerId, parsePosition(input.position));
+      const updated = roster.addPlayer(input.playerId, input.position);
       await this.rosterRepository.saveRoster(updated);
       return Result.ok(updated);
     } catch (err) {

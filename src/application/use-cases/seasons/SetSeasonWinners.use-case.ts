@@ -36,13 +36,15 @@ export class SetSeasonWinners {
     if (second === null) {
       return Result.fail(new NotFoundError('Team', input.secondId.value));
     }
-    if (input.championId.equals(input.secondId)) {
-      return Result.fail(
-        new DomainValidationError('El campeón y subcampeón deben ser equipos diferentes'),
-      );
+    try {
+      const updated = season.setWinners(input.championId, input.secondId);
+      await this.seasonRepository.save(updated);
+      return Result.ok(updated);
+    } catch (err) {
+      if (err instanceof DomainValidationError) {
+        return Result.fail(err);
+      }
+      throw err;
     }
-    const updated = season.setWinners(input.championId, input.secondId);
-    await this.seasonRepository.save(updated);
-    return Result.ok(updated);
   }
 }
