@@ -10,7 +10,8 @@ import { execSync } from 'node:child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadEnv(): void {
-  const envPath = resolve(__dirname, '..', '.env');
+  /** Raíz del monorepo: este archivo vive en `apps/api/`. */
+  const envPath = resolve(__dirname, '..', '..', '.env');
   if (!existsSync(envPath)) return;
   const content = readFileSync(envPath, 'utf-8');
   for (const line of content.split('\n')) {

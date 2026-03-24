@@ -73,6 +73,7 @@ Guía para escribir, refactorizar y revisar código en este repositorio. Complem
 
 - Diseñar componentes testeables separando UI de efectos secundarios y datos asíncronos cuando sea posible.
 - Cuando se añada suite en web: **Vitest** + **React Testing Library**, en línea con el ecosistema Vite.
+- **E2E (futuro):** plan reservado en **`docs/e2e-playwright-plan.md`** — paquete `apps/web-e2e` o `e2e/` en raíz, `playwright.config` con `baseURL` del front, scripts `test:e2e`, job CI aparte; sin Playwright instalado hasta activar la fase.
 
 ---
 

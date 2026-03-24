@@ -24,9 +24,15 @@
     "typecheck": "tsc -b --pretty && tsc --noEmit -p apps/api/tsconfig.tests.json",
     "typecheck:api": "npm run typecheck -w @clubfutbolin/api",
     "typecheck:web": "npm run typecheck -w @clubfutbolin/web",
-    "lint": "npm run lint -w @clubfutbolin/api",
+    "lint": "npm run lint:api && npm run lint:web",
     "lint:api": "npm run lint -w @clubfutbolin/api",
+    "lint:web": "npm run lint -w @clubfutbolin/web",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "preview:web": "npm run preview -w @clubfutbolin/web"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
   },
   "repository": {
     "type": "git",

@@ -38,7 +38,7 @@ En `.env` define `DATABASE_URL_TEST="postgresql://test:test@localhost:5433/clubf
 Todo vive en el paquete **`apps/api`** (monorepo).
 
 - **`apps/api/vitest.config.integration.ts`**: ejecuta solo los tests en `tests/integration/**/*.test.ts`, con timeouts más altos (10 s test, 15 s hooks). No incluye coverage.
-- **`apps/api/vitest.setup.integration.ts`**: carga **`.env` en la raíz del monorepo** (`../.env` desde `apps/api`), exige `DATABASE_URL_TEST` y asigna `process.env.DATABASE_URL = DATABASE_URL_TEST` para que Prisma use la BD de test.
+- **`apps/api/vitest.setup.integration.ts`**: carga **`.env` en la raíz del monorepo** (`../../.env` relativo a `apps/api`), exige `DATABASE_URL_TEST` y asigna `process.env.DATABASE_URL = DATABASE_URL_TEST` para que Prisma use la BD de test.
 - **Script:** `npm run test:integration` (en la raíz delega a `@clubfutbolin/api`) — corre solo la suite de integración.
 
 Los **tests unitarios** siguen con la config por defecto (`apps/api/tests/unit/**/*.test.ts`). Así `npm run test` y `npm run test:coverage` no requieren BD.
@@ -72,9 +72,11 @@ En **`.github/workflows/ci.yml`**:
 
 - **Servicio `postgres`:** imagen `postgres:16-alpine`, usuario/contraseña/BD `test`/`test`/`clubfutbolin_test`, puerto 5432, healthcheck con `pg_isready`.
 - **Variables de entorno del job:** `DATABASE_URL` y `DATABASE_URL_TEST` apuntan a ese servicio (`postgresql://test:test@localhost:5432/clubfutbolin_test`).
-- **Pasos:** tras unit tests (`npm run test:coverage`), se ejecuta `npm run db:migrate -w @clubfutbolin/api` y después `npm run test:integration`. El globalSetup vuelve a ejecutar `migrate deploy` antes de Vitest (sin efecto si ya está aplicado).
+- **Pasos:** lint y typecheck en raíz; build `npm run build -w @clubfutbolin/api` y `npm run build -w @clubfutbolin/web`; unit tests del API (`npm run test:coverage`) y del front (`npm run test:run -w @clubfutbolin/web`); luego `npm run db:migrate -w @clubfutbolin/api` y `npm run test:integration`. El globalSetup vuelve a ejecutar `migrate deploy` antes de Vitest (sin efecto si ya está aplicado).
 
 En CI no hace falta `.env`: las URLs se inyectan desde el workflow.
+
+**Nota:** Los tests unitarios de **`apps/web`** no usan Postgres; solo la suite de integración del API requiere `DATABASE_URL_TEST`.
 
 ## Uso (cuando esté todo montado)
 
@@ -83,3 +85,7 @@ En CI no hace falta `.env`: las URLs se inyectan desde el workflow.
 3. Ejecutar tests de integración: `npm run test:integration`.
 
 En **CI** la URL de test se inyecta automáticamente y el workflow levanta un servicio Postgres.
+
+## Ver también
+
+- [e2e-playwright-plan.md](./e2e-playwright-plan.md) — plan reservado para E2E con Playwright (job CI aparte; se puede reutilizar el mismo Postgres de test cuando se implemente).

@@ -56,11 +56,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Build
-        run: npm run build
+      - name: Build API
+        run: npm run build -w @clubfutbolin/api
 
-      - name: Unit tests
+      - name: Build web
+        run: npm run build -w @clubfutbolin/web
+
+      - name: Unit tests (API)
         run: npm run test:coverage
+
+      - name: Unit tests (web)
+        run: npm run test:run -w @clubfutbolin/web
 
       - name: Apply Prisma migrations
         run: npm run db:migrate -w @clubfutbolin/api
