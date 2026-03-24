@@ -1,6 +1,6 @@
 # Migración a bundler (pendiente)
 
-Actualmente el proyecto usa **tsconfig-paths** en tiempo de ejecución para resolver el alias `@/` en desarrollo (`npm run dev`) y en producción (`npm start`). El build sigue siendo `tsc` (TypeScript compiler) y el resultado en `dist/` sigue conteniendo referencias a `@/`, por eso hace falta `-r tsconfig-paths/register` al ejecutar.
+Actualmente el paquete **@clubfutbolin/api** usa **tsconfig-paths** en tiempo de ejecución para resolver el alias `@/` en desarrollo (`npm run dev` desde la raíz) y en producción (`npm start`). El build es `tsc` y el resultado queda en **`apps/api/dist/`**, con referencias a `@/`, por eso hace falta `-r tsconfig-paths/register` al ejecutar Node.
 
 **Objetivo:** En el futuro migrar a un **bundler** que resuelva los path aliases en **build time** y genere un artefacto que Node pueda ejecutar sin tsconfig-paths. Así el despliegue es más estándar y se puede eliminar la dependencia de tsconfig-paths en producción.
 

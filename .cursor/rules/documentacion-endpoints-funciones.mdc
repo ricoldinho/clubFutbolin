@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Endpoints HTTP (Fastify + Zod)
 
-Siempre que crees o modifiques un endpoint HTTP en `src/adapters/http/**`:
+Siempre que crees o modifiques un endpoint HTTP en `apps/api/src/adapters/http/**`:
 
 - **Usa Zod como fuente de verdad del input**, conectado a Fastify mediante `fastify-type-provider-zod`:
   - Configuración global en `main.ts`:
@@ -50,7 +50,7 @@ export async function playersRoutes(...) { /* ... */ }
 
 ## Casos de uso y funciones de aplicación
 
-Para clases de caso de uso en `src/application/use-cases/**` y funciones clave en `src/application/**`:
+Para clases de caso de uso en `apps/api/src/application/use-cases/**` y funciones clave en `apps/api/src/application/**`:
 
 - **Usa un bloque JSDoc encima de la clase o función** que describa:
   - Qué hace (1–2 frases, lenguaje de negocio).

@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.base.json",
-  "include": ["tests/**/*", "src/shared/types/fastify.d.ts"]
-}
-

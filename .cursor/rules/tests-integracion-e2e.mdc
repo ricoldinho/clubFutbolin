@@ -9,14 +9,14 @@ Además de los tests unitarios, hay que **añadir o actualizar tests de integrac
 
 ## Cuándo añadir integración o e2e
 
-- **Nuevo repositorio o adaptador de persistencia** (ej. nuevo `*Repository` con Prisma) → Añadir tests en `tests/integration/` que usen la BD de test: crear/leer/actualizar/borrar y comprobar que el adaptador se comporta igual que el contrato (ver `docs/testing-db.md`).
-- **Nuevas rutas HTTP que persisten datos** → Valorar un test e2e en `tests/integration/` o `tests/e2e/`: levantar el servidor con `PrismaPlayerRepository` y BD de test, hacer `server.inject()` a la ruta y comprobar respuesta y estado en BD.
+- **Nuevo repositorio o adaptador de persistencia** (ej. nuevo `*Repository` con Prisma) → Añadir tests en `apps/api/tests/integration/` que usen la BD de test: crear/leer/actualizar/borrar y comprobar que el adaptador se comporta igual que el contrato (ver `docs/testing-db.md`).
+- **Nuevas rutas HTTP que persisten datos** → Valorar un test e2e en `apps/api/tests/integration/` o `apps/api/tests/e2e/`: levantar el servidor con `PrismaPlayerRepository` y BD de test, hacer `server.inject()` a la ruta y comprobar respuesta y estado en BD.
 - **Cambio en esquema Prisma o en comportamiento del repositorio** → Actualizar los tests de integración existentes que cubran ese adaptador; si no existen, añadirlos.
 
 ## Dónde van
 
-- **Integración (adaptador + BD real):** `tests/integration/` — mismo layout que `src/` cuando aplique (ej. `tests/integration/adapters/persistence/players/`). Requieren `DATABASE_URL_TEST` y Postgres de test levantado (`docker compose -f docker-compose.test.yml up -d`).
-- **E2E (HTTP + app + BD):** `tests/integration/` o `tests/e2e/` — construir el servidor con `buildServer()` (o equivalente) usando la BD de test, inyectar peticiones y comprobar respuestas y efectos en BD.
+- **Integración (adaptador + BD real):** `apps/api/tests/integration/` — mismo layout que `apps/api/src/` cuando aplique (ej. `apps/api/tests/integration/adapters/persistence/players/`). Requieren `DATABASE_URL_TEST` en `.env` en la **raíz del monorepo** y Postgres de test levantado (`docker compose -f docker-compose.test.yml up -d`).
+- **E2E (HTTP + app + BD):** `apps/api/tests/integration/` o `apps/api/tests/e2e/` — construir el servidor con `buildServer()` (o equivalente) usando la BD de test, inyectar peticiones y comprobar respuestas y efectos en BD.
 
 ## Cómo ejecutarlos
 

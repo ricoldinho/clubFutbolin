@@ -1,3 +1,4 @@
 {
-  "extends": "./tsconfig.app.json"
+  "extends": "./apps/api/tsconfig.app.json",
+  "include": []
 }

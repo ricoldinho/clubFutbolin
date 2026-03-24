@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Regla
 
-- **Los casos de uso devuelven `Result<T, E>`** (definido en `src/shared/result.ts`), no lanzan errores de dominio ni devuelven `null` para "no encontrado".
+- **Los casos de uso devuelven `Result<T, E>`** (definido en `apps/api/src/shared/result.ts`), no lanzan errores de dominio ni devuelven `null` para "no encontrado".
 - **Solo errores realmente excepcionales** (p. ej. fallos de infraestructura no recuperables en el repositorio) pueden propagarse con `throw`; la capa HTTP los captura y los traduce a 500.
 - **"No encontrado"** se modela como `Result.fail(new NotFoundError('Entidad', criterio))`, no como `null`.
 

@@ -4,8 +4,8 @@
 
 - **Phase:** Dominio Player + **módulos leagues, teams, seasons, rosters** (dimensionalidad temporal). Casos de uso (Result), capa HTTP (Fastify + Zod), persistencia Prisma, autenticación JWT y roles (USER/ADMIN). Rutas: `/players`, `/leagues`, `/teams`, `/seasons`, `/rosters/*`. BD de test; CI con unit + integration tests.
 - **Next Task:** (1) Migración de BD: ejecutar `npx prisma migrate deploy` cuando la BD esté levantada. (2) Tests de integración para PrismaSeasonRepository, PrismaRosterRepository. (3) Valorar bundler y E2E.
-- **Ubicación de código:** Implementaciones de puertos (repos) → `src/adapters/persistence/`. Handlers y rutas HTTP → `src/adapters/http/`.
-- **Calidad:** En local y en CI se ejecutan `npm run lint` (ESLint), `npm run typecheck` (tsc --noEmit), `npm run test:coverage` (unit tests en `tests/unit/`) y `npm run test:integration` (tests en `tests/integration/`, con Postgres en el job). Reglas: no-console (usar logger Fastify), no-explicit-any.
+- **Ubicación de código:** Monorepo npm (`workspaces: apps/*`). API en **`apps/api`**: puertos → `apps/api/src/adapters/persistence/`. HTTP → `apps/api/src/adapters/http/`. Prisma → `apps/api/prisma/`. Tests → `apps/api/tests/`.
+- **Calidad:** `npm run lint|typecheck|test:*` en la raíz delegan a **`@clubfutbolin/api`**. Unit tests en `apps/api/tests/unit/`; integración en `apps/api/tests/integration/` (Postgres en CI). Reglas: no-console (logger Fastify), no-explicit-any.
 
 ## Architecture Decisions 🧠
 

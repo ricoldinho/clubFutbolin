@@ -35,24 +35,27 @@ En `.env` define `DATABASE_URL_TEST="postgresql://test:test@localhost:5433/clubf
 
 ## Paso 3: Config Vitest y scripts para integración
 
-- **`vitest.config.integration.ts`**: ejecuta solo los tests en `tests/integration/**/*.test.ts`, con timeouts más altos (10 s test, 15 s hooks). No incluye coverage.
-- **`vitest.setup.integration.ts`**: carga `.env`, exige `DATABASE_URL_TEST` y asigna `process.env.DATABASE_URL = DATABASE_URL_TEST` para que Prisma use la BD de test.
-- **Script:** `npm run test:integration` — corre solo la suite de integración.
+Todo vive en el paquete **`apps/api`** (monorepo).
 
-Los **tests unitarios** siguen con la config por defecto (`tests/unit/**/*.test.ts`). Así `npm run test` y `npm run test:coverage` no requieren BD.
+- **`apps/api/vitest.config.integration.ts`**: ejecuta solo los tests en `tests/integration/**/*.test.ts`, con timeouts más altos (10 s test, 15 s hooks). No incluye coverage.
+- **`apps/api/vitest.setup.integration.ts`**: carga **`.env` en la raíz del monorepo** (`../.env` desde `apps/api`), exige `DATABASE_URL_TEST` y asigna `process.env.DATABASE_URL = DATABASE_URL_TEST` para que Prisma use la BD de test.
+- **Script:** `npm run test:integration` (en la raíz delega a `@clubfutbolin/api`) — corre solo la suite de integración.
+
+Los **tests unitarios** siguen con la config por defecto (`apps/api/tests/unit/**/*.test.ts`). Así `npm run test` y `npm run test:coverage` no requieren BD.
 
 ## Paso 4: Setup global (migraciones)
 
 Antes de ejecutar los tests de integración, Vitest aplica migraciones pendientes:
 
-- **`vitest.globalSetup.integration.ts`**: carga `.env`, exige `DATABASE_URL_TEST`, asigna `DATABASE_URL` y ejecuta `npx prisma migrate deploy` (idempotente si el esquema ya está al día).
+- **`apps/api/vitest.globalSetup.integration.ts`**: carga `.env` desde la raíz del monorepo, exige `DATABASE_URL_TEST`, asigna `DATABASE_URL` y ejecuta `npx prisma migrate deploy` con **cwd** en `apps/api` (idempotente si el esquema ya está al día).
 
 ### Recuperación si `migrate deploy` falla (P3018, “type already exists”, etc.)
 
 Suele pasar tras renombrar carpetas de migración o si una migración falló a medias. Con la URL **solo** de la BD de test (`clubfutbolin_test`), en una **terminal fuera del IDE** (o donde Prisma no bloquee la operación), ejecuta:
 
 ```bash
-# PowerShell (Windows): sustituye por tu DATABASE_URL_TEST
+# PowerShell (Windows): desde la raíz del repo; sustituye por tu DATABASE_URL_TEST
+cd apps/api
 $env:DATABASE_URL = "postgresql://test:test@localhost:5433/clubfutbolin_test"
 npx prisma migrate reset --force
 ```
@@ -61,7 +64,7 @@ Eso **borra todos los datos** de esa base y reaplica las migraciones desde cero.
 
 ## Paso 5: Primer test de integración
 
-- **`tests/integration/adapters/persistence/players/PrismaPlayerRepository.integration.test.ts`**: tests contra BD real para `save`, `findById`, `findAll`, `findByEmail` y `delete`. Cada test deja la tabla `Player` vacía (`beforeEach` con `deleteMany`).
+- **`apps/api/tests/integration/adapters/persistence/players/PrismaPlayerRepository.integration.test.ts`**: tests contra BD real para `save`, `findById`, `findAll`, `findByEmail` y `delete`. Cada test deja la tabla `Player` vacía (`beforeEach` con `deleteMany`).
 
 ## Paso 6: CI con Postgres y tests de integración
 
@@ -69,7 +72,7 @@ En **`.github/workflows/ci.yml`**:
 
 - **Servicio `postgres`:** imagen `postgres:16-alpine`, usuario/contraseña/BD `test`/`test`/`clubfutbolin_test`, puerto 5432, healthcheck con `pg_isready`.
 - **Variables de entorno del job:** `DATABASE_URL` y `DATABASE_URL_TEST` apuntan a ese servicio (`postgresql://test:test@localhost:5432/clubfutbolin_test`).
-- **Pasos:** tras unit tests (`npm run test:coverage`), se ejecuta `npx prisma migrate deploy` y después `npm run test:integration`. El globalSetup vuelve a ejecutar `migrate deploy` antes de Vitest (sin efecto si ya está aplicado).
+- **Pasos:** tras unit tests (`npm run test:coverage`), se ejecuta `npm run db:migrate -w @clubfutbolin/api` y después `npm run test:integration`. El globalSetup vuelve a ejecutar `migrate deploy` antes de Vitest (sin efecto si ya está aplicado).
 
 En CI no hace falta `.env`: las URLs se inyectan desde el workflow.
 

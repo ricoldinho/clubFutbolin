@@ -1,19 +1,28 @@
 {
   "name": "clubfutbolin",
   "version": "1.0.0",
-  "description": "��#\u0000 \u0000c\u0000l\u0000u\u0000b\u0000F\u0000u\u0000t\u0000b\u0000o\u0000l\u0000i\u0000n\u0000\r\u0000 \u0000",
-  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "description": "clubFutbolin — monorepo (API + web)",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/main.ts",
-    "build": "tsc -p tsconfig.app.json",
-    "start": "node -r tsconfig-paths/register dist/main.js",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.config.integration.ts",
-    "db:studio": "prisma studio",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.tests.json",
-    "lint": "eslint ."
+    "dev": "npm run dev -w @clubfutbolin/api",
+    "dev:api": "npm run dev -w @clubfutbolin/api",
+    "build": "npm run build -w @clubfutbolin/api",
+    "build:api": "npm run build -w @clubfutbolin/api",
+    "start": "npm run start -w @clubfutbolin/api",
+    "test": "npm run test -w @clubfutbolin/api",
+    "test:run": "npm run test:run -w @clubfutbolin/api",
+    "test:coverage": "npm run test:coverage -w @clubfutbolin/api",
+    "test:integration": "npm run test:integration -w @clubfutbolin/api",
+    "db:studio": "npm run db:studio -w @clubfutbolin/api",
+    "db:generate": "npm run db:generate -w @clubfutbolin/api",
+    "db:migrate": "npm run db:migrate -w @clubfutbolin/api",
+    "typecheck": "npm run typecheck -w @clubfutbolin/api",
+    "typecheck:api": "npm run typecheck -w @clubfutbolin/api",
+    "lint": "npm run lint -w @clubfutbolin/api",
+    "lint:api": "npm run lint -w @clubfutbolin/api"
   },
   "repository": {
     "type": "git",
@@ -22,34 +31,8 @@
   "keywords": [],
   "author": "Manuel Rico López",
   "license": "MIT",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/ricoldinho/clubFutbolin/issues"
   },
-  "homepage": "https://github.com/ricoldinho/clubFutbolin#readme",
-  "dependencies": {
-    "@fastify/env": "^5.0.3",
-    "@prisma/adapter-pg": "^7.5.0",
-    "@prisma/client": "^7.5.0",
-    "bcrypt": "^6.0.0",
-    "fastify": "^5.7.4",
-    "fastify-type-provider-zod": "^6.1.0",
-    "jose": "^6.2.1",
-    "tsconfig-paths": "^4.2.0",
-    "uuid": "^13.0.0",
-    "zod": "^4.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/bcrypt": "^6.0.0",
-    "@types/node": "^25.2.3",
-    "@vitest/coverage-v8": "^4.1.0",
-    "eslint": "^10.0.3",
-    "globals": "^17.4.0",
-    "prisma": "^7.5.0",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.0",
-    "vitest": "^4.0.18"
-  }
+  "homepage": "https://github.com/ricoldinho/clubFutbolin#readme"
 }

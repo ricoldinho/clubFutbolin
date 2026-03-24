@@ -1,0 +1,6 @@
+{
+  "name": "@clubfutbolin/web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "SPA React + Vite + TypeScript. Scaffold en fases posteriores del monorepo."
+}

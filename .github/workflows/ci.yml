@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: npm run db:generate -w @clubfutbolin/api
 
       - name: Lint
         run: npm run lint
@@ -63,7 +63,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Apply Prisma migrations
-        run: npx prisma migrate deploy
+        run: npm run db:migrate -w @clubfutbolin/api
 
       - name: Integration tests
         run: npm run test:integration
