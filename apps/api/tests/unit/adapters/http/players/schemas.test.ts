@@ -3,6 +3,9 @@ import {
   registerPlayerBodySchema,
   getPlayerByIdParamsSchema,
   listPlayersQuerySchema,
+  resolveListPlayersPagination,
+  DEFAULT_LIST_PLAYERS_PAGE,
+  DEFAULT_LIST_PLAYERS_PAGE_SIZE,
   updatePlayerBodySchema,
 } from '@/adapters/http/players/schemas';
 
@@ -98,6 +101,26 @@ describe('listPlayersQuerySchema', () => {
 
   it('rechaza pageSize > 100', () => {
     expect(listPlayersQuerySchema.safeParse({ pageSize: 101 }).success).toBe(false);
+  });
+});
+
+describe('resolveListPlayersPagination', () => {
+  it('devuelve undefined si no hay page ni pageSize', () => {
+    expect(resolveListPlayersPagination({})).toBeUndefined();
+  });
+
+  it('completa page por defecto si solo viene pageSize', () => {
+    expect(resolveListPlayersPagination({ pageSize: 5 })).toEqual({
+      page: DEFAULT_LIST_PLAYERS_PAGE,
+      pageSize: 5,
+    });
+  });
+
+  it('completa pageSize por defecto si solo viene page', () => {
+    expect(resolveListPlayersPagination({ page: 3 })).toEqual({
+      page: 3,
+      pageSize: DEFAULT_LIST_PLAYERS_PAGE_SIZE,
+    });
   });
 });
 

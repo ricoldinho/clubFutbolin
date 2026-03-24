@@ -1,0 +1,36 @@
+---
+description: TanStack Query en apps/web (hooks por recurso, cliente HTTP, invalidación)
+globs: apps/web/**/*.ts,apps/web/**/*.tsx
+alwaysApply: false
+---
+
+# TanStack Query (`apps/web`)
+
+## Proveedor y cliente
+
+- La app debe montarse dentro de **`QueryClientProvider`** (ver `src/app/providers.tsx` y `createAppQueryClient`).
+- No instanciar un `QueryClient` nuevo en cada render; usar **`useState(() => createAppQueryClient())`** en el provider raíz.
+
+## Cliente HTTP
+
+- Las peticiones al API pasan por **`src/api/client.ts`**: `apiUrl`, `apiFetch`, `apiJson` con base `import.meta.env.VITE_API_BASE` y cabecera **`Authorization: Bearer`** si existe token en `localStorage` (`AUTH_TOKEN_STORAGE_KEY`).
+- Los errores HTTP se modelan como **`ApiError`** (status + message); el `QueryClient` usa esto para **no reintentar** 4xx ni 401/403.
+
+## Convención de datos
+
+1. **Query keys:** centralizar en **`src/api/query-keys.ts`** con objetos jerárquicos (`queryKeys.leagues.all`, `queryKeys.leagues.detail(id)`).
+2. **Hooks por recurso:** bajo `src/features/<dominio>/api/` — nombres `useLeagues`, `useLogin`, etc.
+3. **`useQuery` / `useMutation`:** el `queryFn` / `mutationFn` llama a `apiJson` (o `apiFetch` si no es JSON); **no** duplicar `fetch` suelto en componentes.
+4. **Invalidación:** tras mutaciones que cambian listas o entidades, **`queryClient.invalidateQueries`** con las keys afectadas (ej. login → invalidar datos que dependen del usuario).
+
+## Buenas prácticas
+
+- **`staleTime`:** preferir tiempos razonables en `defaultOptions` para reducir ruido; overrides por query cuando un recurso deba refrescarse antes.
+- **Mutaciones:** `retry: false` por defecto (evita POST duplicados).
+- **Errores en UI:** comprobar `error instanceof ApiError` para mostrar `message` del API.
+- **Tipos:** DTOs de respuesta junto al hook o en `types` del feature; alineados con la API real.
+- **SSR:** no aplica a esta SPA; si se añade SSR más adelante, revalidar hidratación y `QueryClient` por request.
+
+## Tests (cuando existan en web)
+
+- Proveer un `QueryClient` de test o `wrapper` con `QueryClientProvider` al renderizar con RTL.

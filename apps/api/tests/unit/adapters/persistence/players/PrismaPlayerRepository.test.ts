@@ -148,6 +148,20 @@ describe('PrismaPlayerRepository', () => {
       expect(result[0].id?.value).toBe(id1);
       expect(result[1].email.value).toBe('b@b.com');
     });
+
+    it('con paginación pasa skip, take y orderBy a findMany', async () => {
+      mockFindMany.mockResolvedValue([]);
+
+      await repository.findAll({ page: 2, pageSize: 5 });
+
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { createdAt: 'asc' },
+          skip: 5,
+          take: 5,
+        }),
+      );
+    });
   });
 
   describe('save', () => {

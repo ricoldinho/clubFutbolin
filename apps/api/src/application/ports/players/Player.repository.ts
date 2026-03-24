@@ -21,12 +21,21 @@ export interface PlayerLoginData {
  *   antes de crear; si devuelve un Player, rechazar con "Email ya en uso".
  * - En PostgreSQL, columna email con UNIQUE para garantía a nivel BD.
  */
+/** Paginación 1-based para listados de `Player` en repositorio. */
+export interface PlayerListPagination {
+  readonly page: number;
+  readonly pageSize: number;
+}
+
 export interface IPlayerRepository {
   findByEmail(email: Email): Promise<Player | null>;
 
   findById(id: PlayerId): Promise<Player | null>;
 
-  findAll(): Promise<Player[]>;
+  /**
+   * Lista jugadores. Sin `pagination` devuelve todos; con `pagination` aplica ventana (skip/take).
+   */
+  findAll(pagination?: PlayerListPagination): Promise<Player[]>;
 
   /**
    * Persiste un Player. En registro (create) se debe pasar passwordHash.

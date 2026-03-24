@@ -21,6 +21,7 @@ import {
   getPlayerByIdParamsSchema,
   listPlayersQuerySchema,
   registerPlayerBodySchema,
+  resolveListPlayersPagination,
   updatePlayerBodySchema,
   type RegisterPlayerBody,
   type UpdatePlayerBody,
@@ -73,7 +74,7 @@ function toPlayerResponse(player: Player): PlayerResponse {
  * Registra las rutas HTTP relacionadas con Player.
  *
  * Endpoints:
- * - GET    /players             → Listar todos los Players (query opcional: page, pageSize)
+ * - GET    /players             → Listar Players (query opcional: page, pageSize; sin ellos, lista completa)
  * - GET    /players/:playerId   → Obtener un Player por id
  * - POST   /players             → Registrar un nuevo Player
  * - PATCH  /players/:playerId   → Actualizar datos de un Player existente
@@ -334,7 +335,9 @@ export async function playersRoutes(
   /**
    * GET /players
    *
-   * Lista todos los Players. Requiere autenticación (cualquier role).
+   * Lista Players. Requiere autenticación (cualquier role).
+   * Query opcional: `page`, `pageSize` (máx. 100). Si se envía solo uno, el otro usa valor por defecto.
+   * Sin query de paginación se devuelve el listado completo.
    * - 200: lista (posiblemente vacía)
    * - 400: query inválida (page/pageSize)
    * - 401: sin token o token inválido
@@ -349,7 +352,10 @@ export async function playersRoutes(
     },
     async (request, reply) => {
       try {
-        const result = await listPlayers.execute();
+        const pagination = resolveListPlayersPagination(request.query);
+        const result = await listPlayers.execute(
+          pagination === undefined ? undefined : { pagination },
+        );
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           return reply.code(statusCode).send({ message });

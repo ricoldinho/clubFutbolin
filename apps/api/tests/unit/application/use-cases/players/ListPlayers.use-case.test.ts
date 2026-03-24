@@ -64,4 +64,32 @@ describe('ListPlayers', () => {
     expect(emails).toEqual(['ana@example.com', 'bruno@example.com']);
     expect(result.value.map((p) => p.name).sort()).toEqual(['Ana', 'Bruno']);
   });
+
+  it('con paginación devuelve solo la ventana solicitada', async () => {
+    const repository = new InMemoryPlayerRepository();
+    const registerPlayer = new RegisterPlayer(repository, new FakePasswordHasher());
+    const listPlayers = new ListPlayers(repository);
+    for (let i = 0; i < 3; i += 1) {
+      await registerPlayer.execute({
+        name: `U${i}`,
+        lastname: 'Test',
+        nickname: null,
+        email: Email.create(`u${i}@example.com`),
+        phoneNumber: PhoneNumber.create(`60000000${i}`),
+        birthdate: Birthdate.create('1998-01-10'),
+        category: PlayerCategory.TERCERA,
+        password: 'password1',
+      });
+    }
+
+    const page1 = await listPlayers.execute({ pagination: { page: 1, pageSize: 2 } });
+    expect(isOk(page1)).toBe(true);
+    if (!isOk(page1)) return;
+    expect(page1.value).toHaveLength(2);
+
+    const page2 = await listPlayers.execute({ pagination: { page: 2, pageSize: 2 } });
+    expect(isOk(page2)).toBe(true);
+    if (!isOk(page2)) return;
+    expect(page2.value).toHaveLength(1);
+  });
 });

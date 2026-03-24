@@ -65,3 +65,25 @@ export const listPlayersQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(100).optional(),
 });
 
+export type ListPlayersQuery = z.infer<typeof listPlayersQuerySchema>;
+
+/** Valores por defecto si el cliente envía solo `page` o solo `pageSize`. */
+export const DEFAULT_LIST_PLAYERS_PAGE = 1;
+export const DEFAULT_LIST_PLAYERS_PAGE_SIZE = 20;
+
+/**
+ * Si no hay ningún query param de paginación, devuelve `undefined` (listar todo).
+ * Si viene al menos uno, aplica el otro por defecto.
+ */
+export function resolveListPlayersPagination(
+  q: ListPlayersQuery,
+): { page: number; pageSize: number } | undefined {
+  if (q.page === undefined && q.pageSize === undefined) {
+    return undefined;
+  }
+  return {
+    page: q.page ?? DEFAULT_LIST_PLAYERS_PAGE,
+    pageSize: q.pageSize ?? DEFAULT_LIST_PLAYERS_PAGE_SIZE,
+  };
+}
+

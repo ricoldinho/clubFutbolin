@@ -1,5 +1,6 @@
 import type {
   IPlayerRepository,
+  PlayerListPagination,
   PlayerLoginData,
 } from '@/application/ports/players/Player.repository';
 import { Player } from '@/domain/players/Player.entity';
@@ -22,8 +23,13 @@ export class InMemoryPlayerRepository implements IPlayerRepository {
     return this.players.find((p) => p.id?.equals(id)) ?? null;
   }
 
-  async findAll(): Promise<Player[]> {
-    return [...this.players];
+  async findAll(pagination?: PlayerListPagination): Promise<Player[]> {
+    const all = [...this.players];
+    if (pagination === undefined) {
+      return all;
+    }
+    const start = (pagination.page - 1) * pagination.pageSize;
+    return all.slice(start, start + pagination.pageSize);
   }
 
   async findLoginDataByEmail(email: Email): Promise<PlayerLoginData | null> {

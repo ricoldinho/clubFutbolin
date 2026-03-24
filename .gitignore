@@ -49,7 +49,6 @@ Thumbs.db
 # A veces es útil compartir configs de equipo, pero por defecto
 # es mejor que cada dev tenga su entorno personal limpio.
 .vscode/
-.cursorrules
 .idea/      # WebStorm / IntelliJ
 *.swp       # Vim
 *.swo

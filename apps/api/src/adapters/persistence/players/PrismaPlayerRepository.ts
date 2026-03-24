@@ -15,6 +15,7 @@ import { parsePlayerRole } from "@/domain/players/PlayerRole";
 import { InfrastructureError } from "@/domain/shared/errors";
 import type {
   IPlayerRepository,
+  PlayerListPagination,
   PlayerLoginData,
 } from "@/application/ports/players/Player.repository";
 
@@ -83,7 +84,7 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     return row ? this.toDomain(row as PrismaPlayer) : null;
   }
 
-  async findAll(): Promise<Player[]> {
+  async findAll(pagination?: PlayerListPagination): Promise<Player[]> {
     const rows = await this.prisma.player.findMany({
       select: {
         id: true,
@@ -96,6 +97,13 @@ export class PrismaPlayerRepository implements IPlayerRepository {
         category: true,
         role: true,
       },
+      orderBy: { createdAt: 'asc' },
+      ...(pagination
+        ? {
+            skip: (pagination.page - 1) * pagination.pageSize,
+            take: pagination.pageSize,
+          }
+        : {}),
     });
     return rows.map((row: PrismaPlayer) => this.toDomain(row));
   }

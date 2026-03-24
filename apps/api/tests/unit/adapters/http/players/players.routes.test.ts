@@ -9,7 +9,11 @@ import { playersRoutes } from '@/adapters/http/players/players.routes';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
 import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
-import type { IPlayerRepository, PlayerLoginData } from '@/application/ports/players/Player.repository';
+import type {
+  IPlayerRepository,
+  PlayerListPagination,
+  PlayerLoginData,
+} from '@/application/ports/players/Player.repository';
 import { Player } from '@/domain/players/Player.entity';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 
@@ -43,7 +47,7 @@ class FailingRepository implements IPlayerRepository {
     throw new Error('Infra error in findById');
   }
 
-  async findAll(): Promise<Player[]> {
+  async findAll(_pagination?: PlayerListPagination): Promise<Player[]> {
     throw new Error('Infra error in findAll');
   }
 
@@ -183,6 +187,42 @@ describe('players routes - Zod + Fastify integration', () => {
       headers,
     });
     expect(response.statusCode).toBe(200);
+  });
+
+  it('GET /players con pageSize=1 devuelve solo un jugador cuando hay dos', async () => {
+    const p1 = {
+      name: 'A',
+      lastname: 'Uno',
+      nickname: null,
+      email: 'a1@example.com',
+      phoneNumber: '600111111',
+      birthdate: '1990-01-01',
+      category: 'PRIMERA',
+      password: 'password12',
+    };
+    const p2 = {
+      name: 'B',
+      lastname: 'Dos',
+      nickname: null,
+      email: 'b2@example.com',
+      phoneNumber: '600222222',
+      birthdate: '1991-02-02',
+      category: 'PRIMERA',
+      password: 'password12',
+    };
+    await server.inject({ method: 'POST', url: '/players', payload: p1 });
+    await server.inject({ method: 'POST', url: '/players', payload: p2 });
+
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
+    const response = await server.inject({
+      method: 'GET',
+      url: '/players?pageSize=1',
+      headers,
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(1);
   });
 
   it('devuelve 200 y lista con players en GET /players', async () => {

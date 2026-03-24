@@ -9,8 +9,10 @@
   "scripts": {
     "dev": "npm run dev -w @clubfutbolin/api",
     "dev:api": "npm run dev -w @clubfutbolin/api",
+    "dev:web": "npm run dev -w @clubfutbolin/web",
     "build": "npm run build -w @clubfutbolin/api",
     "build:api": "npm run build -w @clubfutbolin/api",
+    "build:web": "npm run build -w @clubfutbolin/web",
     "start": "npm run start -w @clubfutbolin/api",
     "test": "npm run test -w @clubfutbolin/api",
     "test:run": "npm run test:run -w @clubfutbolin/api",
@@ -19,10 +21,12 @@
     "db:studio": "npm run db:studio -w @clubfutbolin/api",
     "db:generate": "npm run db:generate -w @clubfutbolin/api",
     "db:migrate": "npm run db:migrate -w @clubfutbolin/api",
-    "typecheck": "npm run typecheck -w @clubfutbolin/api",
+    "typecheck": "tsc -b --pretty && tsc --noEmit -p apps/api/tsconfig.tests.json",
     "typecheck:api": "npm run typecheck -w @clubfutbolin/api",
+    "typecheck:web": "npm run typecheck -w @clubfutbolin/web",
     "lint": "npm run lint -w @clubfutbolin/api",
-    "lint:api": "npm run lint -w @clubfutbolin/api"
+    "lint:api": "npm run lint -w @clubfutbolin/api",
+    "preview:web": "npm run preview -w @clubfutbolin/web"
   },
   "repository": {
     "type": "git",

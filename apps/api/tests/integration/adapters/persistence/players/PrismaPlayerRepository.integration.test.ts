@@ -108,6 +108,20 @@ describe('PrismaPlayerRepository (integración)', () => {
     expect(emails).toEqual(['all1@example.com', 'all2@example.com']);
   });
 
+  it('findAll con paginación devuelve ventanas según createdAt', async () => {
+    const p1 = makePlayer({ email: 'pag1@example.com', name: 'P1' });
+    const p2 = makePlayer({ email: 'pag2@example.com', name: 'P2' });
+    const p3 = makePlayer({ email: 'pag3@example.com', name: 'P3' });
+    await repository.save(p1, 'h1');
+    await repository.save(p2, 'h2');
+    await repository.save(p3, 'h3');
+
+    const firstPage = await repository.findAll({ page: 1, pageSize: 2 });
+    expect(firstPage).toHaveLength(2);
+    const secondPage = await repository.findAll({ page: 2, pageSize: 2 });
+    expect(secondPage).toHaveLength(1);
+  });
+
   it('findByEmail: recupera por email', async () => {
     const player = makePlayer({ email: 'byemail@example.com' });
     await repository.save(player, 'hash');

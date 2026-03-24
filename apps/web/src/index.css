@@ -1,0 +1,9 @@
+@import 'tailwindcss';
+
+/**
+ * Tailwind v4: tema y tokens en CSS-first (@theme, variables CSS).
+ * No añadir tailwind.config.js salvo necesidad de compatibilidad externa.
+ */
+@theme {
+  --font-sans: system-ui, sans-serif;
+}
