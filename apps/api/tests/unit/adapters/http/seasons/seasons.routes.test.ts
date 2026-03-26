@@ -63,7 +63,10 @@ describe('seasons routes', () => {
   it('GET /seasons devuelve 200 y lista vacía', async () => {
     const response = await server.inject({ method: 'GET', url: '/seasons' });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual([]);
+    expect(response.json()).toEqual({
+      data: [],
+      meta: { total: 0, page: 1, lastPage: 0 },
+    });
   });
 
   it('POST /seasons requiere admin y devuelve 201', async () => {

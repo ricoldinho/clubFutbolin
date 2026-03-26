@@ -3,6 +3,7 @@ import {
   createLeagueBodySchema,
   updateLeagueBodySchema,
   getLeagueByIdParamsSchema,
+  listLeaguesQuerySchema,
 } from '@/adapters/http/leagues/schemas';
 
 describe('leagues schemas', () => {
@@ -42,6 +43,17 @@ describe('leagues schemas', () => {
         leagueId: '123e4567-e89b-12d3-a456-426614174000',
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('listLeaguesQuerySchema', () => {
+    it('aplica defaults de paginación', () => {
+      const result = listLeaguesQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+        expect(result.data.limit).toBe(20);
+      }
     });
   });
 });

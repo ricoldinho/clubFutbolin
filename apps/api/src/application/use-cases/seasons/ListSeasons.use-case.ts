@@ -1,6 +1,10 @@
-import type { Season } from '@/domain/seasons/Season.entity';
-import type { ISeasonRepository } from '@/application/ports/seasons/Season.repository';
+import type { ISeasonRepository, SeasonListResult } from '@/application/ports/seasons/Season.repository';
 import { Result } from '@/shared/result';
+import type { PaginationParams } from '@/shared/pagination';
+
+export interface ListSeasonsInput {
+  readonly pagination: PaginationParams;
+}
 
 /**
  * Lista todas las Seasons. Público.
@@ -8,8 +12,8 @@ import { Result } from '@/shared/result';
 export class ListSeasons {
   constructor(private readonly repository: ISeasonRepository) {}
 
-  async execute(): Promise<Result<Season[], never>> {
-    const seasons = await this.repository.findAll();
+  async execute(input: ListSeasonsInput): Promise<Result<SeasonListResult, never>> {
+    const seasons = await this.repository.findAll(input.pagination);
     return Result.ok(seasons);
   }
 }

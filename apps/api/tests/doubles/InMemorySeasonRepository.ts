@@ -2,6 +2,7 @@ import type { ISeasonRepository } from '@/application/ports/seasons/Season.repos
 import { Season } from '@/domain/seasons/Season.entity';
 import type { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 import type { LeagueId } from '@/domain/leagues/LeagueId.value-object';
+import type { PaginationParams } from '@/shared/pagination';
 
 export class InMemorySeasonRepository implements ISeasonRepository {
   private readonly seasons: Season[] = [];
@@ -10,8 +11,18 @@ export class InMemorySeasonRepository implements ISeasonRepository {
     return this.seasons.find((s) => s.id?.equals(id)) ?? null;
   }
 
-  async findAll(): Promise<Season[]> {
-    return [...this.seasons];
+  async findAll(): Promise<Season[]>;
+  async findAll(pagination: PaginationParams): Promise<{ data: Season[]; total: number }>;
+  async findAll(pagination?: PaginationParams): Promise<Season[] | { data: Season[]; total: number }> {
+    const all = [...this.seasons];
+    if (pagination === undefined) {
+      return all;
+    }
+    const start = (pagination.page - 1) * pagination.limit;
+    return {
+      data: all.slice(start, start + pagination.limit),
+      total: all.length,
+    };
   }
 
   async findByLeagueId(leagueId: LeagueId): Promise<Season[]> {

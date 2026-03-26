@@ -45,7 +45,10 @@ describe('leagues routes', () => {
   it('GET /leagues devuelve 200 y lista vacía cuando no hay ligas', async () => {
     const response = await server.inject({ method: 'GET', url: '/leagues' });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual([]);
+    expect(response.json()).toEqual({
+      data: [],
+      meta: { total: 0, page: 1, lastPage: 0 },
+    });
   });
 
   it('POST /leagues requiere admin y devuelve 201', async () => {

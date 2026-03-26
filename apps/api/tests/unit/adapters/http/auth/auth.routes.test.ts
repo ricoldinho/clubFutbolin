@@ -122,7 +122,7 @@ describe('auth routes', () => {
     const throwingRepo: IPlayerRepository = {
       findByEmail: async () => null,
       findById: async () => null,
-      findAll: async () => [],
+      findAll: (async () => []) as unknown as IPlayerRepository['findAll'],
       findLoginDataByEmail: async () => {
         throw new Error('DB connection lost');
       },

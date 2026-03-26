@@ -3,9 +3,8 @@ import {
   registerPlayerBodySchema,
   getPlayerByIdParamsSchema,
   listPlayersQuerySchema,
-  resolveListPlayersPagination,
   DEFAULT_LIST_PLAYERS_PAGE,
-  DEFAULT_LIST_PLAYERS_PAGE_SIZE,
+  DEFAULT_LIST_PLAYERS_LIMIT,
   updatePlayerBodySchema,
 } from '@/adapters/http/players/schemas';
 
@@ -80,17 +79,21 @@ describe('updatePlayerBodySchema', () => {
 });
 
 describe('listPlayersQuerySchema', () => {
-  it('acepta query vacía (paginación opcional)', () => {
+  it('acepta query vacía y aplica defaults', () => {
     const result = listPlayersQuerySchema.safeParse({});
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(DEFAULT_LIST_PLAYERS_PAGE);
+      expect(result.data.limit).toBe(DEFAULT_LIST_PLAYERS_LIMIT);
+    }
   });
 
-  it('acepta page y pageSize válidos (coerce desde string)', () => {
-    const result = listPlayersQuerySchema.safeParse({ page: '2', pageSize: '10' });
+  it('acepta page y limit válidos (coerce desde string)', () => {
+    const result = listPlayersQuerySchema.safeParse({ page: '2', limit: '10' });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.page).toBe(2);
-      expect(result.data.pageSize).toBe(10);
+      expect(result.data.limit).toBe(10);
     }
   });
 
@@ -99,28 +102,8 @@ describe('listPlayersQuerySchema', () => {
     expect(listPlayersQuerySchema.safeParse({ page: -1 }).success).toBe(false);
   });
 
-  it('rechaza pageSize > 100', () => {
-    expect(listPlayersQuerySchema.safeParse({ pageSize: 101 }).success).toBe(false);
-  });
-});
-
-describe('resolveListPlayersPagination', () => {
-  it('devuelve undefined si no hay page ni pageSize', () => {
-    expect(resolveListPlayersPagination({})).toBeUndefined();
-  });
-
-  it('completa page por defecto si solo viene pageSize', () => {
-    expect(resolveListPlayersPagination({ pageSize: 5 })).toEqual({
-      page: DEFAULT_LIST_PLAYERS_PAGE,
-      pageSize: 5,
-    });
-  });
-
-  it('completa pageSize por defecto si solo viene page', () => {
-    expect(resolveListPlayersPagination({ page: 3 })).toEqual({
-      page: 3,
-      pageSize: DEFAULT_LIST_PLAYERS_PAGE_SIZE,
-    });
+  it('rechaza limit > 100', () => {
+    expect(listPlayersQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
   });
 });
 

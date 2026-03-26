@@ -9,11 +9,12 @@ describe('ListTeams', () => {
     const repository = new InMemoryTeamRepository();
     const listTeams = new ListTeams(repository);
 
-    const result = await listTeams.execute();
+    const result = await listTeams.execute({ pagination: { page: 1, limit: 20 } });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([]);
+    expect(result.value.data).toEqual([]);
+    expect(result.value.total).toBe(0);
   });
 
   it('devuelve Result.ok con todos los equipos guardados', async () => {
@@ -24,12 +25,13 @@ describe('ListTeams', () => {
     if (!isOk(r1) || !isOk(r2)) throw new Error('Expected team create');
     const listTeams = new ListTeams(repository);
 
-    const result = await listTeams.execute();
+    const result = await listTeams.execute({ pagination: { page: 1, limit: 20 } });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toHaveLength(2);
-    const names = result.value.map((t) => t.name).sort();
+    expect(result.value.data).toHaveLength(2);
+    expect(result.value.total).toBe(2);
+    const names = result.value.data.map((t) => t.name).sort();
     expect(names).toEqual(['Equipo Dos', 'Equipo Uno']);
   });
 });

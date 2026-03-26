@@ -11,7 +11,6 @@ import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
 import type {
   IPlayerRepository,
-  PlayerListPagination,
   PlayerLoginData,
 } from '@/application/ports/players/Player.repository';
 import { Player } from '@/domain/players/Player.entity';
@@ -47,7 +46,9 @@ class FailingRepository implements IPlayerRepository {
     throw new Error('Infra error in findById');
   }
 
-  async findAll(_pagination?: PlayerListPagination): Promise<Player[]> {
+  async findAll(): Promise<Player[]>;
+  async findAll(_pagination: { page: number; limit: number }): Promise<{ data: Player[]; total: number }>;
+  async findAll(): Promise<Player[] | { data: Player[]; total: number }> {
     throw new Error('Infra error in findAll');
   }
 
@@ -155,8 +156,10 @@ describe('players routes - Zod + Fastify integration', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(0);
+    expect(body).toEqual({
+      data: [],
+      meta: { total: 0, page: 1, lastPage: 0 },
+    });
   });
 
   it('devuelve 400 en GET /players cuando page es inválida', async () => {
@@ -169,11 +172,11 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it('devuelve 400 en GET /players cuando pageSize supera el máximo', async () => {
+  it('devuelve 400 en GET /players cuando limit supera el máximo', async () => {
     const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'GET',
-      url: '/players?pageSize=101',
+      url: '/players?limit=101',
       headers,
     });
     expect(response.statusCode).toBe(400);
@@ -183,13 +186,13 @@ describe('players routes - Zod + Fastify integration', () => {
     const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'GET',
-      url: '/players?page=1&pageSize=10',
+      url: '/players?page=1&limit=10',
       headers,
     });
     expect(response.statusCode).toBe(200);
   });
 
-  it('GET /players con pageSize=1 devuelve solo un jugador cuando hay dos', async () => {
+  it('GET /players con limit=1 devuelve solo un jugador cuando hay dos', async () => {
     const p1 = {
       name: 'A',
       lastname: 'Uno',
@@ -216,13 +219,14 @@ describe('players routes - Zod + Fastify integration', () => {
     const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
       method: 'GET',
-      url: '/players?pageSize=1',
+      url: '/players?limit=1',
       headers,
     });
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(1);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data).toHaveLength(1);
+    expect(body.meta).toMatchObject({ total: 2, page: 1, lastPage: 2 });
   });
 
   it('devuelve 200 y lista con players en GET /players', async () => {
@@ -252,9 +256,10 @@ describe('players routes - Zod + Fastify integration', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(1);
-    expect(body[0]).toMatchObject({
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data).toHaveLength(1);
+    expect(body.meta).toMatchObject({ total: 1, page: 1, lastPage: 1 });
+    expect(body.data[0]).toMatchObject({
       name: 'Manuel',
       lastname: 'Rico',
       email: 'list@example.com',

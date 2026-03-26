@@ -1,26 +1,17 @@
-import Fastify, { type FastifyInstance } from "fastify";
-import fastifyEnv from "@fastify/env";
-import {
-  ZodTypeProvider,
-  validatorCompiler,
-  serializerCompiler,
-} from "fastify-type-provider-zod";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaPlayerRepository } from "./adapters/persistence/players/PrismaPlayerRepository";
-import { PrismaLeagueRepository } from "./adapters/persistence/leagues/PrismaLeagueRepository";
-import { PrismaTeamRepository } from "./adapters/persistence/teams/PrismaTeamRepository";
-import { PrismaSeasonRepository } from "./adapters/persistence/seasons/PrismaSeasonRepository";
-import { PrismaRosterRepository } from "./adapters/persistence/rosters/PrismaRosterRepository";
-import { BcryptPasswordHasher } from "./adapters/auth/BcryptPasswordHasher";
-import { JoseJwtService } from "./adapters/auth/JoseJwtService";
-import { playersRoutes } from "./adapters/http/players/players.routes";
-import { authRoutes } from "./adapters/http/auth/auth.routes";
-import { leaguesRoutes } from "./adapters/http/leagues/leagues.routes";
-import { teamsRoutes } from "./adapters/http/teams/teams.routes";
-import { seasonsRoutes } from "./adapters/http/seasons/seasons.routes";
-import { rostersRoutes } from "./adapters/http/rosters/rosters.routes";
-import { options } from "./shared/config/env";
+import Fastify, { type FastifyInstance } from 'fastify';
+import fastifyEnv from '@fastify/env';
+import { ZodTypeProvider, validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { playersRoutes } from './adapters/http/players/players.routes';
+import { authRoutes } from './adapters/http/auth/auth.routes';
+import { leaguesRoutes } from './adapters/http/leagues/leagues.routes';
+import { teamsRoutes } from './adapters/http/teams/teams.routes';
+import { seasonsRoutes } from './adapters/http/seasons/seasons.routes';
+import { rostersRoutes } from './adapters/http/rosters/rosters.routes';
+import { options } from './shared/config/env';
+import { buildContainer } from './shared/di/container';
+import { registerRequestScope } from './shared/di/request-scope';
 
 export async function buildServer() {
   let prisma: PrismaClient | undefined;
@@ -38,62 +29,31 @@ export async function buildServer() {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error(
-        "DATABASE_URL no está definida. Añádela a .env (ver .env.example)."
+        'DATABASE_URL no está definida. Copia .env.example a .env en la raíz del monorepo (o en apps/api) y define DATABASE_URL.',
       );
     }
     const adapter = new PrismaPg({ connectionString });
     prisma = new PrismaClient({ adapter });
-    const playerRepository = new PrismaPlayerRepository(prisma);
-    const leagueRepository = new PrismaLeagueRepository(prisma);
-    const teamRepository = new PrismaTeamRepository(prisma);
-    const seasonRepository = new PrismaSeasonRepository(prisma);
-    const rosterRepository = new PrismaRosterRepository(prisma);
-    const passwordHasher = new BcryptPasswordHasher();
-    const jwtService = new JoseJwtService(
-      server.config.JWT_SECRET,
-      server.config.JWT_EXPIRES_IN,
-    );
+    const container = buildContainer({ prisma, config: server.config });
+    server.decorate('container', container);
+    await server.register(registerRequestScope);
 
-    server.addHook("onClose", async () => {
+    server.addHook('onClose', async () => {
       await prisma!.$disconnect();
     });
 
     // 2. Rutas HTTP
-    await server.register(authRoutes, {
-      repository: playerRepository,
-      passwordHasher,
-      jwtService,
-    });
-    await server.register(playersRoutes, {
-      repository: playerRepository,
-      passwordHasher,
-      jwtService,
-    });
-    await server.register(leaguesRoutes, {
-      repository: leagueRepository,
-      jwtService,
-    });
-    await server.register(teamsRoutes, {
-      repository: teamRepository,
-      jwtService,
-    });
-    await server.register(seasonsRoutes, {
-      repository: seasonRepository,
-      leagueRepository,
-      teamRepository,
-      jwtService,
-    });
-    await server.register(rostersRoutes, {
-      repository: rosterRepository,
-      teamRepository,
-      seasonRepository,
-      jwtService,
-    });
+    await server.register(authRoutes);
+    await server.register(playersRoutes);
+    await server.register(leaguesRoutes);
+    await server.register(teamsRoutes);
+    await server.register(seasonsRoutes);
+    await server.register(rostersRoutes);
 
     // Healthcheck básico
-    server.get("/", async (_request, _reply) => {
+    server.get('/', async (_request, _reply) => {
       return {
-        status: "OK",
+        status: 'OK',
         env: server.config.NODE_ENV,
       };
     });
@@ -117,7 +77,7 @@ async function start() {
     server = await buildServer();
     const port = server.config.PORT;
     await server.listen({ port });
-    server.log.info({ port }, "Server running");
+    server.log.info({ port }, 'Server running');
   } catch (err) {
     // En producción queremos loguear y terminar el proceso
     // eslint-disable-next-line no-console
@@ -134,6 +94,6 @@ async function start() {
   }
 }
 
-if (process.env.NODE_ENV !== "test") {
+if (process.env.NODE_ENV !== 'test') {
   void start();
 }

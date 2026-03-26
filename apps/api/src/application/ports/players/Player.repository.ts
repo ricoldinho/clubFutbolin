@@ -2,6 +2,7 @@ import type { PlayerRole } from '@/domain/players/PlayerRole';
 import { Player } from '@/domain/players/Player.entity';
 import { Email } from '@/domain/players/value-objects/Email.value-object';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+import type { PaginationParams } from '@/shared/pagination';
 
 /**
  * DTO solo para login: datos necesarios para verificar contraseña y emitir JWT.
@@ -22,9 +23,9 @@ export interface PlayerLoginData {
  * - En PostgreSQL, columna email con UNIQUE para garantía a nivel BD.
  */
 /** Paginación 1-based para listados de `Player` en repositorio. */
-export interface PlayerListPagination {
-  readonly page: number;
-  readonly pageSize: number;
+export interface PlayerListResult {
+  readonly data: Player[];
+  readonly total: number;
 }
 
 export interface IPlayerRepository {
@@ -33,9 +34,10 @@ export interface IPlayerRepository {
   findById(id: PlayerId): Promise<Player | null>;
 
   /**
-   * Lista jugadores. Sin `pagination` devuelve todos; con `pagination` aplica ventana (skip/take).
+   * Lista jugadores con paginación obligatoria y total para metadata.
    */
-  findAll(pagination?: PlayerListPagination): Promise<Player[]>;
+  findAll(): Promise<Player[]>;
+  findAll(pagination: PaginationParams): Promise<PlayerListResult>;
 
   /**
    * Persiste un Player. En registro (create) se debe pasar passwordHash.

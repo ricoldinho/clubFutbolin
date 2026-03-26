@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
 import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
@@ -19,39 +19,75 @@ import {
   addPlayerToRosterBodySchema,
   removePlayerFromRosterParamsSchema,
   getRosterParamsSchema,
+  registerTeamToSeasonResponseSchema,
+  addPlayerToRosterResponseSchema,
+  removePlayerFromRosterResponseSchema,
   type RegisterTeamToSeasonBody,
   type AddPlayerToRosterBody,
 } from './schemas';
+import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
 
 interface RostersRoutesOptions extends FastifyPluginOptions {
-  repository: IRosterRepository;
-  teamRepository: ITeamRepository;
-  seasonRepository: ISeasonRepository;
-  jwtService: IJwtService;
+  repository?: IRosterRepository;
+  teamRepository?: ITeamRepository;
+  seasonRepository?: ISeasonRepository;
+  jwtService?: IJwtService;
+  registerTeamToSeason?: RegisterTeamToSeason;
+  addPlayerToRoster?: AddPlayerToRoster;
+  removePlayerFromRoster?: RemovePlayerFromRoster;
 }
 
 export async function rostersRoutes(
   server: FastifyInstance,
-  options: RostersRoutesOptions,
+  options: RostersRoutesOptions = {},
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
-  const requireAdmin = createRequireAdmin(options.jwtService);
-  const registerTeamToSeason = new RegisterTeamToSeason(
-    options.repository,
-    options.teamRepository,
-    options.seasonRepository,
-  );
-  const addPlayerToRoster = new AddPlayerToRoster(options.repository);
-  const removePlayerFromRoster = new RemovePlayerFromRoster(options.repository);
+  const requireAdmin = createRequireAdmin(options.jwtService ?? server.container.cradle.jwtService);
+  const resolveDeps = (request: FastifyRequest) => ({
+    registerTeamToSeason:
+      options.registerTeamToSeason ??
+      (options.repository && options.teamRepository && options.seasonRepository
+        ? new RegisterTeamToSeason(
+            options.repository,
+            options.teamRepository,
+            options.seasonRepository,
+          )
+        : request.container.cradle.registerTeamToSeason),
+    addPlayerToRoster:
+      options.addPlayerToRoster ??
+      (options.repository
+        ? new AddPlayerToRoster(options.repository)
+        : request.container.cradle.addPlayerToRoster),
+    removePlayerFromRoster:
+      options.removePlayerFromRoster ??
+      (options.repository
+        ? new RemovePlayerFromRoster(options.repository)
+        : request.container.cradle.removePlayerFromRoster),
+  });
 
   zodServer.post(
     '/rosters/register',
     {
       preHandler: [requireAdmin],
-      schema: { body: registerTeamToSeasonBodySchema },
+      schema: {
+        body: registerTeamToSeasonBodySchema,
+        response: {
+          201: registerTeamToSeasonResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          409: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['rosters'],
+        summary: 'Inscribir equipo en temporada',
+        security: [{ bearerAuth: [] }],
+      },
     },
     async (request, reply) => {
       try {
+        const { registerTeamToSeason } = resolveDeps(request);
         const body = request.body as RegisterTeamToSeasonBody;
         const result = await registerTeamToSeason.execute({
           teamId: TeamId.fromString(body.teamId),
@@ -59,7 +95,9 @@ export async function rostersRoutes(
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
+            .send({ message });
         }
         return reply.code(201).send({
           teamSeasonId: result.value.teamSeasonId.value,
@@ -69,7 +107,9 @@ export async function rostersRoutes(
         });
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
+          .send({ message });
       }
     },
   );
@@ -78,10 +118,25 @@ export async function rostersRoutes(
     '/rosters/:teamSeasonId/players',
     {
       preHandler: [requireAdmin],
-      schema: { params: getRosterParamsSchema, body: addPlayerToRosterBodySchema },
+      schema: {
+        params: getRosterParamsSchema,
+        body: addPlayerToRosterBodySchema,
+        response: {
+          200: addPlayerToRosterResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['rosters'],
+        summary: 'Añadir jugador al roster',
+        security: [{ bearerAuth: [] }],
+      },
     },
     async (request, reply) => {
       try {
+        const { addPlayerToRoster } = resolveDeps(request);
         const { teamSeasonId: rawId } = request.params as { teamSeasonId: string };
         const body = request.body as AddPlayerToRosterBody;
         const result = await addPlayerToRoster.execute({
@@ -91,12 +146,16 @@ export async function rostersRoutes(
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 400 | 401 | 403 | 404 | 500)
+            .send({ message });
         }
         return reply.code(200).send({ membersCount: result.value.members.length });
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 400 | 401 | 403 | 404 | 500)
+          .send({ message });
       }
     },
   );
@@ -105,10 +164,24 @@ export async function rostersRoutes(
     '/rosters/:teamSeasonId/players/:playerId',
     {
       preHandler: [requireAdmin],
-      schema: { params: removePlayerFromRosterParamsSchema },
+      schema: {
+        params: removePlayerFromRosterParamsSchema,
+        response: {
+          200: removePlayerFromRosterResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['rosters'],
+        summary: 'Eliminar jugador del roster',
+        security: [{ bearerAuth: [] }],
+      },
     },
     async (request, reply) => {
       try {
+        const { removePlayerFromRoster } = resolveDeps(request);
         const { teamSeasonId: rawTsId, playerId: rawPlayerId } = request.params as {
           teamSeasonId: string;
           playerId: string;
@@ -119,12 +192,16 @@ export async function rostersRoutes(
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 400 | 401 | 403 | 404 | 500)
+            .send({ message });
         }
         return reply.code(200).send({ membersCount: result.value.members.length });
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 400 | 401 | 403 | 404 | 500)
+          .send({ message });
       }
     },
   );

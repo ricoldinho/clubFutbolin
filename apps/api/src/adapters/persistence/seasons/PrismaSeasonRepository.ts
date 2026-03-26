@@ -3,7 +3,8 @@ import { Season } from '@/domain/seasons/Season.entity';
 import { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 import { LeagueId } from '@/domain/leagues/LeagueId.value-object';
 import { TeamId } from '@/domain/teams/TeamId.value-object';
-import type { ISeasonRepository } from '@/application/ports/seasons/Season.repository';
+import type { ISeasonRepository, SeasonListResult } from '@/application/ports/seasons/Season.repository';
+import type { PaginationParams } from '@/shared/pagination';
 
 export class PrismaSeasonRepository implements ISeasonRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -32,11 +33,27 @@ export class PrismaSeasonRepository implements ISeasonRepository {
     return row ? this.toDomain(row) : null;
   }
 
-  async findAll(): Promise<Season[]> {
+  async findAll(): Promise<Season[]>;
+  async findAll(pagination: PaginationParams): Promise<SeasonListResult>;
+  async findAll(pagination?: PaginationParams): Promise<Season[] | SeasonListResult> {
     const rows = await this.prisma.season.findMany({
       select: { id: true, year: true, leagueId: true, championId: true, secondId: true },
+      ...(pagination
+        ? {
+            skip: (pagination.page - 1) * pagination.limit,
+            take: pagination.limit,
+          }
+        : {}),
+      orderBy: [{ year: 'asc' }, { id: 'asc' }],
     });
-    return rows.map((r) => this.toDomain(r));
+    if (pagination === undefined) {
+      return rows.map((r) => this.toDomain(r));
+    }
+    const total = await this.prisma.season.count();
+    return {
+      data: rows.map((r) => this.toDomain(r)),
+      total,
+    };
   }
 
   async findByLeagueId(leagueId: LeagueId): Promise<Season[]> {

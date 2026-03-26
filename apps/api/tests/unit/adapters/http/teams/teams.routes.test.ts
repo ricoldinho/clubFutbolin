@@ -45,7 +45,10 @@ describe('teams routes', () => {
   it('GET /teams devuelve 200 y lista vacía cuando no hay equipos', async () => {
     const response = await server.inject({ method: 'GET', url: '/teams' });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual([]);
+    expect(response.json()).toEqual({
+      data: [],
+      meta: { total: 0, page: 1, lastPage: 0 },
+    });
   });
 
   it('POST /teams requiere admin y devuelve 201', async () => {

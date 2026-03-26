@@ -1,12 +1,12 @@
-import { Player } from '@/domain/players/Player.entity';
 import type {
   IPlayerRepository,
-  PlayerListPagination,
+  PlayerListResult,
 } from '@/application/ports/players/Player.repository';
 import { Result } from '@/shared/result';
+import type { PaginationParams } from '@/shared/pagination';
 
 export interface ListPlayersInput {
-  readonly pagination?: PlayerListPagination;
+  readonly pagination: PaginationParams;
 }
 
 /**
@@ -16,8 +16,8 @@ export interface ListPlayersInput {
 export class ListPlayers {
   constructor(private readonly repository: IPlayerRepository) {}
 
-  async execute(input?: ListPlayersInput): Promise<Result<Player[], never>> {
-    const players = await this.repository.findAll(input?.pagination);
+  async execute(input: ListPlayersInput): Promise<Result<PlayerListResult, never>> {
+    const players = await this.repository.findAll(input.pagination);
     return Result.ok(players);
   }
 }

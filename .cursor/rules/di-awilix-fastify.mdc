@@ -1,0 +1,22 @@
+---
+description: Convenciones de DI con Awilix en Fastify
+alwaysApply: true
+---
+
+# Inyeccion de dependencias (Awilix + Fastify)
+
+Para cambios en `apps/api/src/**`, seguir estas reglas:
+
+- El cableado de infraestructura se registra en `apps/api/src/shared/di/container.ts`.
+- `main.ts` no debe instanciar casos de uso ni repositorios manualmente; solo crea Prisma, crea contenedor y registra rutas.
+- Crear un scope por request (hook centralizado) y resolver dependencias en handlers desde `request.container.cradle`.
+- Evitar crear `createScope()` en cada handler manualmente; usar un plugin compartido de request-scope.
+- Mantener compatibilidad de tests unitarios de rutas permitiendo inyectar dobles mediante `options` del plugin cuando sea necesario.
+- Al crear un nuevo caso de uso/adaptador, registrarlo en el contenedor con ciclo de vida adecuado:
+  - `singleton` para repositorios/adaptadores stateless y servicios compartidos.
+  - `scoped` para casos de uso.
+- Evitar dependencias globales implícitas en handlers; toda dependencia debe venir del contenedor o de opciones explícitas de test.
+- Si se añade un nuevo recurso HTTP, actualizar:
+  1. Registro de dependencias en `container.ts`
+  2. Tipos de Fastify (`shared/types/fastify.d.ts`) si cambia el contrato del contenedor
+  3. Tests unitarios de rutas del recurso.

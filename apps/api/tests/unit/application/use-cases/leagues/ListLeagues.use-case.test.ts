@@ -10,11 +10,12 @@ describe('ListLeagues', () => {
     const repository = new InMemoryLeagueRepository();
     const listLeagues = new ListLeagues(repository);
 
-    const result = await listLeagues.execute();
+    const result = await listLeagues.execute({ pagination: { page: 1, limit: 20 } });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([]);
+    expect(result.value.data).toEqual([]);
+    expect(result.value.total).toBe(0);
   });
 
   it('devuelve Result.ok con todas las ligas guardadas', async () => {
@@ -27,12 +28,13 @@ describe('ListLeagues', () => {
     );
     const listLeagues = new ListLeagues(repository);
 
-    const result = await listLeagues.execute();
+    const result = await listLeagues.execute({ pagination: { page: 1, limit: 20 } });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toHaveLength(2);
-    const names = result.value.map((l) => l.name).sort();
+    expect(result.value.data).toHaveLength(2);
+    expect(result.value.total).toBe(2);
+    const names = result.value.data.map((l) => l.name).sort();
     expect(names).toEqual(['Liga A', 'Liga B']);
   });
 });

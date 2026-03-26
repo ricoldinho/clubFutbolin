@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { Team } from '@/domain/teams/Team.entity';
 import { TeamId } from '@/domain/teams/TeamId.value-object';
-import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
+import type { ITeamRepository, TeamListResult } from '@/application/ports/teams/Team.repository';
+import type { PaginationParams } from '@/shared/pagination';
 
 export class PrismaTeamRepository implements ITeamRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -30,11 +31,27 @@ export class PrismaTeamRepository implements ITeamRepository {
     return row ? this.toDomain(row) : null;
   }
 
-  async findAll(): Promise<Team[]> {
+  async findAll(): Promise<Team[]>;
+  async findAll(pagination: PaginationParams): Promise<TeamListResult>;
+  async findAll(pagination?: PaginationParams): Promise<Team[] | TeamListResult> {
     const rows = await this.prisma.team.findMany({
       select: { id: true, name: true, createdAt: true },
+      ...(pagination
+        ? {
+            skip: (pagination.page - 1) * pagination.limit,
+            take: pagination.limit,
+          }
+        : {}),
+      orderBy: { createdAt: 'asc' },
     });
-    return rows.map((r) => this.toDomain(r));
+    if (pagination === undefined) {
+      return rows.map((r) => this.toDomain(r));
+    }
+    const total = await this.prisma.team.count();
+    return {
+      data: rows.map((r) => this.toDomain(r)),
+      total,
+    };
   }
 
   async save(team: Team): Promise<void> {

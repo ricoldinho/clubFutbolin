@@ -81,4 +81,3 @@ export class RegisterPlayer {
 - Para tests de rutas HTTP que usan Fastify (`server.inject()`):
   - Crea el servidor en un helper (por ejemplo `buildServer()`).
   - En cada suite (`describe`), inicializa el servidor en `beforeEach` y **ciérralo siempre** en `afterEach` o `afterAll` con `await server.close()` para evitar que queden handles abiertos y los tests se queden colgados.
-

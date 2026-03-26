@@ -15,9 +15,10 @@ import { parsePlayerRole } from "@/domain/players/PlayerRole";
 import { InfrastructureError } from "@/domain/shared/errors";
 import type {
   IPlayerRepository,
-  PlayerListPagination,
+  PlayerListResult,
   PlayerLoginData,
 } from "@/application/ports/players/Player.repository";
+import type { PaginationParams } from "@/shared/pagination";
 
 type PrismaPlayer = {
   id: string;
@@ -84,7 +85,9 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     return row ? this.toDomain(row as PrismaPlayer) : null;
   }
 
-  async findAll(pagination?: PlayerListPagination): Promise<Player[]> {
+  async findAll(): Promise<Player[]>;
+  async findAll(pagination: PaginationParams): Promise<PlayerListResult>;
+  async findAll(pagination?: PaginationParams): Promise<Player[] | PlayerListResult> {
     const rows = await this.prisma.player.findMany({
       select: {
         id: true,
@@ -100,12 +103,19 @@ export class PrismaPlayerRepository implements IPlayerRepository {
       orderBy: { createdAt: 'asc' },
       ...(pagination
         ? {
-            skip: (pagination.page - 1) * pagination.pageSize,
-            take: pagination.pageSize,
+            skip: (pagination.page - 1) * pagination.limit,
+            take: pagination.limit,
           }
         : {}),
     });
-    return rows.map((row: PrismaPlayer) => this.toDomain(row));
+    if (pagination === undefined) {
+      return rows.map((row: PrismaPlayer) => this.toDomain(row));
+    }
+    const total = await this.prisma.player.count();
+    return {
+      data: rows.map((row: PrismaPlayer) => this.toDomain(row)),
+      total,
+    };
   }
 
   async findLoginDataByEmail(email: Email): Promise<PlayerLoginData | null> {

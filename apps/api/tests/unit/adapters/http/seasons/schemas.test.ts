@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createSeasonBodySchema,
   getSeasonByIdParamsSchema,
+  listSeasonsQuerySchema,
   setSeasonWinnersBodySchema,
   updateSeasonBodySchema,
 } from '@/adapters/http/seasons/schemas';
@@ -74,6 +75,17 @@ describe('seasons schemas', () => {
     it('rechaza seasonId no UUID', () => {
       const result = getSeasonByIdParamsSchema.safeParse({ seasonId: 'bad' });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('listSeasonsQuerySchema', () => {
+    it('aplica defaults de paginación', () => {
+      const result = listSeasonsQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+        expect(result.data.limit).toBe(20);
+      }
     });
   });
 });

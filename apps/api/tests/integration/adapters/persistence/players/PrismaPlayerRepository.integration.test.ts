@@ -116,10 +116,11 @@ describe('PrismaPlayerRepository (integración)', () => {
     await repository.save(p2, 'h2');
     await repository.save(p3, 'h3');
 
-    const firstPage = await repository.findAll({ page: 1, pageSize: 2 });
-    expect(firstPage).toHaveLength(2);
-    const secondPage = await repository.findAll({ page: 2, pageSize: 2 });
-    expect(secondPage).toHaveLength(1);
+    const firstPage = await repository.findAll({ page: 1, limit: 2 });
+    expect(firstPage.data).toHaveLength(2);
+    expect(firstPage.total).toBe(3);
+    const secondPage = await repository.findAll({ page: 2, limit: 2 });
+    expect(secondPage.data).toHaveLength(1);
   });
 
   it('findByEmail: recupera por email', async () => {

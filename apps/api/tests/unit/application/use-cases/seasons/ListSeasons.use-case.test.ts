@@ -12,11 +12,12 @@ describe('ListSeasons', () => {
     const repository = new InMemorySeasonRepository();
     const listSeasons = new ListSeasons(repository);
 
-    const result = await listSeasons.execute();
+    const result = await listSeasons.execute({ pagination: { page: 1, limit: 20 } });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([]);
+    expect(result.value.data).toEqual([]);
+    expect(result.value.total).toBe(0);
   });
 
   it('devuelve Result.ok con todas las temporadas guardadas', async () => {
@@ -32,12 +33,13 @@ describe('ListSeasons', () => {
     if (!isOk(s1) || !isOk(s2)) throw new Error('Expected season create');
     const listSeasons = new ListSeasons(seasonRepo);
 
-    const result = await listSeasons.execute();
+    const result = await listSeasons.execute({ pagination: { page: 1, limit: 20 } });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toHaveLength(2);
-    const years = result.value.map((s) => s.year).sort();
+    expect(result.value.data).toHaveLength(2);
+    expect(result.value.total).toBe(2);
+    const years = result.value.data.map((s) => s.year).sort();
     expect(years).toEqual([2024, 2025]);
   });
 });

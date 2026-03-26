@@ -1,0 +1,34 @@
+---
+description: OpenAPI + paginacion obligatoria en listados GET
+alwaysApply: true
+---
+
+# Contrato OpenAPI para listados paginados (GET)
+
+Siempre que se añada o modifique un endpoint HTTP `GET` que devuelva una lista (ej. `/players`, `/leagues`, `/teams`, `/seasons`):
+
+## Query params obligatorios
+
+- La entrada debe validar con Zod `page` y `limit` como querystring.
+- Usar defaults consistentes: `page=1`, `limit=20`.
+- Restringir `limit` con un maximo (ej. `<=100`) para evitar cargas excesivas.
+
+## Respuesta obligatoria (nunca array plano)
+
+- La respuesta de exito `200` debe ser siempre:
+
+```json
+{
+  "data": [...],
+  "meta": { "total": 150, "page": 1, "lastPage": 8 }
+}
+```
+
+- `meta.lastPage` debe ser coherente con `total` y `limit` (si `total=0`, `lastPage=0`).
+
+## OpenAPI/Swagger
+
+- Definir `schema.response` para `200` (y al menos para `400` y `500`) usando Zod.
+- Añadir `schema.tags` y `schema.summary` para que el endpoint aparezca bien en Swagger UI.
+- Si el endpoint requiere JWT, incluir `schema.security: [{ bearerAuth: [] }]`.
+

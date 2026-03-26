@@ -4,6 +4,7 @@ import {
   updateTeamBodySchema,
   getTeamByIdParamsSchema,
   getTeamByNameParamsSchema,
+  listTeamsQuerySchema,
 } from '@/adapters/http/teams/schemas';
 
 describe('teams schemas', () => {
@@ -44,6 +45,17 @@ describe('teams schemas', () => {
     it('acepta name no vacío', () => {
       const result = getTeamByNameParamsSchema.safeParse({ name: 'Equipo X' });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('listTeamsQuerySchema', () => {
+    it('aplica defaults de paginación', () => {
+      const result = listTeamsQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+        expect(result.data.limit).toBe(20);
+      }
     });
   });
 });

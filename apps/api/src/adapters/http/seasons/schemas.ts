@@ -19,3 +19,27 @@ export const setSeasonWinnersBodySchema = z.object({
 export const getSeasonByIdParamsSchema = z.object({
   seasonId: z.string().uuid(),
 });
+
+export const seasonResponseSchema = z.object({
+  id: z.string().uuid().nullable(),
+  year: z.number().int(),
+  leagueId: z.string().uuid(),
+  championId: z.string().uuid().nullable(),
+  secondId: z.string().uuid().nullable(),
+});
+
+const paginationMetaResponseSchema = z.object({
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  lastPage: z.number().int().nonnegative(),
+});
+
+export const listSeasonsResponseSchema = z.object({
+  data: z.array(seasonResponseSchema),
+  meta: paginationMetaResponseSchema,
+});
+
+export const listSeasonsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});

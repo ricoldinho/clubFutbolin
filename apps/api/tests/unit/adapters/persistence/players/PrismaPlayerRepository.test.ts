@@ -53,6 +53,7 @@ function makePlayer(overrides: Partial<{ id: PlayerId }> = {}) {
 describe('PrismaPlayerRepository', () => {
   const mockFindUnique = vi.fn();
   const mockFindMany = vi.fn();
+  const mockCount = vi.fn();
   const mockUpsert = vi.fn();
   const mockDeleteMany = vi.fn();
 
@@ -60,6 +61,7 @@ describe('PrismaPlayerRepository', () => {
     player: {
       findUnique: mockFindUnique,
       findMany: mockFindMany,
+      count: mockCount,
       upsert: mockUpsert,
       deleteMany: mockDeleteMany,
     },
@@ -151,8 +153,9 @@ describe('PrismaPlayerRepository', () => {
 
     it('con paginación pasa skip, take y orderBy a findMany', async () => {
       mockFindMany.mockResolvedValue([]);
+      mockCount.mockResolvedValue(0);
 
-      await repository.findAll({ page: 2, pageSize: 5 });
+      await repository.findAll({ page: 2, limit: 5 });
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({

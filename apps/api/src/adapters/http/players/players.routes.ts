@@ -1,8 +1,9 @@
-import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { z } from 'zod';
+import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
 import type { IPasswordHasher } from '@/application/ports/auth/PasswordHasher.port';
-import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import { GetPlayerById } from '@/application/use-cases/players/GetPlayerById.use-case';
 import { ListPlayers } from '@/application/use-cases/players/ListPlayers.use-case';
 import { RegisterPlayer } from '@/application/use-cases/players/RegisterPlayer.use-case';
@@ -17,15 +18,20 @@ import { Birthdate } from '@/domain/players/value-objects/Birthdate.value-object
 import { parsePlayerCategory } from '@/domain/players/PlayerCategory';
 import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import { createRequireAuth } from '@/adapters/http/auth/auth-plugin';
+import type { PlayerCategory } from '@/domain/players/PlayerCategory';
+import type { PlayerRole } from '@/domain/players/PlayerRole';
 import {
   getPlayerByIdParamsSchema,
   listPlayersQuerySchema,
+  listPlayersResponseSchema,
+  playerResponseSchema,
   registerPlayerBodySchema,
-  resolveListPlayersPagination,
   updatePlayerBodySchema,
   type RegisterPlayerBody,
   type UpdatePlayerBody,
 } from './schemas';
+import { computeLastPage } from '@/shared/pagination';
+import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
 
 /**
  * Plugin HTTP para las rutas de Player.
@@ -35,9 +41,14 @@ import {
  * - POST /players y POST /auth/login son públicos; el resto requieren JWT.
  */
 interface PlayersRoutesOptions extends FastifyPluginOptions {
-  repository: IPlayerRepository;
-  passwordHasher: IPasswordHasher;
-  jwtService: IJwtService;
+  repository?: IPlayerRepository;
+  passwordHasher?: IPasswordHasher;
+  jwtService?: IJwtService;
+  getPlayerById?: GetPlayerById;
+  listPlayers?: ListPlayers;
+  registerPlayer?: RegisterPlayer;
+  deletePlayer?: DeletePlayer;
+  updatePlayer?: UpdatePlayer;
 }
 
 /**
@@ -52,9 +63,10 @@ interface PlayerResponse {
   email: string;
   phoneNumber: string;
   birthdate: string;
-  category: string;
-  role: string;
+  category: PlayerCategory;
+  role: PlayerRole;
 }
+
 
 function toPlayerResponse(player: Player): PlayerResponse {
   return {
@@ -74,7 +86,7 @@ function toPlayerResponse(player: Player): PlayerResponse {
  * Registra las rutas HTTP relacionadas con Player.
  *
  * Endpoints:
- * - GET    /players             → Listar Players (query opcional: page, pageSize; sin ellos, lista completa)
+ * - GET    /players             → Listar Players paginados (query opcional: page, limit)
  * - GET    /players/:playerId   → Obtener un Player por id
  * - POST   /players             → Registrar un nuevo Player
  * - PATCH  /players/:playerId   → Actualizar datos de un Player existente
@@ -82,18 +94,37 @@ function toPlayerResponse(player: Player): PlayerResponse {
  */
 export async function playersRoutes(
   server: FastifyInstance,
-  options: PlayersRoutesOptions,
+  options: PlayersRoutesOptions = {},
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
-  const requireAuth = createRequireAuth(options.jwtService);
-  const getPlayerById = new GetPlayerById(options.repository);
-  const listPlayers = new ListPlayers(options.repository);
-  const registerPlayer = new RegisterPlayer(
-    options.repository,
-    options.passwordHasher,
-  );
-  const deletePlayer = new DeletePlayer(options.repository);
-  const updatePlayer = new UpdatePlayer(options.repository);
+  const requireAuth = createRequireAuth(options.jwtService ?? server.container.cradle.jwtService);
+  const resolveDeps = (request: FastifyRequest) => ({
+    getPlayerById:
+      options.getPlayerById ??
+      (options.repository
+        ? new GetPlayerById(options.repository)
+        : request.container.cradle.getPlayerById),
+    listPlayers:
+      options.listPlayers ??
+      (options.repository
+        ? new ListPlayers(options.repository)
+        : request.container.cradle.listPlayers),
+    registerPlayer:
+      options.registerPlayer ??
+      (options.repository && options.passwordHasher
+        ? new RegisterPlayer(options.repository, options.passwordHasher)
+        : request.container.cradle.registerPlayer),
+    deletePlayer:
+      options.deletePlayer ??
+      (options.repository
+        ? new DeletePlayer(options.repository)
+        : request.container.cradle.deletePlayer),
+    updatePlayer:
+      options.updatePlayer ??
+      (options.repository
+        ? new UpdatePlayer(options.repository)
+        : request.container.cradle.updatePlayer),
+  });
 
   /**
    * POST /players
@@ -108,10 +139,19 @@ export async function playersRoutes(
     {
       schema: {
         body: registerPlayerBodySchema,
+        response: {
+          201: playerResponseSchema,
+          400: httpErrorResponseSchema,
+          409: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['players'],
+        summary: 'Registrar player',
       },
     },
     async (request, reply) => {
       try {
+        const { registerPlayer } = resolveDeps(request);
         const body = request.body as RegisterPlayerBody;
 
         const result = await registerPlayer.execute({
@@ -132,7 +172,9 @@ export async function playersRoutes(
           } else {
             request.log.warn({ err: result.error }, 'Error de dominio al registrar Player');
           }
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 400 | 409 | 500)
+            .send({ message });
         }
 
         return reply.code(201).send(toPlayerResponse(result.value));
@@ -143,7 +185,9 @@ export async function playersRoutes(
         } else {
           request.log.warn({ err: error }, 'Error de dominio al registrar Player');
         }
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 400 | 409 | 500)
+          .send({ message });
       }
     },
   );
@@ -163,10 +207,22 @@ export async function playersRoutes(
       preHandler: [requireAuth],
       schema: {
         params: getPlayerByIdParamsSchema,
+        response: {
+          200: playerResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['players'],
+        summary: 'Obtener player por id',
+        security: [{ bearerAuth: [] }],
       },
     },
     async (request, reply) => {
       try {
+        const { getPlayerById } = resolveDeps(request);
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
         const actor = {
@@ -178,7 +234,9 @@ export async function playersRoutes(
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           request.log.warn({ err: result.error }, 'Player no encontrado o sin permiso');
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 400 | 401 | 403 | 404 | 500)
+            .send({ message });
         }
 
         return reply.code(200).send(toPlayerResponse(result.value));
@@ -192,7 +250,9 @@ export async function playersRoutes(
         } else {
           request.log.warn({ err: error }, 'Error de dominio en GET /players/:playerId');
         }
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 400 | 401 | 403 | 404 | 500)
+          .send({ message });
       }
     },
   );
@@ -212,10 +272,22 @@ export async function playersRoutes(
       preHandler: [requireAuth],
       schema: {
         params: getPlayerByIdParamsSchema,
+        response: {
+          204: z.any(),
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['players'],
+        summary: 'Eliminar player',
+        security: [{ bearerAuth: [] }],
       },
     },
     async (request, reply) => {
       try {
+        const { deletePlayer } = resolveDeps(request);
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
         const actor = {
@@ -227,7 +299,9 @@ export async function playersRoutes(
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           request.log.warn({ err: result.error }, 'Player no encontrado o sin permiso al eliminar');
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 400 | 401 | 403 | 404 | 500)
+            .send({ message });
         }
 
         return reply.code(204).send();
@@ -241,7 +315,9 @@ export async function playersRoutes(
         } else {
           request.log.warn({ err: error }, 'Error de dominio en DELETE /players/:playerId');
         }
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 400 | 401 | 403 | 404 | 500)
+          .send({ message });
       }
     },
   );
@@ -264,10 +340,23 @@ export async function playersRoutes(
       schema: {
         params: getPlayerByIdParamsSchema,
         body: updatePlayerBodySchema,
+        response: {
+          200: playerResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          409: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['players'],
+        summary: 'Actualizar player',
+        security: [{ bearerAuth: [] }],
       },
     },
     async (request, reply) => {
       try {
+        const { updatePlayer } = resolveDeps(request);
         const { playerId: rawId } = request.params as { playerId: string };
         const body = request.body as UpdatePlayerBody;
         const playerId = PlayerId.fromString(rawId);
@@ -310,7 +399,9 @@ export async function playersRoutes(
               'Error de dominio al actualizar Player',
             );
           }
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 200 | 400 | 401 | 403 | 404 | 409 | 500)
+            .send({ message });
         }
 
         return reply.code(200).send(toPlayerResponse(result.value));
@@ -327,7 +418,9 @@ export async function playersRoutes(
             'Error de dominio en PATCH /players/:playerId',
           );
         }
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 200 | 400 | 401 | 403 | 404 | 409 | 500)
+          .send({ message });
       }
     },
   );
@@ -336,10 +429,9 @@ export async function playersRoutes(
    * GET /players
    *
    * Lista Players. Requiere autenticación (cualquier role).
-   * Query opcional: `page`, `pageSize` (máx. 100). Si se envía solo uno, el otro usa valor por defecto.
-   * Sin query de paginación se devuelve el listado completo.
-   * - 200: lista (posiblemente vacía)
-   * - 400: query inválida (page/pageSize)
+   * Query opcional: `page`, `limit` (máx. 100). Si no se envían, usa defaults page=1, limit=20.
+   * - 200: objeto paginado con lista (posiblemente vacía)
+   * - 400: query inválida (page/limit)
    * - 401: sin token o token inválido
    */
   zodServer.get(
@@ -348,26 +440,47 @@ export async function playersRoutes(
       preHandler: [requireAuth],
       schema: {
         querystring: listPlayersQuerySchema,
+        response: {
+          200: listPlayersResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['players'],
+        summary: 'Listar players paginados',
+        security: [{ bearerAuth: [] }],
       },
     },
     async (request, reply) => {
       try {
-        const pagination = resolveListPlayersPagination(request.query);
-        const result = await listPlayers.execute(
-          pagination === undefined ? undefined : { pagination },
-        );
+        const { listPlayers } = resolveDeps(request);
+        const query = request.query as { page: number; limit: number };
+        const result = await listPlayers.execute({
+          pagination: { page: query.page, limit: query.limit },
+        });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
-          return reply.code(statusCode).send({ message });
+          return reply
+            .code(statusCode as 200 | 400 | 401 | 500)
+            .send({ message });
         }
-        const response = result.value.map(toPlayerResponse);
+        const response = {
+          data: result.value.data.map(toPlayerResponse),
+          meta: {
+            total: result.value.total,
+            page: query.page,
+            lastPage: computeLastPage(result.value.total, query.limit),
+          },
+        };
         return reply.code(200).send(response);
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
         if (statusCode >= 500) {
           request.log.error({ err: error }, 'Error inesperado listando Players');
         }
-        return reply.code(statusCode).send({ message });
+        return reply
+          .code(statusCode as 200 | 400 | 401 | 500)
+          .send({ message });
       }
     },
   );

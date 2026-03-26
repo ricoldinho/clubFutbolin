@@ -23,3 +23,28 @@ export const removePlayerFromRosterParamsSchema = z.object({
 export const getRosterParamsSchema = z.object({
   teamSeasonId: z.string().uuid(),
 });
+
+export const registerTeamToSeasonResponseSchema = z.object({
+  teamSeasonId: z.string().uuid(),
+  teamId: z.string().uuid(),
+  seasonId: z.string().uuid(),
+  membersCount: z.number().int().nonnegative(),
+});
+
+export type RegisterTeamToSeasonResponse = z.infer<
+  typeof registerTeamToSeasonResponseSchema
+>;
+
+export const addPlayerToRosterResponseSchema = z.object({
+  membersCount: z.number().int().nonnegative(),
+});
+
+export type AddPlayerToRosterResponse = z.infer<typeof addPlayerToRosterResponseSchema>;
+
+export const removePlayerFromRosterResponseSchema = z.object({
+  membersCount: z.number().int().nonnegative(),
+});
+
+export type RemovePlayerFromRosterResponse = z.infer<
+  typeof removePlayerFromRosterResponseSchema
+>;

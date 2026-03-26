@@ -1,6 +1,7 @@
 import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
 import { Team } from '@/domain/teams/Team.entity';
 import type { TeamId } from '@/domain/teams/TeamId.value-object';
+import type { PaginationParams } from '@/shared/pagination';
 
 export class InMemoryTeamRepository implements ITeamRepository {
   private readonly teams: Team[] = [];
@@ -16,8 +17,18 @@ export class InMemoryTeamRepository implements ITeamRepository {
     );
   }
 
-  async findAll(): Promise<Team[]> {
-    return [...this.teams];
+  async findAll(): Promise<Team[]>;
+  async findAll(pagination: PaginationParams): Promise<{ data: Team[]; total: number }>;
+  async findAll(pagination?: PaginationParams): Promise<Team[] | { data: Team[]; total: number }> {
+    const all = [...this.teams];
+    if (pagination === undefined) {
+      return all;
+    }
+    const start = (pagination.page - 1) * pagination.limit;
+    return {
+      data: all.slice(start, start + pagination.limit),
+      total: all.length,
+    };
   }
 
   async save(team: Team): Promise<void> {

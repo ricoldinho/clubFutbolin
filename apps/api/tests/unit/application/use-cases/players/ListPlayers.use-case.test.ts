@@ -16,13 +16,14 @@ describe('ListPlayers', () => {
     const listPlayers = new ListPlayers(repository);
 
     // Act
-    const result = await listPlayers.execute();
+    const result = await listPlayers.execute({ pagination: { page: 1, limit: 20 } });
 
     // Assert
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([]);
-    expect(result.value).toHaveLength(0);
+    expect(result.value.data).toEqual([]);
+    expect(result.value.data).toHaveLength(0);
+    expect(result.value.total).toBe(0);
   });
 
   it('devuelve Result.ok(players) con los jugadores guardados', async () => {
@@ -54,15 +55,16 @@ describe('ListPlayers', () => {
     await registerPlayer.execute(props2);
 
     // Act
-    const result = await listPlayers.execute();
+    const result = await listPlayers.execute({ pagination: { page: 1, limit: 20 } });
 
     // Assert
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toHaveLength(2);
-    const emails = result.value.map((p) => p.email.value).sort();
+    expect(result.value.data).toHaveLength(2);
+    expect(result.value.total).toBe(2);
+    const emails = result.value.data.map((p) => p.email.value).sort();
     expect(emails).toEqual(['ana@example.com', 'bruno@example.com']);
-    expect(result.value.map((p) => p.name).sort()).toEqual(['Ana', 'Bruno']);
+    expect(result.value.data.map((p) => p.name).sort()).toEqual(['Ana', 'Bruno']);
   });
 
   it('con paginación devuelve solo la ventana solicitada', async () => {
@@ -82,14 +84,15 @@ describe('ListPlayers', () => {
       });
     }
 
-    const page1 = await listPlayers.execute({ pagination: { page: 1, pageSize: 2 } });
+    const page1 = await listPlayers.execute({ pagination: { page: 1, limit: 2 } });
     expect(isOk(page1)).toBe(true);
     if (!isOk(page1)) return;
-    expect(page1.value).toHaveLength(2);
+    expect(page1.value.data).toHaveLength(2);
+    expect(page1.value.total).toBe(3);
 
-    const page2 = await listPlayers.execute({ pagination: { page: 2, pageSize: 2 } });
+    const page2 = await listPlayers.execute({ pagination: { page: 2, limit: 2 } });
     expect(isOk(page2)).toBe(true);
     if (!isOk(page2)) return;
-    expect(page2.value).toHaveLength(1);
+    expect(page2.value.data).toHaveLength(1);
   });
 });

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { PlayerRole } from '@/domain/players/PlayerRole';
 
 /**
  * Schema Zod para el body de POST /players.
@@ -27,6 +29,11 @@ export const loginBodySchema = z.object({
 });
 
 export type LoginBody = z.infer<typeof loginBodySchema>;
+
+export const loginResponseSchema = z.object({
+  token: z.string(),
+  expiresIn: z.string(),
+});
 
 /**
  * Schema Zod para el body de PATCH /players/:playerId.
@@ -61,29 +68,40 @@ export const getPlayerByIdParamsSchema = z.object({
  * Schema Zod para los query params de GET /players (paginación/filtros futuros).
  */
 export const listPlayersQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional(),
-  pageSize: z.coerce.number().int().positive().max(100).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
 export type ListPlayersQuery = z.infer<typeof listPlayersQuerySchema>;
 
-/** Valores por defecto si el cliente envía solo `page` o solo `pageSize`. */
+/** Valores por defecto de la paginación para GET /players. */
 export const DEFAULT_LIST_PLAYERS_PAGE = 1;
-export const DEFAULT_LIST_PLAYERS_PAGE_SIZE = 20;
+export const DEFAULT_LIST_PLAYERS_LIMIT = 20;
 
-/**
- * Si no hay ningún query param de paginación, devuelve `undefined` (listar todo).
- * Si viene al menos uno, aplica el otro por defecto.
- */
-export function resolveListPlayersPagination(
-  q: ListPlayersQuery,
-): { page: number; pageSize: number } | undefined {
-  if (q.page === undefined && q.pageSize === undefined) {
-    return undefined;
-  }
-  return {
-    page: q.page ?? DEFAULT_LIST_PLAYERS_PAGE,
-    pageSize: q.pageSize ?? DEFAULT_LIST_PLAYERS_PAGE_SIZE,
-  };
-}
+const birthdateResponseSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'birthdate debe tener formato YYYY-MM-DD');
+
+export const playerResponseSchema = z.object({
+  id: z.string().uuid().nullable(),
+  name: z.string(),
+  lastname: z.string(),
+  nickname: z.string().nullable(),
+  email: z.string().email(),
+  phoneNumber: z.string().min(9).max(20),
+  birthdate: birthdateResponseSchema,
+  category: z.nativeEnum(PlayerCategory),
+  role: z.nativeEnum(PlayerRole),
+});
+
+const paginationMetaResponseSchema = z.object({
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  lastPage: z.number().int().nonnegative(),
+});
+
+export const listPlayersResponseSchema = z.object({
+  data: z.array(playerResponseSchema),
+  meta: paginationMetaResponseSchema,
+});
 
