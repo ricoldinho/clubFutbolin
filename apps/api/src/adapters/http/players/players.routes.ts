@@ -461,7 +461,7 @@ export async function playersRoutes(
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           return reply
-            .code(statusCode as 200 | 400 | 401 | 500)
+            .code(statusCode as 400 | 401 | 500)
             .send({ message });
         }
         const response = {
@@ -479,7 +479,7 @@ export async function playersRoutes(
           request.log.error({ err: error }, 'Error inesperado listando Players');
         }
         return reply
-          .code(statusCode as 200 | 400 | 401 | 500)
+          .code(statusCode as 400 | 401 | 500)
           .send({ message });
       }
     },

@@ -148,7 +148,7 @@ export async function teamsRoutes(
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           return reply
-            .code(statusCode as 200 | 400 | 500)
+            .code(statusCode as 400 | 500)
             .send({ message });
         }
         return reply.code(200).send({
@@ -162,7 +162,7 @@ export async function teamsRoutes(
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
         return reply
-          .code(statusCode as 200 | 400 | 500)
+          .code(statusCode as 400 | 500)
           .send({ message });
       }
     },

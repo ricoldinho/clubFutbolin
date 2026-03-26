@@ -4,7 +4,7 @@ import {
   validatorCompiler,
   serializerCompiler,
 } from 'fastify-type-provider-zod';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { rostersRoutes } from '@/adapters/http/rosters/rosters.routes';
 import { InMemoryRosterRepository } from '../../../../doubles/InMemoryRosterRepository';
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
@@ -288,5 +288,72 @@ describe('rosters routes', () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('rosters routes - errores de infraestructura', () => {
+  it('POST /rosters/register devuelve 500 cuando falla findById de team', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    const token = await built.jwtService.sign({ sub: 'admin-1', role: 'ADMIN' });
+    vi.spyOn(built.teamRepo, 'findById').mockRejectedValue(new Error('infra team findById'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'POST',
+      url: '/rosters/register',
+      headers: { Authorization: `Bearer ${token}` },
+      payload: {
+        teamId: '123e4567-e89b-12d3-a456-426614174010',
+        seasonId: '123e4567-e89b-12d3-a456-426614174011',
+      },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('POST /rosters/:teamSeasonId/players devuelve 500 cuando falla roster.findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    const token = await built.jwtService.sign({ sub: 'admin-1', role: 'ADMIN' });
+    vi.spyOn(built.rosterRepo, 'findById').mockRejectedValue(new Error('infra roster findById'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'POST',
+      url: '/rosters/123e4567-e89b-12d3-a456-426614174020/players',
+      headers: { Authorization: `Bearer ${token}` },
+      payload: {
+        playerId: '123e4567-e89b-12d3-a456-426614174021',
+        position: 'PORTERO',
+      },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('DELETE /rosters/:teamSeasonId/players/:playerId devuelve 500 cuando falla roster.findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    const token = await built.jwtService.sign({ sub: 'admin-1', role: 'ADMIN' });
+    vi.spyOn(built.rosterRepo, 'findById').mockRejectedValue(new Error('infra roster findById'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'DELETE',
+      url: '/rosters/123e4567-e89b-12d3-a456-426614174030/players/123e4567-e89b-12d3-a456-426614174031',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
   });
 });

@@ -62,7 +62,7 @@ export async function authRoutes(
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           return reply
-            .code(statusCode as 200 | 400 | 401 | 500)
+            .code(statusCode as 400 | 401 | 500)
             .send({ message });
         }
 
@@ -73,7 +73,7 @@ export async function authRoutes(
           request.log.error({ err: error }, 'Error inesperado en login');
         }
         return reply
-          .code(statusCode as 200 | 400 | 401 | 500)
+          .code(statusCode as 400 | 401 | 500)
           .send({ message });
       }
     },

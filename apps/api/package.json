@@ -15,9 +15,13 @@
     "test:integration": "vitest run --config vitest.config.integration.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.tests.json",
     "lint": "eslint ."
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only -r tsconfig-paths/register prisma/seed.ts"
   },
   "dependencies": {
     "@fastify/env": "^5.0.3",
@@ -37,6 +41,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "^9.9.0",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^25.2.3",
     "@vitest/coverage-v8": "^4.1.0",
@@ -44,6 +49,7 @@
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
     "prisma": "^7.5.0",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.0",

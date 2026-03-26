@@ -4,7 +4,7 @@ import {
   validatorCompiler,
   serializerCompiler,
 } from 'fastify-type-provider-zod';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { seasonsRoutes } from '@/adapters/http/seasons/seasons.routes';
 import { InMemorySeasonRepository } from '../../../../doubles/InMemorySeasonRepository';
 import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepository';
@@ -232,5 +232,91 @@ describe('seasons routes', () => {
     });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ message: expect.stringContaining('diferentes') });
+  });
+});
+
+describe('seasons routes - errores de infraestructura', () => {
+  it('GET /seasons devuelve 500 cuando falla findAll', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.seasonRepo, 'findAll').mockRejectedValue(new Error('infra findAll'));
+
+    // Act
+    const response = await built.app.inject({ method: 'GET', url: '/seasons' });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('POST /seasons devuelve 500 cuando falla findByLeagueId', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    const headers = await adminHeaders(built.jwtService);
+    const existingLeagueId = LeagueId.generate();
+    await built.leagueRepo.save(
+      League.create({
+        id: existingLeagueId,
+        name: 'Liga Infra',
+        leagueCategory: 'PRIMERA',
+      }),
+    );
+    vi.spyOn(built.seasonRepo, 'findByLeagueId').mockRejectedValue(
+      new Error('infra findByLeagueId'),
+    );
+
+    // Act
+    const response = await built.app.inject({
+      method: 'POST',
+      url: '/seasons',
+      headers,
+      payload: { year: 2035, leagueId: existingLeagueId.value },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('GET /seasons/:seasonId devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.seasonRepo, 'findById').mockRejectedValue(new Error('infra findById'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'GET',
+      url: '/seasons/123e4567-e89b-12d3-a456-426614174000',
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('PATCH /seasons/:seasonId/winners devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    const headers = await adminHeaders(built.jwtService);
+    vi.spyOn(built.seasonRepo, 'findById').mockRejectedValue(new Error('infra findById'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'PATCH',
+      url: '/seasons/123e4567-e89b-12d3-a456-426614174000/winners',
+      headers,
+      payload: {
+        championId: '123e4567-e89b-12d3-a456-426614174001',
+        secondId: '123e4567-e89b-12d3-a456-426614174002',
+      },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
   });
 });

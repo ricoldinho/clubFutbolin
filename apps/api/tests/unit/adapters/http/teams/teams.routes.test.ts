@@ -4,7 +4,7 @@ import {
   validatorCompiler,
   serializerCompiler,
 } from 'fastify-type-provider-zod';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { teamsRoutes } from '@/adapters/http/teams/teams.routes';
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
@@ -170,5 +170,97 @@ describe('teams routes', () => {
       headers,
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('teams routes - errores de infraestructura', () => {
+  it('GET /teams devuelve 500 cuando falla findAll', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findAll').mockRejectedValue(new Error('infra findAll'));
+
+    // Act
+    const response = await built.app.inject({ method: 'GET', url: '/teams' });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('POST /teams devuelve 500 cuando falla save', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'save').mockRejectedValue(new Error('infra save'));
+    const headers = await adminHeaders(built.jwtService);
+
+    // Act
+    const response = await built.app.inject({
+      method: 'POST',
+      url: '/teams',
+      headers,
+      payload: { name: 'Equipo Infra' },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('GET /teams/by-name/:name devuelve 500 cuando falla findByName', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findByName').mockRejectedValue(new Error('infra findByName'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'GET',
+      url: '/teams/by-name/Equipo',
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('PATCH /teams/:teamId devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findById').mockRejectedValue(new Error('infra findById'));
+    const headers = await adminHeaders(built.jwtService);
+
+    // Act
+    const response = await built.app.inject({
+      method: 'PATCH',
+      url: '/teams/123e4567-e89b-12d3-a456-426614174000',
+      headers,
+      payload: { name: 'Equipo X' },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('DELETE /teams/:teamId devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findById').mockRejectedValue(new Error('infra findById'));
+    const headers = await adminHeaders(built.jwtService);
+
+    // Act
+    const response = await built.app.inject({
+      method: 'DELETE',
+      url: '/teams/123e4567-e89b-12d3-a456-426614174000',
+      headers,
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
   });
 });

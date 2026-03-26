@@ -23,6 +23,7 @@ describe('PrismaLeagueRepository', () => {
     league: {
       findUnique: mockFindUnique,
       findMany: mockFindMany,
+      count: mockCount,
       upsert: mockUpsert,
       deleteMany: mockDeleteMany,
     },
@@ -61,6 +62,29 @@ describe('PrismaLeagueRepository', () => {
     expect(result).toHaveLength(2);
     expect(result[0].name).toBe('Liga Provincial');
     expect(result[1].name).toBe('Liga B');
+  });
+
+  it('findAll con paginación devuelve data + total y usa skip/take', async () => {
+    const rows = [makePrismaRow({ id: '223e4567-e89b-12d3-a456-426614174001' })];
+    mockFindMany.mockResolvedValue(rows);
+    mockCount.mockResolvedValue(7);
+
+    const result = await repository.findAll({ page: 2, limit: 3 });
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 3,
+        take: 3,
+        orderBy: { name: 'asc' },
+      }),
+    );
+    expect(result).toEqual({
+      data: expect.any(Array),
+      total: 7,
+    });
+    if ('data' in result) {
+      expect(result.data).toHaveLength(1);
+    }
   });
 
   it('save con league que tiene id llama upsert con update', async () => {

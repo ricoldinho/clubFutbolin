@@ -15,6 +15,10 @@ import type {
 } from '@/application/ports/players/Player.repository';
 import { Player } from '@/domain/players/Player.entity';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+import { Result } from '@/shared/result';
+import { DomainValidationError } from '@/domain/shared/errors';
+
+type PlayersRoutesOptions = NonNullable<Parameters<typeof playersRoutes>[1]>;
 
 const TEST_JWT_SECRET = 'test-secret';
 const TEST_JWT_EXPIRES = '1h';
@@ -469,6 +473,37 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it('devuelve 400 en PATCH /players/:playerId cuando birthdate no es una fecha válida de dominio', async () => {
+    const createResponse = await server.inject({
+      method: 'POST',
+      url: '/players',
+      payload: {
+        name: 'Manuel',
+        lastname: 'Rico',
+        nickname: null,
+        email: 'patch-birth-invalid@example.com',
+        phoneNumber: '600123123',
+        birthdate: '1990-01-01',
+        category: 'PRIMERA',
+        password: 'password123',
+      },
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = createResponse.json() as { id: string };
+    const headers = await authHeaders(jwtService, created.id);
+
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/players/${created.id}`,
+      headers,
+      payload: {
+        birthdate: 'fecha-no-valida',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it('devuelve 409 cuando el email ya está en uso en PATCH /players/:playerId', async () => {
     const payload1 = {
       name: 'Jugador 1',
@@ -739,5 +774,72 @@ describe('players routes - errores de infraestructura', () => {
     await server.close();
 
     expect(response.statusCode).toBe(500);
+  });
+});
+
+describe('players routes - ramas adicionales', () => {
+  it('GET /players devuelve estado mapeado cuando listPlayers responde Result.fail', async () => {
+    const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+
+    const repository = new InMemoryPlayerRepository();
+    const passwordHasher = new FakePasswordHasher();
+    const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    const listPlayers = {
+      execute: async () =>
+        Result.fail(new DomainValidationError('error de dominio en list players')),
+    };
+
+    app.register(playersRoutes, {
+      repository,
+      passwordHasher,
+      jwtService,
+      listPlayers: listPlayers as unknown as PlayersRoutesOptions['listPlayers'],
+    });
+    await app.ready();
+
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/players',
+      headers,
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it('GET /players devuelve 400 cuando listPlayers lanza DomainValidationError', async () => {
+    const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+
+    const repository = new InMemoryPlayerRepository();
+    const passwordHasher = new FakePasswordHasher();
+    const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    const listPlayers = {
+      execute: async () => {
+        throw new DomainValidationError('error domain catch list players');
+      },
+    };
+
+    app.register(playersRoutes, {
+      repository,
+      passwordHasher,
+      jwtService,
+      listPlayers: listPlayers as unknown as PlayersRoutesOptions['listPlayers'],
+    });
+    await app.ready();
+
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/players',
+      headers,
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
   });
 });

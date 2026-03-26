@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as jose from 'jose';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
 
 const SECRET = 'test-secret-key';
@@ -41,6 +42,28 @@ describe('JoseJwtService', () => {
   it('verify devuelve null cuando el token está firmado con otro secret', async () => {
     const otherService = new JoseJwtService('other-secret', EXPIRES_IN);
     const token = await otherService.sign({ sub: 'id', role: 'USER' });
+    const payload = await jwtService.verify(token);
+    expect(payload).toBeNull();
+  });
+
+  it('verify devuelve null cuando sub no es string', async () => {
+    const secret = new TextEncoder().encode(SECRET);
+    const token = await new jose.SignJWT({ sub: 123 as unknown as string, role: 'USER' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime(EXPIRES_IN)
+      .sign(secret);
+
+    const payload = await jwtService.verify(token);
+    expect(payload).toBeNull();
+  });
+
+  it('verify devuelve null cuando role no es string', async () => {
+    const secret = new TextEncoder().encode(SECRET);
+    const token = await new jose.SignJWT({ sub: 'player-id', role: 123 as unknown as string })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime(EXPIRES_IN)
+      .sign(secret);
+
     const payload = await jwtService.verify(token);
     expect(payload).toBeNull();
   });

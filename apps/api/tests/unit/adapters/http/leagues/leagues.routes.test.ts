@@ -4,7 +4,7 @@ import {
   validatorCompiler,
   serializerCompiler,
 } from 'fastify-type-provider-zod';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { leaguesRoutes } from '@/adapters/http/leagues/leagues.routes';
 import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepository';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
@@ -202,5 +202,97 @@ describe('leagues routes', () => {
     });
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ message: expect.stringContaining('Liga Duplicada') });
+  });
+});
+
+describe('leagues routes - errores de infraestructura', () => {
+  it('GET /leagues devuelve 500 cuando falla el repositorio', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findAll').mockRejectedValue(new Error('infra findAll'));
+
+    // Act
+    const response = await built.app.inject({ method: 'GET', url: '/leagues' });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('POST /leagues devuelve 500 cuando falla save', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'save').mockRejectedValue(new Error('infra save'));
+    const headers = await adminHeaders(built.jwtService);
+
+    // Act
+    const response = await built.app.inject({
+      method: 'POST',
+      url: '/leagues',
+      headers,
+      payload: { name: 'Liga Infra', leagueCategory: 'PRIMERA' },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('GET /leagues/:leagueId devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findById').mockRejectedValue(new Error('infra findById'));
+
+    // Act
+    const response = await built.app.inject({
+      method: 'GET',
+      url: '/leagues/123e4567-e89b-12d3-a456-426614174000',
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('PATCH /leagues/:leagueId devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findById').mockRejectedValue(new Error('infra findById'));
+    const headers = await adminHeaders(built.jwtService);
+
+    // Act
+    const response = await built.app.inject({
+      method: 'PATCH',
+      url: '/leagues/123e4567-e89b-12d3-a456-426614174000',
+      headers,
+      payload: { name: 'Liga X' },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
+  });
+
+  it('DELETE /leagues/:leagueId devuelve 500 cuando falla findById', async () => {
+    // Arrange
+    const built = buildServer();
+    await built.app.ready();
+    vi.spyOn(built.repository, 'findById').mockRejectedValue(new Error('infra findById'));
+    const headers = await adminHeaders(built.jwtService);
+
+    // Act
+    const response = await built.app.inject({
+      method: 'DELETE',
+      url: '/leagues/123e4567-e89b-12d3-a456-426614174000',
+      headers,
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    await built.app.close();
   });
 });

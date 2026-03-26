@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PrismaTeamRepository } from '@/adapters/persistence/teams/PrismaTeamRepository';
 import { TeamId } from '@/domain/teams/TeamId.value-object';
+import { Team } from '@/domain/teams/Team.entity';
 
 function makePrismaRow(overrides: Partial<{ id: string; name: string; createdAt: Date }> = {}) {
   return {
@@ -69,5 +70,75 @@ describe('PrismaTeamRepository', () => {
     mockFindMany.mockResolvedValue(rows);
     const result = await repository.findAll();
     expect(result).toHaveLength(2);
+  });
+
+  it('findAll con paginación devuelve data + total y usa skip/take', async () => {
+    const mockCount = vi.fn().mockResolvedValue(5);
+    const prismaWithCount = {
+      ...mockPrisma,
+      team: { ...mockPrisma.team, count: mockCount },
+    };
+    const paginatedRepository = new PrismaTeamRepository(prismaWithCount as never);
+    mockFindMany.mockResolvedValue([makePrismaRow()]);
+
+    const result = await paginatedRepository.findAll({ page: 2, limit: 2 });
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 2,
+        take: 2,
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+    expect(result).toEqual({
+      data: expect.any(Array),
+      total: 5,
+    });
+  });
+
+  it('save con id existente hace upsert con where/update correctos', async () => {
+    const id = TeamId.fromString('123e4567-e89b-12d3-a456-426614174000');
+    const team = Team.create({
+      id,
+      name: 'Equipo Save',
+      createdAt: new Date('2024-01-01'),
+    });
+    mockUpsert.mockResolvedValue(undefined);
+
+    await repository.save(team);
+
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: id.value },
+        update: { name: 'Equipo Save' },
+        create: expect.objectContaining({
+          id: id.value,
+          name: 'Equipo Save',
+        }),
+      }),
+    );
+  });
+
+  it('save sin id genera uuid para create', async () => {
+    const team = Team.create({
+      name: 'Equipo Nuevo',
+      createdAt: new Date('2024-02-01'),
+    });
+    mockUpsert.mockResolvedValue(undefined);
+
+    await repository.save(team);
+
+    const payload = mockUpsert.mock.calls[0][0];
+    expect(payload.where.id).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(payload.create.name).toBe('Equipo Nuevo');
+  });
+
+  it('delete llama a deleteMany con id', async () => {
+    const id = TeamId.fromString('123e4567-e89b-12d3-a456-426614174000');
+    mockDeleteMany.mockResolvedValue({ count: 1 });
+
+    await repository.delete(id);
+
+    expect(mockDeleteMany).toHaveBeenCalledWith({ where: { id: id.value } });
   });
 });
