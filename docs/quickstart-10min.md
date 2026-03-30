@@ -62,7 +62,7 @@ npm run dev:api
 
 Abre:
 
-- `http://localhost:3000/docs` (Swagger)
+- `http://localhost:3000/documentation` (Swagger UI; JSON en `/documentation/json`)
 
 ## 7) Levantar Web (React/Vite)
 

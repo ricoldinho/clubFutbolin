@@ -1,0 +1,40 @@
+---
+description: OpenAPI / Swagger UI en la API (Fastify + Zod + fastify-type-provider-zod)
+globs: apps/api/src/adapters/http/**/*.ts
+alwaysApply: true
+---
+
+# Swagger / OpenAPI (`apps/api`)
+
+La documentación interactiva está en **`/documentation`** (Swagger UI). El JSON de la spec se sirve en **`/documentation/json`**.
+
+- **Registro:** `registerOpenApi` en `apps/api/src/adapters/http/register-openapi.ts` se invoca desde `main.ts` **antes** de registrar los plugins de rutas, con `transform: jsonSchemaTransform` para convertir schemas Zod de cada ruta a OpenAPI.
+
+## Al crear o modificar un endpoint HTTP
+
+1. **`schema` completo con Zod** (obligatorio para que aparezca bien en Swagger):
+   - `body`, `params`, `querystring` según corresponda.
+   - **`response`**: al menos `200` / `201` de éxito y **todos los códigos de error** que el handler pueda devolver (`400`, `401`, `403`, `404`, `409`, `500`, etc.), usando `httpErrorResponseSchema` u otros Zod reutilizables desde `http-response-schemas` o el recurso.
+
+2. **Metadatos OpenAPI en el mismo objeto `schema`** (hermanos de `body` / `response`):
+   - **`tags`**: array con **un** tag existente en `register-openapi.ts` (`health`, `auth`, `players`, `leagues`, `teams`, `seasons`, `rosters`) o, si es recurso nuevo, **añadir** el tag en `registerOpenApi` → `openapi.tags` con nombre y descripción.
+   - **`summary`**: una línea clara (aparece en la lista de Swagger UI).
+   - **`description`**: opcional; detalle o matices (403 vs 404, etc.).
+
+3. **JWT:** si la ruta exige usuario autenticado, incluir en `schema`:
+   - `security: [{ bearerAuth: [] }]`
+   El esquema `bearerAuth` ya está definido en `register-openapi.ts` (`components.securitySchemes`).
+
+4. **Listados GET paginados:** seguir además `.cursor/rules/openapi-paginacion-listados.mdc` (`page`/`limit`, respuesta `{ data, meta }`, `schema.response` para 200).
+
+5. **JSDoc** del handler/plugin sigue siendo obligatorio por `.cursor/rules/documentacion-endpoints-funciones.mdc` (contrato en código); OpenAPI es la vista **generada** desde Zod + metadatos anteriores.
+
+6. **Rutas internas o sin documentar:** si alguna ruta no debe salir en la spec, usar `schema: { hide: true }` (soportado por `fastify-type-provider-zod` en la transformación).
+
+## Comprobación local
+
+Tras `npm run dev -w @clubfutbolin/api`, abrir `http://localhost:<PORT>/documentation` (PORT por defecto 3000 según env).
+
+## Tests
+
+Cambios en `register-openapi.ts` o contrato global: actualizar `apps/api/tests/unit/adapters/http/register-openapi.test.ts` si aplica.

@@ -115,14 +115,14 @@ export async function seasonsRoutes(
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           return reply
-            .code(statusCode as 400 | 500)
+            .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
             .send({ message });
         }
         return reply.code(201).send(toSeasonResponse(result.value));
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
         return reply
-          .code(statusCode as 400 | 500)
+          .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
           .send({ message });
       }
     },

@@ -96,8 +96,8 @@ npm run dev:api
 URLs útiles del backend:
 
 - API: `http://localhost:3000`
-- Swagger UI: `http://localhost:3000/docs`
-- OpenAPI JSON: `http://localhost:3000/docs/json`
+- Swagger UI: `http://localhost:3000/documentation`
+- OpenAPI JSON: `http://localhost:3000/documentation/json`
 
 ## 8) Levantar frontend React (Vite)
 

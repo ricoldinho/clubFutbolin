@@ -15,6 +15,7 @@ Siempre que crees o modifiques un endpoint HTTP en `apps/api/src/adapters/http/*
     - `server.setValidatorCompiler(validatorCompiler)`
     - `server.setSerializerCompiler(serializerCompiler)`
   - En cada ruta, pasa los schemas Zod en la opción `schema` (body, params, querystring).
+  - **OpenAPI / Swagger UI:** convenciones de `tags`, `summary`, `response`, `security` y tags globales → `.cursor/rules/swagger-openapi-api.mdc`.
 
 - **Añade un bloque de comentario JSDoc encima de cada ruta** (`server.get/post/put/delete`), con:
   - Método y path (`GET /players/:playerId`).
