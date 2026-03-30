@@ -1,13 +1,31 @@
+import { resolve } from 'node:path';
+import { config as loadEnv } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { faker } from '@faker-js/faker';
 
 import { BcryptPasswordHasher } from '@/adapters/auth/BcryptPasswordHasher';
 import { LEAGUE_CATEGORIES } from '@/domain/leagues/LeagueCategory';
 import { PlayerCategory } from '@/domain/players/PlayerCategory';
+import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 import { PlayerRole } from '@/domain/players/PlayerRole';
 import { POSITIONS } from '@/domain/rosters/Position';
 
-const prisma = new PrismaClient();
+// En monorepo, los scripts npm suelen ejecutarse con cwd en `apps/api`.
+// Cargamos `.env` del root y, por si acaso, el de `apps/api`.
+loadEnv({ path: resolve(__dirname, '../../.env') });
+loadEnv({ path: resolve(__dirname, '.env') });
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error(
+    'DATABASE_URL no está definida. Define DATABASE_URL (o copia .env.example a .env y asegúrate de que incluya DATABASE_URL).',
+  );
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
+});
 
 function randomDigits(length: number): string {
   let out = '';
@@ -126,11 +144,11 @@ async function main() {
       const role = isAdmin ? PlayerRole.ADMIN : PlayerRole.USER;
       const passwordHash = isAdmin ? adminPasswordHash : userPasswordHash;
 
-      const age = faker.number.int({ min: 18, max: 38 });
       const birthdate = faker.date.birthdate({ min: 18, max: 38, mode: 'age' });
 
       return prisma.player.create({
         data: {
+          id: PlayerId.generate().value,
           email: isAdmin ? 'admin@seed.local' : `player${i + 1}@seed.local`,
           name: faker.person.firstName(),
           lastname: faker.person.lastName(),
@@ -175,7 +193,6 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (err) => {
-    // eslint-disable-next-line no-console
     console.error('Error en prisma seed:', err);
     await prisma.$disconnect();
     process.exit(1);
