@@ -8,10 +8,10 @@ import { Result } from '@/shared/result';
  * Obtiene una League por id. Público.
  */
 export class GetLeagueById {
-  constructor(private readonly repository: ILeagueRepository) {}
+  constructor(private readonly leagueRepository: ILeagueRepository) {}
 
   async execute(id: LeagueId): Promise<Result<League, NotFoundError>> {
-    const league = await this.repository.findById(id);
+    const league = await this.leagueRepository.findById(id);
     if (league === null) {
       return Result.fail(new NotFoundError('League', id.value));
     }

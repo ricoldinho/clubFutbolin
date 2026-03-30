@@ -1,5 +1,5 @@
 import {
-  asFunction,
+  asClass,
   asValue,
   createContainer,
   type AwilixContainer,
@@ -83,81 +83,49 @@ export function buildContainer({
   const container = createContainer<AppContainerCradle>();
 
   container.register({
-    playerRepository: asFunction(() => new PrismaPlayerRepository(prisma)).singleton(),
-    leagueRepository: asFunction(() => new PrismaLeagueRepository(prisma)).singleton(),
-    teamRepository: asFunction(() => new PrismaTeamRepository(prisma)).singleton(),
-    seasonRepository: asFunction(() => new PrismaSeasonRepository(prisma)).singleton(),
-    rosterRepository: asFunction(() => new PrismaRosterRepository(prisma)).singleton(),
-    passwordHasher: asFunction(() => new BcryptPasswordHasher()).singleton(),
-    jwtService: asFunction(
-      () => new JoseJwtService(config.JWT_SECRET, config.JWT_EXPIRES_IN),
-    ).singleton(),
-    loginPlayer: asFunction(
-      ({ playerRepository, passwordHasher, jwtService }) =>
-        new LoginPlayer(playerRepository, passwordHasher, jwtService),
-    ).scoped(),
-    registerPlayer: asFunction(
-      ({ playerRepository, passwordHasher }) =>
-        new RegisterPlayer(playerRepository, passwordHasher),
-    ).scoped(),
-    listPlayers: asFunction(
-      ({ playerRepository }) => new ListPlayers(playerRepository),
-    ).scoped(),
-    getPlayerById: asFunction(
-      ({ playerRepository }) => new GetPlayerById(playerRepository),
-    ).scoped(),
-    updatePlayer: asFunction(
-      ({ playerRepository }) => new UpdatePlayer(playerRepository),
-    ).scoped(),
-    deletePlayer: asFunction(
-      ({ playerRepository }) => new DeletePlayer(playerRepository),
-    ).scoped(),
-    createLeague: asFunction(
-      ({ leagueRepository }) => new CreateLeague(leagueRepository),
-    ).scoped(),
-    updateLeague: asFunction(
-      ({ leagueRepository }) => new UpdateLeague(leagueRepository),
-    ).scoped(),
-    deleteLeague: asFunction(
-      ({ leagueRepository }) => new DeleteLeague(leagueRepository),
-    ).scoped(),
-    listLeagues: asFunction(
-      ({ leagueRepository }) => new ListLeagues(leagueRepository),
-    ).scoped(),
-    getLeagueById: asFunction(
-      ({ leagueRepository }) => new GetLeagueById(leagueRepository),
-    ).scoped(),
-    createTeam: asFunction(({ teamRepository }) => new CreateTeam(teamRepository)).scoped(),
-    updateTeam: asFunction(({ teamRepository }) => new UpdateTeam(teamRepository)).scoped(),
-    deleteTeam: asFunction(({ teamRepository }) => new DeleteTeam(teamRepository)).scoped(),
-    listTeams: asFunction(({ teamRepository }) => new ListTeams(teamRepository)).scoped(),
-    getTeamByName: asFunction(
-      ({ teamRepository }) => new GetTeamByName(teamRepository),
-    ).scoped(),
-    createSeason: asFunction(
-      ({ seasonRepository, leagueRepository }) =>
-        new CreateSeason(seasonRepository, leagueRepository),
-    ).scoped(),
-    listSeasons: asFunction(
-      ({ seasonRepository }) => new ListSeasons(seasonRepository),
-    ).scoped(),
-    getSeasonById: asFunction(
-      ({ seasonRepository }) => new GetSeasonById(seasonRepository),
-    ).scoped(),
-    setSeasonWinners: asFunction(
-      ({ seasonRepository, teamRepository }) =>
-        new SetSeasonWinners(seasonRepository, teamRepository),
-    ).scoped(),
-    registerTeamToSeason: asFunction(
-      ({ rosterRepository, teamRepository, seasonRepository }) =>
-        new RegisterTeamToSeason(rosterRepository, teamRepository, seasonRepository),
-    ).scoped(),
-    addPlayerToRoster: asFunction(
-      ({ rosterRepository }) => new AddPlayerToRoster(rosterRepository),
-    ).scoped(),
-    removePlayerFromRoster: asFunction(
-      ({ rosterRepository }) => new RemovePlayerFromRoster(rosterRepository),
-    ).scoped(),
+    // Repositorios/adaptadores: singleton (stateless) con inyección automática.
+    playerRepository: asClass(PrismaPlayerRepository).classic().singleton(),
+    leagueRepository: asClass(PrismaLeagueRepository).classic().singleton(),
+    teamRepository: asClass(PrismaTeamRepository).classic().singleton(),
+    seasonRepository: asClass(PrismaSeasonRepository).classic().singleton(),
+    rosterRepository: asClass(PrismaRosterRepository).classic().singleton(),
+
+    // Servicios (no dependientes salvo config para JWT).
+    passwordHasher: asClass(BcryptPasswordHasher).classic().singleton(),
+    jwtService: asClass(JoseJwtService, {
+      injector: () => ({
+        secret: config.JWT_SECRET,
+        expiresIn: config.JWT_EXPIRES_IN,
+      }),
+    }).classic().singleton(),
+
+    // Casos de uso: scoped por request.
+    loginPlayer: asClass(LoginPlayer).classic().scoped(),
+    registerPlayer: asClass(RegisterPlayer).classic().scoped(),
+    listPlayers: asClass(ListPlayers).classic().scoped(),
+    getPlayerById: asClass(GetPlayerById).classic().scoped(),
+    updatePlayer: asClass(UpdatePlayer).classic().scoped(),
+    deletePlayer: asClass(DeletePlayer).classic().scoped(),
+
+    createLeague: asClass(CreateLeague).classic().scoped(),
+    updateLeague: asClass(UpdateLeague).classic().scoped(),
+    deleteLeague: asClass(DeleteLeague).classic().scoped(),
+    listLeagues: asClass(ListLeagues).classic().scoped(),
+    getLeagueById: asClass(GetLeagueById).classic().scoped(),
+
+    createTeam: asClass(CreateTeam).classic().scoped(),
+    updateTeam: asClass(UpdateTeam).classic().scoped(),
+    deleteTeam: asClass(DeleteTeam).classic().scoped(),
+    listTeams: asClass(ListTeams).classic().scoped(),
+    getTeamByName: asClass(GetTeamByName).classic().scoped(),
+
+    createSeason: asClass(CreateSeason).classic().scoped(),
+    listSeasons: asClass(ListSeasons).classic().scoped(),
+    getSeasonById: asClass(GetSeasonById).classic().scoped(),
+    setSeasonWinners: asClass(SetSeasonWinners).classic().scoped(),
+    registerTeamToSeason: asClass(RegisterTeamToSeason).classic().scoped(),
+    addPlayerToRoster: asClass(AddPlayerToRoster).classic().scoped(),
+    removePlayerFromRoster: asClass(RemovePlayerFromRoster).classic().scoped(),
     prisma: asValue(prisma),
   });
 

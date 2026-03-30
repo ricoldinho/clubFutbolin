@@ -15,12 +15,12 @@ export type CreateLeagueInput = {
  * Si ya existe una liga con el mismo nombre, devuelve AlreadyExistsError (409).
  */
 export class CreateLeague {
-  constructor(private readonly repository: ILeagueRepository) {}
+  constructor(private readonly leagueRepository: ILeagueRepository) {}
 
   async execute(
     input: CreateLeagueInput,
   ): Promise<Result<League, AlreadyExistsError>> {
-    const existing = await this.repository.findAll();
+    const existing = await this.leagueRepository.findAll();
     const nameExists = existing.some(
       (l) => l.name.toLowerCase() === input.name.trim().toLowerCase(),
     );
@@ -32,7 +32,7 @@ export class CreateLeague {
       name: input.name.trim(),
       leagueCategory: input.leagueCategory,
     });
-    await this.repository.save(league);
+    await this.leagueRepository.save(league);
     return Result.ok(league);
   }
 }

@@ -7,14 +7,14 @@ import { Result } from '@/shared/result';
  * Elimina un Team. Solo ADMIN.
  */
 export class DeleteTeam {
-  constructor(private readonly repository: ITeamRepository) {}
+  constructor(private readonly teamRepository: ITeamRepository) {}
 
   async execute(id: TeamId): Promise<Result<void, NotFoundError>> {
-    const existing = await this.repository.findById(id);
+    const existing = await this.teamRepository.findById(id);
     if (existing === null) {
       return Result.fail(new NotFoundError('Team', id.value));
     }
-    await this.repository.delete(id);
+    await this.teamRepository.delete(id);
     return Result.ok(undefined);
   }
 }

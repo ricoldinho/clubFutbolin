@@ -21,7 +21,7 @@ export interface LoginPlayerOutput {
  */
 export class LoginPlayer {
   constructor(
-    private readonly repository: IPlayerRepository,
+    private readonly playerRepository: IPlayerRepository,
     private readonly passwordHasher: IPasswordHasher,
     private readonly jwtService: IJwtService,
   ) {}
@@ -29,7 +29,7 @@ export class LoginPlayer {
   async execute(
     input: LoginPlayerInput,
   ): Promise<Result<LoginPlayerOutput, InvalidCredentialsError>> {
-    const loginData = await this.repository.findLoginDataByEmail(input.email);
+    const loginData = await this.playerRepository.findLoginDataByEmail(input.email);
     if (loginData === null) {
       return Result.fail(new InvalidCredentialsError());
     }

@@ -15,15 +15,15 @@ type UpdateTeamError = NotFoundError | AlreadyExistsError;
  * Actualiza un Team existente. Solo ADMIN.
  */
 export class UpdateTeam {
-  constructor(private readonly repository: ITeamRepository) {}
+  constructor(private readonly teamRepository: ITeamRepository) {}
 
   async execute(input: UpdateTeamInput): Promise<Result<Team, UpdateTeamError>> {
-    const existing = await this.repository.findById(input.id);
+    const existing = await this.teamRepository.findById(input.id);
     if (existing === null) {
       return Result.fail(new NotFoundError('Team', input.id.value));
     }
     if (input.name !== undefined) {
-      const byName = await this.repository.findByName(input.name.trim());
+      const byName = await this.teamRepository.findByName(input.name.trim());
       if (byName !== null && !byName.id?.equals(input.id)) {
         return Result.fail(new AlreadyExistsError('Team', `nombre "${input.name}"`));
       }
@@ -33,7 +33,7 @@ export class UpdateTeam {
       name: input.name?.trim() ?? existing.name,
       createdAt: existing.createdAt,
     });
-    await this.repository.save(updated);
+    await this.teamRepository.save(updated);
     return Result.ok(updated);
   }
 }

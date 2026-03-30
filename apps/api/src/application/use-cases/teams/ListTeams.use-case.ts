@@ -10,10 +10,10 @@ export interface ListTeamsInput {
  * Lista todos los Teams. Público.
  */
 export class ListTeams {
-  constructor(private readonly repository: ITeamRepository) {}
+  constructor(private readonly teamRepository: ITeamRepository) {}
 
   async execute(input: ListTeamsInput): Promise<Result<TeamListResult, never>> {
-    const teams = await this.repository.findAll(input.pagination);
+    const teams = await this.teamRepository.findAll(input.pagination);
     return Result.ok(teams);
   }
 }

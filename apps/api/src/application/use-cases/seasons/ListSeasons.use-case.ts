@@ -10,10 +10,10 @@ export interface ListSeasonsInput {
  * Lista todas las Seasons. Público.
  */
 export class ListSeasons {
-  constructor(private readonly repository: ISeasonRepository) {}
+  constructor(private readonly seasonRepository: ISeasonRepository) {}
 
   async execute(input: ListSeasonsInput): Promise<Result<SeasonListResult, never>> {
-    const seasons = await this.repository.findAll(input.pagination);
+    const seasons = await this.seasonRepository.findAll(input.pagination);
     return Result.ok(seasons);
   }
 }

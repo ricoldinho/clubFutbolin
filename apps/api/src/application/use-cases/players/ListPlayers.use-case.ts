@@ -14,10 +14,10 @@ export interface ListPlayersInput {
  * Devuelve siempre Result.ok; errores de infra se propagan y se capturan en HTTP.
  */
 export class ListPlayers {
-  constructor(private readonly repository: IPlayerRepository) {}
+  constructor(private readonly playerRepository: IPlayerRepository) {}
 
   async execute(input: ListPlayersInput): Promise<Result<PlayerListResult, never>> {
-    const players = await this.repository.findAll(input.pagination);
+    const players = await this.playerRepository.findAll(input.pagination);
     return Result.ok(players);
   }
 }

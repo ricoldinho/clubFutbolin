@@ -13,10 +13,10 @@ export type CreateTeamInput = {
  * Si ya existe un equipo con el mismo nombre, devuelve AlreadyExistsError (409).
  */
 export class CreateTeam {
-  constructor(private readonly repository: ITeamRepository) {}
+  constructor(private readonly teamRepository: ITeamRepository) {}
 
   async execute(input: CreateTeamInput): Promise<Result<Team, AlreadyExistsError>> {
-    const existing = await this.repository.findByName(input.name.trim());
+    const existing = await this.teamRepository.findByName(input.name.trim());
     if (existing !== null) {
       return Result.fail(new AlreadyExistsError('Team', `nombre "${input.name}"`));
     }
@@ -24,7 +24,7 @@ export class CreateTeam {
       id: TeamId.generate(),
       name: input.name.trim(),
     });
-    await this.repository.save(team);
+    await this.teamRepository.save(team);
     return Result.ok(team);
   }
 }

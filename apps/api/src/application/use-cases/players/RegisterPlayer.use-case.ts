@@ -19,7 +19,7 @@ export type RegisterPlayerInput = Omit<PlayerProps, 'role'> & { password: string
  */
 export class RegisterPlayer {
   constructor(
-    private readonly repository: IPlayerRepository,
+    private readonly playerRepository: IPlayerRepository,
     private readonly passwordHasher: IPasswordHasher,
   ) {}
 
@@ -27,7 +27,7 @@ export class RegisterPlayer {
     input: RegisterPlayerInput,
   ): Promise<Result<Player, EmailAlreadyInUseError>> {
     const { password, ...props } = input;
-    const existing = await this.repository.findByEmail(props.email);
+    const existing = await this.playerRepository.findByEmail(props.email);
     if (existing !== null) {
       return Result.fail(new EmailAlreadyInUseError(props.email.value));
     }
@@ -37,7 +37,7 @@ export class RegisterPlayer {
       role: PlayerRole.USER,
       id: PlayerId.generate(),
     });
-    await this.repository.save(player, passwordHash);
+    await this.playerRepository.save(player, passwordHash);
     return Result.ok(player);
   }
 }

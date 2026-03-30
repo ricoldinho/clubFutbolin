@@ -10,10 +10,10 @@ export interface ListLeaguesInput {
  * Lista todas las Leagues. Público.
  */
 export class ListLeagues {
-  constructor(private readonly repository: ILeagueRepository) {}
+  constructor(private readonly leagueRepository: ILeagueRepository) {}
 
   async execute(input: ListLeaguesInput): Promise<Result<LeagueListResult, never>> {
-    const leagues = await this.repository.findAll(input.pagination);
+    const leagues = await this.leagueRepository.findAll(input.pagination);
     return Result.ok(leagues);
   }
 }

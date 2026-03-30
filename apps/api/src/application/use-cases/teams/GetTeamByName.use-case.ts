@@ -7,10 +7,10 @@ import { Result } from '@/shared/result';
  * Obtiene un Team por nombre. Público.
  */
 export class GetTeamByName {
-  constructor(private readonly repository: ITeamRepository) {}
+  constructor(private readonly teamRepository: ITeamRepository) {}
 
   async execute(name: string): Promise<Result<Team, NotFoundError>> {
-    const team = await this.repository.findByName(name.trim());
+    const team = await this.teamRepository.findByName(name.trim());
     if (team === null) {
       return Result.fail(new NotFoundError('Team', `nombre "${name}"`));
     }

@@ -61,28 +61,29 @@ export async function seasonsRoutes(
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const requireAdmin = createRequireAdmin(options.jwtService ?? server.container.cradle.jwtService);
-  const resolveDeps = (request: FastifyRequest) => ({
-    createSeason:
-      options.createSeason ??
-      (options.repository && options.leagueRepository
-        ? new CreateSeason(options.repository, options.leagueRepository)
-        : request.container.cradle.createSeason),
-    listSeasons:
-      options.listSeasons ??
-      (options.repository
-        ? new ListSeasons(options.repository)
-        : request.container.cradle.listSeasons),
-    getSeasonById:
-      options.getSeasonById ??
-      (options.repository
-        ? new GetSeasonById(options.repository)
-        : request.container.cradle.getSeasonById),
-    setSeasonWinners:
-      options.setSeasonWinners ??
-      (options.repository && options.teamRepository
-        ? new SetSeasonWinners(options.repository, options.teamRepository)
-        : request.container.cradle.setSeasonWinners),
-  });
+  const resolveCreateSeason = (request: FastifyRequest): CreateSeason =>
+    options.createSeason ??
+    (options.repository && options.leagueRepository
+      ? new CreateSeason(options.repository, options.leagueRepository)
+      : request.container.cradle.createSeason);
+
+  const resolveListSeasons = (request: FastifyRequest): ListSeasons =>
+    options.listSeasons ??
+    (options.repository
+      ? new ListSeasons(options.repository)
+      : request.container.cradle.listSeasons);
+
+  const resolveGetSeasonById = (request: FastifyRequest): GetSeasonById =>
+    options.getSeasonById ??
+    (options.repository
+      ? new GetSeasonById(options.repository)
+      : request.container.cradle.getSeasonById);
+
+  const resolveSetSeasonWinners = (request: FastifyRequest): SetSeasonWinners =>
+    options.setSeasonWinners ??
+    (options.repository && options.teamRepository
+      ? new SetSeasonWinners(options.repository, options.teamRepository)
+      : request.container.cradle.setSeasonWinners);
 
   zodServer.post(
     '/seasons',
@@ -106,7 +107,7 @@ export async function seasonsRoutes(
     },
     async (request, reply) => {
       try {
-        const { createSeason } = resolveDeps(request);
+        const createSeason = resolveCreateSeason(request);
         const body = request.body as CreateSeasonBody;
         const result = await createSeason.execute({
           year: body.year,
@@ -144,7 +145,7 @@ export async function seasonsRoutes(
     },
     async (_request, reply) => {
       try {
-        const { listSeasons } = resolveDeps(_request);
+        const listSeasons = resolveListSeasons(_request);
         const query = _request.query as { page: number; limit: number };
         const result = await listSeasons.execute({
           pagination: { page: query.page, limit: query.limit },
@@ -189,7 +190,7 @@ export async function seasonsRoutes(
     },
     async (request, reply) => {
       try {
-        const { getSeasonById } = resolveDeps(request);
+        const getSeasonById = resolveGetSeasonById(request);
         const { seasonId: rawId } = request.params as { seasonId: string };
         const result = await getSeasonById.execute(SeasonId.fromString(rawId));
         if (!result.ok) {
@@ -226,7 +227,7 @@ export async function seasonsRoutes(
     },
     async (request, reply) => {
       try {
-        const { setSeasonWinners } = resolveDeps(request);
+        const setSeasonWinners = resolveSetSeasonWinners(request);
         const { seasonId: rawId } = request.params as { seasonId: string };
         const body = request.body as { championId: string; secondId: string };
         const result = await setSeasonWinners.execute({

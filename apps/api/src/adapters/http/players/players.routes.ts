@@ -98,33 +98,35 @@ export async function playersRoutes(
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const requireAuth = createRequireAuth(options.jwtService ?? server.container.cradle.jwtService);
-  const resolveDeps = (request: FastifyRequest) => ({
-    getPlayerById:
-      options.getPlayerById ??
-      (options.repository
-        ? new GetPlayerById(options.repository)
-        : request.container.cradle.getPlayerById),
-    listPlayers:
-      options.listPlayers ??
-      (options.repository
-        ? new ListPlayers(options.repository)
-        : request.container.cradle.listPlayers),
-    registerPlayer:
-      options.registerPlayer ??
-      (options.repository && options.passwordHasher
-        ? new RegisterPlayer(options.repository, options.passwordHasher)
-        : request.container.cradle.registerPlayer),
-    deletePlayer:
-      options.deletePlayer ??
-      (options.repository
-        ? new DeletePlayer(options.repository)
-        : request.container.cradle.deletePlayer),
-    updatePlayer:
-      options.updatePlayer ??
-      (options.repository
-        ? new UpdatePlayer(options.repository)
-        : request.container.cradle.updatePlayer),
-  });
+  const resolveGetPlayerById = (request: FastifyRequest): GetPlayerById =>
+    options.getPlayerById ??
+    (options.repository
+      ? new GetPlayerById(options.repository)
+      : request.container.cradle.getPlayerById);
+
+  const resolveListPlayers = (request: FastifyRequest): ListPlayers =>
+    options.listPlayers ??
+    (options.repository
+      ? new ListPlayers(options.repository)
+      : request.container.cradle.listPlayers);
+
+  const resolveRegisterPlayer = (request: FastifyRequest): RegisterPlayer =>
+    options.registerPlayer ??
+    (options.repository && options.passwordHasher
+      ? new RegisterPlayer(options.repository, options.passwordHasher)
+      : request.container.cradle.registerPlayer);
+
+  const resolveDeletePlayer = (request: FastifyRequest): DeletePlayer =>
+    options.deletePlayer ??
+    (options.repository
+      ? new DeletePlayer(options.repository)
+      : request.container.cradle.deletePlayer);
+
+  const resolveUpdatePlayer = (request: FastifyRequest): UpdatePlayer =>
+    options.updatePlayer ??
+    (options.repository
+      ? new UpdatePlayer(options.repository)
+      : request.container.cradle.updatePlayer);
 
   /**
    * POST /players
@@ -151,7 +153,7 @@ export async function playersRoutes(
     },
     async (request, reply) => {
       try {
-        const { registerPlayer } = resolveDeps(request);
+        const registerPlayer = resolveRegisterPlayer(request);
         const body = request.body as RegisterPlayerBody;
 
         const result = await registerPlayer.execute({
@@ -222,7 +224,7 @@ export async function playersRoutes(
     },
     async (request, reply) => {
       try {
-        const { getPlayerById } = resolveDeps(request);
+        const getPlayerById = resolveGetPlayerById(request);
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
         const actor = {
@@ -287,7 +289,7 @@ export async function playersRoutes(
     },
     async (request, reply) => {
       try {
-        const { deletePlayer } = resolveDeps(request);
+        const deletePlayer = resolveDeletePlayer(request);
         const { playerId: rawId } = request.params as { playerId: string };
         const playerId = PlayerId.fromString(rawId);
         const actor = {
@@ -356,7 +358,7 @@ export async function playersRoutes(
     },
     async (request, reply) => {
       try {
-        const { updatePlayer } = resolveDeps(request);
+        const updatePlayer = resolveUpdatePlayer(request);
         const { playerId: rawId } = request.params as { playerId: string };
         const body = request.body as UpdatePlayerBody;
         const playerId = PlayerId.fromString(rawId);
@@ -453,7 +455,7 @@ export async function playersRoutes(
     },
     async (request, reply) => {
       try {
-        const { listPlayers } = resolveDeps(request);
+        const listPlayers = resolveListPlayers(request);
         const query = request.query as { page: number; limit: number };
         const result = await listPlayers.execute({
           pagination: { page: query.page, limit: query.limit },

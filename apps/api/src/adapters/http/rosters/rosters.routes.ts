@@ -43,27 +43,27 @@ export async function rostersRoutes(
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const requireAdmin = createRequireAdmin(options.jwtService ?? server.container.cradle.jwtService);
-  const resolveDeps = (request: FastifyRequest) => ({
-    registerTeamToSeason:
-      options.registerTeamToSeason ??
-      (options.repository && options.teamRepository && options.seasonRepository
-        ? new RegisterTeamToSeason(
-            options.repository,
-            options.teamRepository,
-            options.seasonRepository,
-          )
-        : request.container.cradle.registerTeamToSeason),
-    addPlayerToRoster:
-      options.addPlayerToRoster ??
-      (options.repository
-        ? new AddPlayerToRoster(options.repository)
-        : request.container.cradle.addPlayerToRoster),
-    removePlayerFromRoster:
-      options.removePlayerFromRoster ??
-      (options.repository
-        ? new RemovePlayerFromRoster(options.repository)
-        : request.container.cradle.removePlayerFromRoster),
-  });
+  const resolveRegisterTeamToSeason = (request: FastifyRequest): RegisterTeamToSeason =>
+    options.registerTeamToSeason ??
+    (options.repository && options.teamRepository && options.seasonRepository
+      ? new RegisterTeamToSeason(
+          options.repository,
+          options.teamRepository,
+          options.seasonRepository,
+        )
+      : request.container.cradle.registerTeamToSeason);
+
+  const resolveAddPlayerToRoster = (request: FastifyRequest): AddPlayerToRoster =>
+    options.addPlayerToRoster ??
+    (options.repository
+      ? new AddPlayerToRoster(options.repository)
+      : request.container.cradle.addPlayerToRoster);
+
+  const resolveRemovePlayerFromRoster = (request: FastifyRequest): RemovePlayerFromRoster =>
+    options.removePlayerFromRoster ??
+    (options.repository
+      ? new RemovePlayerFromRoster(options.repository)
+      : request.container.cradle.removePlayerFromRoster);
 
   zodServer.post(
     '/rosters/register',
@@ -87,7 +87,7 @@ export async function rostersRoutes(
     },
     async (request, reply) => {
       try {
-        const { registerTeamToSeason } = resolveDeps(request);
+        const registerTeamToSeason = resolveRegisterTeamToSeason(request);
         const body = request.body as RegisterTeamToSeasonBody;
         const result = await registerTeamToSeason.execute({
           teamId: TeamId.fromString(body.teamId),
@@ -136,7 +136,7 @@ export async function rostersRoutes(
     },
     async (request, reply) => {
       try {
-        const { addPlayerToRoster } = resolveDeps(request);
+        const addPlayerToRoster = resolveAddPlayerToRoster(request);
         const { teamSeasonId: rawId } = request.params as { teamSeasonId: string };
         const body = request.body as AddPlayerToRosterBody;
         const result = await addPlayerToRoster.execute({
@@ -181,7 +181,7 @@ export async function rostersRoutes(
     },
     async (request, reply) => {
       try {
-        const { removePlayerFromRoster } = resolveDeps(request);
+        const removePlayerFromRoster = resolveRemovePlayerFromRoster(request);
         const { teamSeasonId: rawTsId, playerId: rawPlayerId } = request.params as {
           teamSeasonId: string;
           playerId: string;

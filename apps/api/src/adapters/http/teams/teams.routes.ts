@@ -56,33 +56,35 @@ export async function teamsRoutes(
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const requireAdmin = createRequireAdmin(options.jwtService ?? server.container.cradle.jwtService);
-  const resolveDeps = (request: FastifyRequest) => ({
-    createTeam:
-      options.createTeam ??
-      (options.repository
-        ? new CreateTeam(options.repository)
-        : request.container.cradle.createTeam),
-    updateTeam:
-      options.updateTeam ??
-      (options.repository
-        ? new UpdateTeam(options.repository)
-        : request.container.cradle.updateTeam),
-    deleteTeam:
-      options.deleteTeam ??
-      (options.repository
-        ? new DeleteTeam(options.repository)
-        : request.container.cradle.deleteTeam),
-    listTeams:
-      options.listTeams ??
-      (options.repository
-        ? new ListTeams(options.repository)
-        : request.container.cradle.listTeams),
-    getTeamByName:
-      options.getTeamByName ??
-      (options.repository
-        ? new GetTeamByName(options.repository)
-        : request.container.cradle.getTeamByName),
-  });
+  const resolveCreateTeam = (request: FastifyRequest): CreateTeam =>
+    options.createTeam ??
+    (options.repository
+      ? new CreateTeam(options.repository)
+      : request.container.cradle.createTeam);
+
+  const resolveUpdateTeam = (request: FastifyRequest): UpdateTeam =>
+    options.updateTeam ??
+    (options.repository
+      ? new UpdateTeam(options.repository)
+      : request.container.cradle.updateTeam);
+
+  const resolveDeleteTeam = (request: FastifyRequest): DeleteTeam =>
+    options.deleteTeam ??
+    (options.repository
+      ? new DeleteTeam(options.repository)
+      : request.container.cradle.deleteTeam);
+
+  const resolveListTeams = (request: FastifyRequest): ListTeams =>
+    options.listTeams ??
+    (options.repository
+      ? new ListTeams(options.repository)
+      : request.container.cradle.listTeams);
+
+  const resolveGetTeamByName = (request: FastifyRequest): GetTeamByName =>
+    options.getTeamByName ??
+    (options.repository
+      ? new GetTeamByName(options.repository)
+      : request.container.cradle.getTeamByName);
 
   zodServer.post(
     '/teams',
@@ -105,7 +107,7 @@ export async function teamsRoutes(
     },
     async (request, reply) => {
       try {
-        const { createTeam } = resolveDeps(request);
+        const createTeam = resolveCreateTeam(request);
         const body = request.body as CreateTeamBody;
         const result = await createTeam.execute({ name: body.name });
         if (!result.ok) {
@@ -140,7 +142,7 @@ export async function teamsRoutes(
     },
     async (_request, reply) => {
       try {
-        const { listTeams } = resolveDeps(_request);
+        const listTeams = resolveListTeams(_request);
         const query = _request.query as { page: number; limit: number };
         const result = await listTeams.execute({
           pagination: { page: query.page, limit: query.limit },
@@ -185,7 +187,7 @@ export async function teamsRoutes(
     },
     async (request, reply) => {
       try {
-        const { getTeamByName } = resolveDeps(request);
+        const getTeamByName = resolveGetTeamByName(request);
         const { name } = request.params as { name: string };
         const result = await getTeamByName.execute(decodeURIComponent(name));
         if (!result.ok) {
@@ -223,7 +225,7 @@ export async function teamsRoutes(
     },
     async (request, reply) => {
       try {
-        const { updateTeam } = resolveDeps(request);
+        const updateTeam = resolveUpdateTeam(request);
         const { teamId: rawId } = request.params as { teamId: string };
         const body = request.body as UpdateTeamBody;
         const teamId = TeamId.fromString(rawId);
@@ -268,7 +270,7 @@ export async function teamsRoutes(
     },
     async (request, reply) => {
       try {
-        const { deleteTeam } = resolveDeps(request);
+        const deleteTeam = resolveDeleteTeam(request);
         const { teamId: rawId } = request.params as { teamId: string };
         const teamId = TeamId.fromString(rawId);
         const result = await deleteTeam.execute(teamId);

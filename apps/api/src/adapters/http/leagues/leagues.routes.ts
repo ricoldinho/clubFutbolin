@@ -56,33 +56,35 @@ export async function leaguesRoutes(
 ): Promise<void> {
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const requireAdmin = createRequireAdmin(options.jwtService ?? server.container.cradle.jwtService);
-  const resolveDeps = (request: FastifyRequest) => ({
-    createLeague:
-      options.createLeague ??
-      (options.repository
-        ? new CreateLeague(options.repository)
-        : request.container.cradle.createLeague),
-    updateLeague:
-      options.updateLeague ??
-      (options.repository
-        ? new UpdateLeague(options.repository)
-        : request.container.cradle.updateLeague),
-    deleteLeague:
-      options.deleteLeague ??
-      (options.repository
-        ? new DeleteLeague(options.repository)
-        : request.container.cradle.deleteLeague),
-    listLeagues:
-      options.listLeagues ??
-      (options.repository
-        ? new ListLeagues(options.repository)
-        : request.container.cradle.listLeagues),
-    getLeagueById:
-      options.getLeagueById ??
-      (options.repository
-        ? new GetLeagueById(options.repository)
-        : request.container.cradle.getLeagueById),
-  });
+  const resolveCreateLeague = (request: FastifyRequest): CreateLeague =>
+    options.createLeague ??
+    (options.repository
+      ? new CreateLeague(options.repository)
+      : request.container.cradle.createLeague);
+
+  const resolveUpdateLeague = (request: FastifyRequest): UpdateLeague =>
+    options.updateLeague ??
+    (options.repository
+      ? new UpdateLeague(options.repository)
+      : request.container.cradle.updateLeague);
+
+  const resolveDeleteLeague = (request: FastifyRequest): DeleteLeague =>
+    options.deleteLeague ??
+    (options.repository
+      ? new DeleteLeague(options.repository)
+      : request.container.cradle.deleteLeague);
+
+  const resolveListLeagues = (request: FastifyRequest): ListLeagues =>
+    options.listLeagues ??
+    (options.repository
+      ? new ListLeagues(options.repository)
+      : request.container.cradle.listLeagues);
+
+  const resolveGetLeagueById = (request: FastifyRequest): GetLeagueById =>
+    options.getLeagueById ??
+    (options.repository
+      ? new GetLeagueById(options.repository)
+      : request.container.cradle.getLeagueById);
 
   zodServer.post(
     '/leagues',
@@ -105,7 +107,7 @@ export async function leaguesRoutes(
     },
     async (request, reply) => {
       try {
-        const { createLeague } = resolveDeps(request);
+        const createLeague = resolveCreateLeague(request);
         const body = request.body as CreateLeagueBody;
         const result = await createLeague.execute({
           name: body.name,
@@ -143,7 +145,7 @@ export async function leaguesRoutes(
     },
     async (_request, reply) => {
     try {
-      const { listLeagues } = resolveDeps(_request);
+      const listLeagues = resolveListLeagues(_request);
       const query = _request.query as { page: number; limit: number };
       const result = await listLeagues.execute({
         pagination: { page: query.page, limit: query.limit },
@@ -188,7 +190,7 @@ export async function leaguesRoutes(
     },
     async (request, reply) => {
       try {
-        const { getLeagueById } = resolveDeps(request);
+        const getLeagueById = resolveGetLeagueById(request);
         const { leagueId: rawId } = request.params as { leagueId: string };
         const leagueId = LeagueId.fromString(rawId);
         const result = await getLeagueById.execute(leagueId);
@@ -231,7 +233,7 @@ export async function leaguesRoutes(
     },
     async (request, reply) => {
       try {
-        const { updateLeague } = resolveDeps(request);
+        const updateLeague = resolveUpdateLeague(request);
         const { leagueId: rawId } = request.params as { leagueId: string };
         const body = request.body as UpdateLeagueBody;
         const leagueId = LeagueId.fromString(rawId);
@@ -279,7 +281,7 @@ export async function leaguesRoutes(
     },
     async (request, reply) => {
       try {
-        const { deleteLeague } = resolveDeps(request);
+        const deleteLeague = resolveDeleteLeague(request);
         const { leagueId: rawId } = request.params as { leagueId: string };
         const leagueId = LeagueId.fromString(rawId);
         const result = await deleteLeague.execute(leagueId);

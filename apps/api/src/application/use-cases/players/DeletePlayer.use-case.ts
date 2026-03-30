@@ -16,13 +16,13 @@ export interface DeletePlayerActor {
  * Si el actor no tiene permiso, Result.fail(ForbiddenError) (HTTP → 403).
  */
 export class DeletePlayer {
-  constructor(private readonly repository: IPlayerRepository) {}
+  constructor(private readonly playerRepository: IPlayerRepository) {}
 
   async execute(
     id: PlayerId,
     actor: DeletePlayerActor,
   ): Promise<Result<void, NotFoundError | ForbiddenError>> {
-    const existing = await this.repository.findById(id);
+    const existing = await this.playerRepository.findById(id);
     if (existing === null) {
       return Result.fail(new NotFoundError('Player', id.value));
     }
@@ -32,7 +32,7 @@ export class DeletePlayer {
       return Result.fail(new ForbiddenError());
     }
 
-    await this.repository.delete(id);
+    await this.playerRepository.delete(id);
     return Result.ok<void>(undefined);
   }
 }

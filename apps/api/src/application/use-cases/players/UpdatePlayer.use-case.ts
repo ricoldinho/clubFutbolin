@@ -39,10 +39,10 @@ type UpdatePlayerError = NotFoundError | EmailAlreadyInUseError | ForbiddenError
  * - Solo un actor con role ADMIN puede asignar role ADMIN a otro Player; si no, Result.fail(ForbiddenError) (HTTP → 403).
  */
 export class UpdatePlayer {
-  constructor(private readonly repository: IPlayerRepository) {}
+  constructor(private readonly playerRepository: IPlayerRepository) {}
 
   async execute(input: UpdatePlayerInput): Promise<Result<Player, UpdatePlayerError>> {
-    const existing = await this.repository.findById(input.id);
+    const existing = await this.playerRepository.findById(input.id);
     if (existing === null) {
       return Result.fail(new NotFoundError('Player', input.id.value));
     }
@@ -62,7 +62,7 @@ export class UpdatePlayer {
     }
 
     if (input.email !== undefined) {
-      const byEmail = await this.repository.findByEmail(input.email);
+      const byEmail = await this.playerRepository.findByEmail(input.email);
       if (
         byEmail !== null &&
         byEmail.id !== undefined &&
@@ -84,7 +84,7 @@ export class UpdatePlayer {
       role: input.role ?? existing.role,
     });
 
-    await this.repository.save(updated);
+    await this.playerRepository.save(updated);
     return Result.ok(updated);
   }
 }

@@ -17,13 +17,13 @@ export interface GetPlayerByIdActor {
  * Si el actor no tiene permiso, Result.fail(ForbiddenError) (HTTP → 403).
  */
 export class GetPlayerById {
-  constructor(private readonly repository: IPlayerRepository) {}
+  constructor(private readonly playerRepository: IPlayerRepository) {}
 
   async execute(
     id: PlayerId,
     actor: GetPlayerByIdActor,
   ): Promise<Result<Player, NotFoundError | ForbiddenError>> {
-    const player = await this.repository.findById(id);
+    const player = await this.playerRepository.findById(id);
     if (player === null) {
       return Result.fail(new NotFoundError('Player', id.value));
     }

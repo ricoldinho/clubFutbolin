@@ -10,14 +10,14 @@ type DeleteLeagueError = NotFoundError | DomainValidationError;
  * Si la liga tiene Seasons asociadas, falla con DomainValidationError.
  */
 export class DeleteLeague {
-  constructor(private readonly repository: ILeagueRepository) {}
+  constructor(private readonly leagueRepository: ILeagueRepository) {}
 
   async execute(id: LeagueId): Promise<Result<void, DeleteLeagueError>> {
-    const existing = await this.repository.findById(id);
+    const existing = await this.leagueRepository.findById(id);
     if (existing === null) {
       return Result.fail(new NotFoundError('League', id.value));
     }
-    const seasonCount = await this.repository.countSeasonsByLeagueId(id);
+    const seasonCount = await this.leagueRepository.countSeasonsByLeagueId(id);
     if (seasonCount > 0) {
       return Result.fail(
         new DomainValidationError(
@@ -25,7 +25,7 @@ export class DeleteLeague {
         ),
       );
     }
-    await this.repository.delete(id);
+    await this.leagueRepository.delete(id);
     return Result.ok(undefined);
   }
 }
