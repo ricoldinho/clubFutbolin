@@ -132,6 +132,7 @@ model Match {
   updatedAt        DateTime    @updatedAt
 
   season         Season     @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict => en limpiezas/seed borrar Match antes que TeamSeason.
   homeTeamSeason TeamSeason @relation("MatchHomeTeamSeason", fields: [homeTeamSeasonId], references: [id], onDelete: Restrict)
   awayTeamSeason TeamSeason @relation("MatchAwayTeamSeason", fields: [awayTeamSeasonId], references: [id], onDelete: Restrict)
 

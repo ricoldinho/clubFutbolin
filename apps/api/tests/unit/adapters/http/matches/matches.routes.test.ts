@@ -163,4 +163,57 @@ describe('matches routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ matchId: match.id!.value });
   });
+
+  it('GET /matches/:matchId devuelve 200 cuando existe', async () => {
+    const match = Match.create({
+      id: MatchId.generate(),
+      seasonId,
+      homeTeamSeasonId: TeamSeasonId.generate(),
+      awayTeamSeasonId: TeamSeasonId.generate(),
+      date: new Date('2026-04-01T10:00:00.000Z'),
+      round: 1,
+    });
+    await matchRepository.save(match);
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/matches/${match.id!.value}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: match.id!.value });
+  });
+
+  it('PATCH /matches/:matchId/status devuelve 401 sin token', async () => {
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/matches/${MatchId.generate().value}/status`,
+      payload: { status: 'POSTPONED' },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('PATCH /matches/:matchId/status devuelve 200 con admin', async () => {
+    const match = Match.create({
+      id: MatchId.generate(),
+      seasonId,
+      homeTeamSeasonId: TeamSeasonId.generate(),
+      awayTeamSeasonId: TeamSeasonId.generate(),
+      date: new Date('2026-04-01T10:00:00.000Z'),
+      round: 1,
+    });
+    await matchRepository.save(match);
+    const token = await jwtService.sign({ sub: 'admin-1', role: 'ADMIN' });
+
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/matches/${match.id!.value}/status`,
+      headers: { Authorization: `Bearer ${token}` },
+      payload: { status: 'CANCELLED' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ matchId: match.id!.value });
+  });
 });

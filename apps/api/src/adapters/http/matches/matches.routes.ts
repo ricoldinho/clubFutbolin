@@ -5,7 +5,10 @@ import type { IMatchRepository } from '@/application/ports/matches/Match.reposit
 import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
 import type { ISeasonRepository } from '@/application/ports/seasons/Season.repository';
 import { GenerateSeasonCalendar } from '@/application/use-cases/matches/GenerateSeasonCalendar.use-case';
+import { GetMatchById } from '@/application/use-cases/matches/GetMatchById.use-case';
 import { UpdateMatchScore } from '@/application/use-cases/matches/UpdateMatchScore.use-case';
+import { UpdateMatchStatus } from '@/application/use-cases/matches/UpdateMatchStatus.use-case';
+import { MatchStatus } from '@/domain/matches/MatchStatus';
 import { createRequireAdmin } from '@/adapters/http/auth/auth-plugin';
 import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
@@ -20,9 +23,12 @@ import {
   listSeasonMatchesResponseSchema,
   type GenerateSeasonCalendarBody,
   type UpdateMatchScoreBody,
+  type UpdateMatchStatusBody,
+  matchResponseSchema,
   updateMatchScoreBodySchema,
   updateMatchScoreParamsSchema,
   updateMatchScoreResponseSchema,
+  updateMatchStatusBodySchema,
 } from './schemas';
 
 interface MatchesRoutesOptions extends FastifyPluginOptions {
@@ -31,7 +37,9 @@ interface MatchesRoutesOptions extends FastifyPluginOptions {
   seasonRepository?: ISeasonRepository;
   jwtService?: IJwtService;
   generateSeasonCalendar?: GenerateSeasonCalendar;
+  getMatchById?: GetMatchById;
   updateMatchScore?: UpdateMatchScore;
+  updateMatchStatus?: UpdateMatchStatus;
 }
 
 /**
@@ -61,6 +69,16 @@ export async function matchesRoutes(
     (options.repository
       ? new UpdateMatchScore(options.repository)
       : request.container.cradle.updateMatchScore);
+  const resolveGetMatchById = (request: FastifyRequest): GetMatchById =>
+    options.getMatchById ??
+    (options.repository
+      ? new GetMatchById(options.repository)
+      : request.container.cradle.getMatchById);
+  const resolveUpdateMatchStatus = (request: FastifyRequest): UpdateMatchStatus =>
+    options.updateMatchStatus ??
+    (options.repository
+      ? new UpdateMatchStatus(options.repository)
+      : request.container.cradle.updateMatchStatus);
 
   /**
    * POST /seasons/:seasonId/calendar/generate
@@ -158,6 +176,106 @@ export async function matchesRoutes(
           matchId: MatchId.fromString(matchId),
           homeScore: body.homeScore,
           awayScore: body.awayScore,
+        });
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          return reply.code(statusCode as 400 | 401 | 403 | 404 | 500).send({ message });
+        }
+        return reply.code(200).send({ matchId: result.value.matchId });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        return reply.code(statusCode as 400 | 401 | 403 | 404 | 500).send({ message });
+      }
+    },
+  );
+
+  /**
+   * GET /matches/:matchId
+   *
+   * Obtiene un partido por identificador.
+   * - 200: Partido encontrado
+   * - 404: Partido no encontrado
+   */
+  zodServer.get(
+    '/matches/:matchId',
+    {
+      schema: {
+        params: updateMatchScoreParamsSchema,
+        response: {
+          200: matchResponseSchema,
+          400: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['matches'],
+        summary: 'Obtener partido por id',
+      },
+    },
+    async (request, reply) => {
+      try {
+        const getMatchById = resolveGetMatchById(request);
+        const { matchId } = request.params as { matchId: string };
+        const result = await getMatchById.execute(MatchId.fromString(matchId));
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          return reply.code(statusCode as 400 | 404 | 500).send({ message });
+        }
+        const match = result.value;
+        return reply.code(200).send({
+          id: match.id!.value,
+          seasonId: match.seasonId.value,
+          homeTeamSeasonId: match.homeTeamSeasonId.value,
+          awayTeamSeasonId: match.awayTeamSeasonId.value,
+          homeScore: match.score.home,
+          awayScore: match.score.away,
+          date: match.date.toISOString(),
+          round: match.round,
+          status: match.status,
+        });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        return reply.code(statusCode as 400 | 404 | 500).send({ message });
+      }
+    },
+  );
+
+  /**
+   * PATCH /matches/:matchId/status
+   *
+   * Actualiza el estado operativo del partido.
+   * - 200: Estado actualizado
+   * - 401: Token ausente o inválido
+   * - 403: Usuario no admin
+   * - 404: Partido no encontrado
+   */
+  zodServer.patch(
+    '/matches/:matchId/status',
+    {
+      preHandler: [requireAdmin],
+      schema: {
+        params: updateMatchScoreParamsSchema,
+        body: updateMatchStatusBodySchema,
+        response: {
+          200: updateMatchScoreResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['matches'],
+        summary: 'Actualizar estado de partido',
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      try {
+        const updateMatchStatus = resolveUpdateMatchStatus(request);
+        const { matchId } = request.params as { matchId: string };
+        const body = request.body as UpdateMatchStatusBody;
+        const result = await updateMatchStatus.execute({
+          matchId: MatchId.fromString(matchId),
+          status: body.status as MatchStatus.POSTPONED | MatchStatus.CANCELLED,
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);

@@ -82,4 +82,17 @@ export class Match {
       status: MatchStatus.FINISHED,
     });
   }
+
+  updateStatus(status: MatchStatus): Match {
+    return Match.create({
+      ...(this.id && { id: this.id }),
+      seasonId: this.seasonId,
+      homeTeamSeasonId: this.homeTeamSeasonId,
+      awayTeamSeasonId: this.awayTeamSeasonId,
+      date: this.date,
+      round: this.round,
+      score: this.score,
+      status,
+    });
+  }
 }

@@ -61,6 +61,12 @@ export const updateMatchScoreResponseSchema = z.object({
   matchId: z.string().uuid(),
 });
 
+export const updateMatchStatusBodySchema = z.object({
+  status: z.enum([MatchStatus.POSTPONED, MatchStatus.CANCELLED]),
+});
+
+export type UpdateMatchStatusBody = z.infer<typeof updateMatchStatusBodySchema>;
+
 export const listSeasonMatchesResponseSchema = z.object({
   data: z.array(matchResponseSchema),
   meta: z.object({

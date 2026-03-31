@@ -5,6 +5,7 @@ import {
   listSeasonMatchesQuerySchema,
   updateMatchScoreBodySchema,
   updateMatchScoreParamsSchema,
+  updateMatchStatusBodySchema,
 } from '@/adapters/http/matches/schemas';
 
 const validUuid = '123e4567-e89b-12d3-a456-426614174000';
@@ -41,5 +42,15 @@ describe('matches schemas', () => {
     if (!result.success) return;
     expect(result.data.page).toBe(1);
     expect(result.data.limit).toBe(20);
+  });
+
+  it('acepta estado POSTPONED en update status', () => {
+    const result = updateMatchStatusBodySchema.safeParse({ status: 'POSTPONED' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rechaza estado FINISHED en update status', () => {
+    const result = updateMatchStatusBodySchema.safeParse({ status: 'FINISHED' });
+    expect(result.success).toBe(false);
   });
 });

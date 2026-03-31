@@ -71,11 +71,13 @@ async function main() {
   const userPasswordHash = await passwordHasher.hash(userPlainPassword);
 
   // 1) Limpieza completa del "mundo" (en orden para respetar FKs).
+  // Match -> RosterPlayer -> TeamSeason -> Season -> Team -> League
+  await prisma.match.deleteMany();
   await prisma.rosterPlayer.deleteMany();
   await prisma.teamSeason.deleteMany();
   await prisma.season.deleteMany();
-  await prisma.league.deleteMany();
   await prisma.team.deleteMany();
+  await prisma.league.deleteMany();
   await prisma.player.deleteMany();
 
   // 2) League

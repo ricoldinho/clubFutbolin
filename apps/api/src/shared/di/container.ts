@@ -37,7 +37,9 @@ import { RegisterTeamToSeason } from "@/application/use-cases/rosters/RegisterTe
 import { AddPlayerToRoster } from "@/application/use-cases/rosters/AddPlayerToRoster.use-case";
 import { RemovePlayerFromRoster } from "@/application/use-cases/rosters/RemovePlayerFromRoster.use-case";
 import { GenerateSeasonCalendar } from "@/application/use-cases/matches/GenerateSeasonCalendar.use-case";
+import { GetMatchById } from "@/application/use-cases/matches/GetMatchById.use-case";
 import { UpdateMatchScore } from "@/application/use-cases/matches/UpdateMatchScore.use-case";
+import { UpdateMatchStatus } from "@/application/use-cases/matches/UpdateMatchStatus.use-case";
 import type { Envs } from "@/shared/config/env";
 
 export interface AppContainerCradle {
@@ -74,7 +76,9 @@ export interface AppContainerCradle {
   addPlayerToRoster: AddPlayerToRoster;
   removePlayerFromRoster: RemovePlayerFromRoster;
   generateSeasonCalendar: GenerateSeasonCalendar;
+  getMatchById: GetMatchById;
   updateMatchScore: UpdateMatchScore;
+  updateMatchStatus: UpdateMatchStatus;
 }
 
 interface BuildContainerParams {
@@ -134,7 +138,9 @@ export function buildContainer({
     addPlayerToRoster: asClass(AddPlayerToRoster).classic().scoped(),
     removePlayerFromRoster: asClass(RemovePlayerFromRoster).classic().scoped(),
     generateSeasonCalendar: asClass(GenerateSeasonCalendar).classic().scoped(),
+    getMatchById: asClass(GetMatchById).classic().scoped(),
     updateMatchScore: asClass(UpdateMatchScore).classic().scoped(),
+    updateMatchStatus: asClass(UpdateMatchStatus).classic().scoped(),
     prisma: asValue(prisma),
   });
 
