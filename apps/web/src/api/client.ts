@@ -3,16 +3,19 @@
  */
 
 export const AUTH_TOKEN_STORAGE_KEY = 'clubfutbolin.auth.token';
+export const AUTH_TOKEN_CHANGED_EVENT = 'clubfutbolin:auth-token-changed';
 
 export const getStoredAuthToken = (): string | null =>
   typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) : null;
 
 export const setStoredAuthToken = (token: string): void => {
   localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
 };
 
 export const clearStoredAuthToken = (): void => {
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
 };
 
 export class ApiError extends Error {

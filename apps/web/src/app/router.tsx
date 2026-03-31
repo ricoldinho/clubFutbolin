@@ -16,6 +16,13 @@ export const router = createBrowserRouter([
           return { Component: LoginPage };
         },
       },
+      {
+        path: 'matches',
+        lazy: async () => {
+          const { MatchesPage } = await import('@/features/matches/MatchesPage');
+          return { Component: MatchesPage };
+        },
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

@@ -25,6 +25,9 @@ export const RootLayout = () => {
             <NavLink to="/login" className={linkClass}>
               Login
             </NavLink>
+            <NavLink to="/matches" className={linkClass}>
+              Matches
+            </NavLink>
           </nav>
           <span className="ml-auto text-xs text-zinc-500">
             API: <code className="text-zinc-400">{apiBase}</code>
