@@ -25,6 +25,7 @@ const teamRepository = new PrismaTeamRepository(prisma);
 const seasonRepository = new PrismaSeasonRepository(prisma);
 
 async function clearAll(): Promise<void> {
+  await prisma.match.deleteMany({});
   await prisma.rosterPlayer.deleteMany({});
   await prisma.teamSeason.deleteMany({});
   await prisma.season.deleteMany({});

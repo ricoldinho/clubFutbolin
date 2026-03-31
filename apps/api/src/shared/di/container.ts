@@ -10,6 +10,7 @@ import { PrismaLeagueRepository } from "@/adapters/persistence/leagues/PrismaLea
 import { PrismaTeamRepository } from "@/adapters/persistence/teams/PrismaTeamRepository";
 import { PrismaSeasonRepository } from "@/adapters/persistence/seasons/PrismaSeasonRepository";
 import { PrismaRosterRepository } from "@/adapters/persistence/rosters/PrismaRosterRepository";
+import { PrismaMatchRepository } from "@/adapters/persistence/matches/PrismaMatchRepository";
 import { BcryptPasswordHasher } from "@/adapters/auth/BcryptPasswordHasher";
 import { JoseJwtService } from "@/adapters/auth/JoseJwtService";
 import { LoginPlayer } from "@/application/use-cases/players/LoginPlayer.use-case";
@@ -35,6 +36,8 @@ import { SetSeasonWinners } from "@/application/use-cases/seasons/SetSeasonWinne
 import { RegisterTeamToSeason } from "@/application/use-cases/rosters/RegisterTeamToSeason.use-case";
 import { AddPlayerToRoster } from "@/application/use-cases/rosters/AddPlayerToRoster.use-case";
 import { RemovePlayerFromRoster } from "@/application/use-cases/rosters/RemovePlayerFromRoster.use-case";
+import { GenerateSeasonCalendar } from "@/application/use-cases/matches/GenerateSeasonCalendar.use-case";
+import { UpdateMatchScore } from "@/application/use-cases/matches/UpdateMatchScore.use-case";
 import type { Envs } from "@/shared/config/env";
 
 export interface AppContainerCradle {
@@ -44,6 +47,7 @@ export interface AppContainerCradle {
   teamRepository: PrismaTeamRepository;
   seasonRepository: PrismaSeasonRepository;
   rosterRepository: PrismaRosterRepository;
+  matchRepository: PrismaMatchRepository;
   passwordHasher: BcryptPasswordHasher;
   jwtService: JoseJwtService;
   loginPlayer: LoginPlayer;
@@ -69,6 +73,8 @@ export interface AppContainerCradle {
   registerTeamToSeason: RegisterTeamToSeason;
   addPlayerToRoster: AddPlayerToRoster;
   removePlayerFromRoster: RemovePlayerFromRoster;
+  generateSeasonCalendar: GenerateSeasonCalendar;
+  updateMatchScore: UpdateMatchScore;
 }
 
 interface BuildContainerParams {
@@ -89,6 +95,7 @@ export function buildContainer({
     teamRepository: asClass(PrismaTeamRepository).classic().singleton(),
     seasonRepository: asClass(PrismaSeasonRepository).classic().singleton(),
     rosterRepository: asClass(PrismaRosterRepository).classic().singleton(),
+    matchRepository: asClass(PrismaMatchRepository).classic().singleton(),
 
     // Servicios (no dependientes salvo config para JWT).
     passwordHasher: asClass(BcryptPasswordHasher).classic().singleton(),
@@ -126,6 +133,8 @@ export function buildContainer({
     registerTeamToSeason: asClass(RegisterTeamToSeason).classic().scoped(),
     addPlayerToRoster: asClass(AddPlayerToRoster).classic().scoped(),
     removePlayerFromRoster: asClass(RemovePlayerFromRoster).classic().scoped(),
+    generateSeasonCalendar: asClass(GenerateSeasonCalendar).classic().scoped(),
+    updateMatchScore: asClass(UpdateMatchScore).classic().scoped(),
     prisma: asValue(prisma),
   });
 

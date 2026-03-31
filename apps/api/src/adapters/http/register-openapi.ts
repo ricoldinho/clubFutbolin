@@ -27,6 +27,7 @@ export async function registerOpenApi(server: FastifyInstance): Promise<void> {
         { name: 'teams', description: 'Equipos' },
         { name: 'seasons', description: 'Temporadas' },
         { name: 'rosters', description: 'Plantillas por temporada' },
+        { name: 'matches', description: 'Partidos y calendario de temporada' },
       ],
       components: {
         securitySchemes: {

@@ -43,10 +43,12 @@ describe('registerOpenApi', () => {
     const doc = JSON.parse(res.payload) as {
       openapi: string;
       paths: Record<string, unknown>;
+      tags?: Array<{ name: string }>;
       components?: { securitySchemes?: { bearerAuth?: { type: string } } };
     };
     expect(doc.openapi).toMatch(/^3\.0\./);
     expect(doc.paths['/__openapi_probe__']).toBeDefined();
+    expect(doc.tags?.some((tag) => tag.name === 'matches')).toBe(true);
     expect(doc.components?.securitySchemes?.bearerAuth?.type).toBe('http');
   });
 });

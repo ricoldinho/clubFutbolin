@@ -28,6 +28,13 @@ enum Position {
   DELANTERO
 }
 
+enum MatchStatus {
+  SCHEDULED
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
 // Modelo Player alineado con tu entidad y VOs
 model Player {
   // Identidad: PlayerId (UUID v7 en dominio) → uuid en Postgres
@@ -92,6 +99,7 @@ model Season {
   champion   Team?    @relation("Champion", fields: [championId], references: [id], onDelete: SetNull)
   second     Team?    @relation("Second", fields: [secondId], references: [id], onDelete: SetNull)
   teamSeasons TeamSeason[]
+  matches    Match[]
 
   @@unique([leagueId, year])
 }
@@ -104,8 +112,34 @@ model TeamSeason {
   team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
   season        Season         @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   rosterPlayers RosterPlayer[]
+  homeMatches   Match[]        @relation("MatchHomeTeamSeason")
+  awayMatches   Match[]        @relation("MatchAwayTeamSeason")
 
   @@unique([teamId, seasonId])
+}
+
+model Match {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId         String      @db.Uuid
+  homeTeamSeasonId String      @db.Uuid
+  awayTeamSeasonId String      @db.Uuid
+  homeScore        Int?
+  awayScore        Int?
+  date             DateTime
+  round            Int
+  status           MatchStatus @default(SCHEDULED)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  season         Season     @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  homeTeamSeason TeamSeason @relation("MatchHomeTeamSeason", fields: [homeTeamSeasonId], references: [id], onDelete: Restrict)
+  awayTeamSeason TeamSeason @relation("MatchAwayTeamSeason", fields: [awayTeamSeasonId], references: [id], onDelete: Restrict)
+
+  @@index([seasonId, round])
+  @@index([date])
+  @@index([homeTeamSeasonId])
+  @@index([awayTeamSeasonId])
+  @@unique([seasonId, round, homeTeamSeasonId, awayTeamSeasonId])
 }
 
 model RosterPlayer {

@@ -6,6 +6,7 @@ import type { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 export interface IRosterRepository {
   findTeamSeasonByTeamAndSeason(teamId: TeamId, seasonId: SeasonId): Promise<TeamRoster | null>;
   findById(teamSeasonId: TeamSeasonId): Promise<TeamRoster | null>;
+  findBySeasonId(seasonId: SeasonId): Promise<TeamRoster[]>;
   saveTeamSeason(roster: TeamRoster): Promise<void>;
   saveRoster(roster: TeamRoster): Promise<void>;
 }

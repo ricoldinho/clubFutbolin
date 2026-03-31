@@ -36,6 +36,16 @@ export class PrismaRosterRepository implements IRosterRepository {
     return this.toDomain(row);
   }
 
+  async findBySeasonId(seasonId: SeasonId): Promise<TeamRoster[]> {
+    const rows = await this.prisma.teamSeason.findMany({
+      where: { seasonId: seasonId.value },
+      include: {
+        rosterPlayers: true,
+      },
+    });
+    return rows.map((row) => this.toDomain(row));
+  }
+
   private toDomain(row: {
     id: string;
     teamId: string;

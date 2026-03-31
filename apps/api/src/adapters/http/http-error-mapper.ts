@@ -9,6 +9,13 @@ import {
   EmailAlreadyInUseError,
   InvalidCredentialsError,
 } from '@/domain/players/errors';
+import {
+  InsufficientTeamsForCalendarError,
+  InvalidMatchScoreError,
+  MatchScoreUpdateNotAllowedError,
+  MatchTeamsMustBeDifferentError,
+  SeasonCalendarAlreadyGeneratedError,
+} from '@/domain/matches/errors';
 
 /**
  * Resultado del mapeo de un error de dominio/inesperado a respuesta HTTP.
@@ -38,6 +45,22 @@ export function mapDomainErrorToHttp(error: unknown): HttpErrorMapping {
 
   if (error instanceof ForbiddenError) {
     return { statusCode: 403, message: error.message };
+  }
+
+  if (error instanceof SeasonCalendarAlreadyGeneratedError) {
+    return { statusCode: 409, message: error.message };
+  }
+
+  if (error instanceof InsufficientTeamsForCalendarError) {
+    return { statusCode: 400, message: error.message };
+  }
+
+  if (
+    error instanceof MatchScoreUpdateNotAllowedError ||
+    error instanceof InvalidMatchScoreError ||
+    error instanceof MatchTeamsMustBeDifferentError
+  ) {
+    return { statusCode: 400, message: error.message };
   }
 
   if (error instanceof DomainValidationError) {

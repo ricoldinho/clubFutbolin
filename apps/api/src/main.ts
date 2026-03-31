@@ -10,6 +10,7 @@ import { leaguesRoutes } from './adapters/http/leagues/leagues.routes';
 import { teamsRoutes } from './adapters/http/teams/teams.routes';
 import { seasonsRoutes } from './adapters/http/seasons/seasons.routes';
 import { rostersRoutes } from './adapters/http/rosters/rosters.routes';
+import { matchesRoutes } from './adapters/http/matches/matches.routes';
 import { registerOpenApi } from './adapters/http/register-openapi';
 import { options } from './shared/config/env';
 import { buildContainer } from './shared/di/container';
@@ -53,6 +54,7 @@ export async function buildServer() {
     await server.register(teamsRoutes);
     await server.register(seasonsRoutes);
     await server.register(rostersRoutes);
+    await server.register(matchesRoutes);
 
     server.withTypeProvider<ZodTypeProvider>().get(
       '/',

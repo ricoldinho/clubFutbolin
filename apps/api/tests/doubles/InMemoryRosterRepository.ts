@@ -22,6 +22,10 @@ export class InMemoryRosterRepository implements IRosterRepository {
     return this.rosters.find((r) => r.teamSeasonId.equals(teamSeasonId)) ?? null;
   }
 
+  async findBySeasonId(seasonId: SeasonId): Promise<TeamRoster[]> {
+    return this.rosters.filter((r) => r.seasonId.equals(seasonId));
+  }
+
   async saveTeamSeason(roster: TeamRoster): Promise<void> {
     const existing = this.rosters.find((r) =>
       r.teamSeasonId.equals(roster.teamSeasonId),
