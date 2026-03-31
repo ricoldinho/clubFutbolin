@@ -16,6 +16,12 @@ import { MatchDetailCard } from './MatchDetailCard';
 import { MatchesFilters } from './MatchesFilters';
 import { MatchesTable } from './MatchesTable';
 
+const decodeBase64Url = (value: string): string => {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  return atob(padded);
+};
+
 const parseAdminRoleFromToken = (token: string | null): boolean => {
   if (!token) return false;
 
@@ -23,7 +29,7 @@ const parseAdminRoleFromToken = (token: string | null): boolean => {
   if (chunks.length !== 3) return false;
 
   try {
-    const payload = JSON.parse(atob(chunks[1].replace(/-/g, '+').replace(/_/g, '/'))) as {
+    const payload = JSON.parse(decodeBase64Url(chunks[1])) as {
       role?: string;
     };
     return payload.role === 'ADMIN';
@@ -40,8 +46,8 @@ export const MatchesPage = () => {
   const [limit] = useState(20);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
 
-  const roundFilter =
-    roundInput.trim().length > 0 && Number(roundInput) > 0 ? Number(roundInput) : undefined;
+  const parsedRound = Number.parseInt(roundInput, 10);
+  const roundFilter = Number.isInteger(parsedRound) && parsedRound > 0 ? parsedRound : undefined;
 
   const seasonMatches = useSeasonMatches(seasonId, { page, limit, round: roundFilter });
   const matchDetail = useMatchById(selectedMatchId ?? '');
@@ -164,7 +170,10 @@ export const MatchesPage = () => {
       )}
 
       {seasonMatches.isError && (
-        <section className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <section
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
           {seasonMatches.error instanceof ApiError
             ? seasonMatches.error.message
             : 'No se pudo cargar el listado de partidos.'}
@@ -196,7 +205,10 @@ export const MatchesPage = () => {
       )}
 
       {selectedMatchId && matchDetail.isError && (
-        <section className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <section
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
           {matchDetail.error instanceof ApiError
             ? matchDetail.error.message
             : 'No se pudo cargar el detalle del partido.'}

@@ -27,10 +27,11 @@ export const MatchDetailCard = ({
 }: MatchDetailCardProps) => {
   const [homeScore, setHomeScore] = useState(match.homeScore ?? 0);
   const [awayScore, setAwayScore] = useState(match.awayScore ?? 0);
+  const hasInvalidScore = !Number.isInteger(homeScore) || !Number.isInteger(awayScore);
 
   const onSubmitScore = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (homeScore < 0 || awayScore < 0) return;
+    if (homeScore < 0 || awayScore < 0 || hasInvalidScore) return;
     onUpdateScore({ matchId: match.id, homeScore, awayScore });
   };
 
@@ -77,7 +78,7 @@ export const MatchDetailCard = ({
                 type="number"
                 min={0}
                 value={homeScore}
-                onChange={(event) => setHomeScore(Number(event.target.value))}
+                onChange={(event) => setHomeScore(Number.parseInt(event.target.value, 10))}
                 className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
               />
               <label htmlFor="match-detail-away-score" className="sr-only">
@@ -88,17 +89,22 @@ export const MatchDetailCard = ({
                 type="number"
                 min={0}
                 value={awayScore}
-                onChange={(event) => setAwayScore(Number(event.target.value))}
+                onChange={(event) => setAwayScore(Number.parseInt(event.target.value, 10))}
                 className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
               />
               <button
                 type="submit"
-                disabled={isUpdatingScore}
+                disabled={isUpdatingScore || hasInvalidScore}
                 className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-50"
               >
                 {isUpdatingScore ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
+            {hasInvalidScore && (
+              <p role="alert" className="mt-2 text-xs text-red-700">
+                Introduce marcadores enteros válidos.
+              </p>
+            )}
           </form>
 
           <div className="rounded-lg border border-zinc-200 p-3">
