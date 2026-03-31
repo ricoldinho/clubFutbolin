@@ -103,7 +103,16 @@ export const MatchesPage = () => {
   })();
 
   return (
-    <div className="flex flex-col gap-4">
+    <section
+      className="flex flex-col gap-4"
+      aria-busy={
+        seasonMatches.isFetching ||
+        matchDetail.isFetching ||
+        generateCalendar.isPending ||
+        updateScore.isPending ||
+        updateStatus.isPending
+      }
+    >
       <header className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Matches</h1>
         <p className="mt-1 text-sm text-zinc-600">
@@ -115,7 +124,7 @@ export const MatchesPage = () => {
               type="button"
               onClick={handleGenerateCalendar}
               disabled={!seasonId || generateCalendar.isPending}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {generateCalendar.isPending ? 'Generando calendario…' : 'Generar calendario'}
             </button>
@@ -145,7 +154,11 @@ export const MatchesPage = () => {
       )}
 
       {seasonMatches.isPending && seasonId && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+        >
           <p className="animate-pulse text-sm text-zinc-500">Cargando partidos…</p>
         </section>
       )}
@@ -173,7 +186,11 @@ export const MatchesPage = () => {
       )}
 
       {selectedMatchId && matchDetail.isPending && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+        >
           <p className="animate-pulse text-sm text-zinc-500">Cargando detalle…</p>
         </section>
       )}
@@ -199,10 +216,14 @@ export const MatchesPage = () => {
       )}
 
       {feedbackMessage && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
+        <section
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm"
+        >
           {feedbackMessage}
         </section>
       )}
-    </div>
+    </section>
   );
 };
