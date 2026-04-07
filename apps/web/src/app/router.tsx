@@ -30,6 +30,20 @@ export const router = createBrowserRouter([
           return { Component: PlayerProfilePage };
         },
       },
+      {
+        path: 'teams/:teamId',
+        lazy: async () => {
+          const { TeamProfilePage } = await import('@/features/teams/TeamProfilePage');
+          return { Component: TeamProfilePage };
+        },
+      },
+      {
+        path: 'leagues/:leagueId',
+        lazy: async () => {
+          const { LeagueDetailPage } = await import('@/features/leagues/LeagueDetailPage');
+          return { Component: LeagueDetailPage };
+        },
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

@@ -27,6 +27,8 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
 
+const ADMIN_PLAYER_ID = '019d66e3-1d5b-730d-b5de-72a010eb62b4';
+
 function randomDigits(length: number): string {
   let out = '';
   for (let i = 0; i < length; i += 1) out += faker.number.int({ min: 0, max: 9 });
@@ -80,14 +82,18 @@ async function main() {
   await prisma.league.deleteMany();
   await prisma.player.deleteMany();
 
-  // 2) League
-  const league = await prisma.league.create({
-    data: {
-      name: `Liga Seed ${seed}`,
-      leagueCategory:
-        LEAGUE_CATEGORIES[faker.number.int({ min: 0, max: LEAGUE_CATEGORIES.length - 1 })],
-    },
-  });
+  // 2) Leagues (mínimo 2 para garantizar membresías del admin en ligas distintas)
+  const leagues = await Promise.all(
+    [1, 2].map((leagueIdx) =>
+      prisma.league.create({
+        data: {
+          name: `Liga Seed ${seed} - ${leagueIdx}`,
+          leagueCategory:
+            LEAGUE_CATEGORIES[faker.number.int({ min: 0, max: LEAGUE_CATEGORIES.length - 1 })],
+        },
+      }),
+    ),
+  );
 
   // 3) Teams
   const teamCount = 8;
@@ -101,18 +107,15 @@ async function main() {
     ),
   );
 
-  // 4) Seasons
+  // 4) Seasons (una por cada liga)
   const nowYear = new Date().getFullYear();
-  const seasonYears = [nowYear, nowYear - 1];
-
   const seasons = await Promise.all(
-    seasonYears.map((year, i) => {
+    leagues.map((league, i) => {
       const champion = teams[i % teams.length];
       const second = teams[(i + 1) % teams.length];
-
       return prisma.season.create({
         data: {
-          year,
+          year: nowYear - i,
           leagueId: league.id,
           championId: champion.id,
           secondId: second.id,
@@ -150,7 +153,7 @@ async function main() {
 
       return prisma.player.create({
         data: {
-          id: PlayerId.generate().value,
+          id: isAdmin ? ADMIN_PLAYER_ID : PlayerId.generate().value,
           email: isAdmin ? 'admin@seed.local' : `player${i + 1}@seed.local`,
           name: faker.person.firstName(),
           lastname: faker.person.lastName(),
@@ -183,6 +186,30 @@ async function main() {
       });
     });
   }
+
+  // El admin debe pertenecer a más de un equipo en ligas distintas:
+  // forzamos una membresía por cada liga/temporada creada.
+  const adminPlayer = players.find((player) => player.id === ADMIN_PLAYER_ID);
+  if (!adminPlayer) {
+    throw new Error('No se pudo encontrar el player admin en seed');
+  }
+
+  seasons.forEach((season, seasonIndex) => {
+    const targetTeam = teams[(seasonIndex + 1) % teams.length];
+    const targetTeamSeason = teamSeasons.find(
+      (teamSeason) => teamSeason.seasonId === season.id && teamSeason.teamId === targetTeam.id,
+    );
+
+    if (!targetTeamSeason) {
+      throw new Error(`No se encontró TeamSeason para season=${season.id} team=${targetTeam.id}`);
+    }
+
+    rosterPlayersData.push({
+      teamSeasonId: targetTeamSeason.id,
+      playerId: adminPlayer.id,
+      position: 'DELANTERO',
+    });
+  });
 
   await prisma.rosterPlayer.createMany({
     data: rosterPlayersData,

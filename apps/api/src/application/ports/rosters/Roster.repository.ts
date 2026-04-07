@@ -14,11 +14,29 @@ export interface PlayerMembership {
   leagueName: string;
 }
 
+export interface TeamProfileMembership {
+  seasonId: SeasonId;
+  seasonYear: number;
+  leagueId: string;
+  leagueName: string;
+  leagueCategory: string;
+}
+
+export interface TeamProfilePlayer {
+  id: string;
+  name: string;
+  lastname: string;
+  nickname: string | null;
+  category: string;
+}
+
 export interface IRosterRepository {
   findTeamSeasonByTeamAndSeason(teamId: TeamId, seasonId: SeasonId): Promise<TeamRoster | null>;
   findById(teamSeasonId: TeamSeasonId): Promise<TeamRoster | null>;
   findBySeasonId(seasonId: SeasonId): Promise<TeamRoster[]>;
   findMembershipsByPlayerId(playerId: PlayerId): Promise<PlayerMembership[]>;
+  findMembershipsByTeamId(teamId: TeamId): Promise<TeamProfileMembership[]>;
+  findPlayersByTeamId(teamId: TeamId): Promise<TeamProfilePlayer[]>;
   saveTeamSeason(roster: TeamRoster): Promise<void>;
   saveRoster(roster: TeamRoster): Promise<void>;
 }

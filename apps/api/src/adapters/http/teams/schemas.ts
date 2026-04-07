@@ -16,6 +16,28 @@ export const listTeamsResponseSchema = z.object({
   meta: paginationMetaResponseSchema,
 });
 
+export const teamProfileResponseSchema = z.object({
+  team: teamResponseSchema,
+  leagues: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      leagueCategory: z.string(),
+      seasonId: z.string().uuid(),
+      seasonYear: z.number().int(),
+    }),
+  ),
+  players: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      lastname: z.string(),
+      nickname: z.string().nullable(),
+      category: z.string(),
+    }),
+  ),
+});
+
 export const createTeamBodySchema = z.object({
   name: z.string().min(1),
 });

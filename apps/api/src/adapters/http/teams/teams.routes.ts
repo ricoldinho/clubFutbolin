@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
+import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
 import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
 import { UpdateTeam } from '@/application/use-cases/teams/UpdateTeam.use-case';
@@ -19,6 +20,7 @@ import {
   getTeamByNameParamsSchema,
   listTeamsQuerySchema,
   listTeamsResponseSchema,
+  teamProfileResponseSchema,
   teamResponseSchema,
   type CreateTeamBody,
   type UpdateTeamBody,
@@ -28,6 +30,7 @@ import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
 
 interface TeamsRoutesOptions extends FastifyPluginOptions {
   repository?: ITeamRepository;
+  rosterRepository?: IRosterRepository;
   jwtService?: IJwtService;
   createTeam?: CreateTeam;
   updateTeam?: UpdateTeam;
@@ -85,6 +88,9 @@ export async function teamsRoutes(
     (options.repository
       ? new GetTeamByName(options.repository)
       : request.container.cradle.getTeamByName);
+
+  const resolveRosterRepository = (request: FastifyRequest): IRosterRepository =>
+    options.rosterRepository ?? request.container.cradle.rosterRepository;
 
   zodServer.post(
     '/teams',
@@ -166,6 +172,60 @@ export async function teamsRoutes(
         return reply
           .code(statusCode as 400 | 500)
           .send({ message });
+      }
+    },
+  );
+
+  /**
+   * GET /teams/:teamId/profile
+   *
+   * Devuelve información del equipo, ligas/temporadas en las que participa
+   * y jugadores que lo integran.
+   */
+  zodServer.get(
+    '/teams/:teamId/profile',
+    {
+      schema: {
+        params: getTeamByIdParamsSchema,
+        response: {
+          200: teamProfileResponseSchema,
+          400: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['teams'],
+        summary: 'Obtener perfil de equipo',
+      },
+    },
+    async (request, reply) => {
+      try {
+        const teamId = TeamId.fromString((request.params as { teamId: string }).teamId);
+        const teamRepository = options.repository ?? request.container.cradle.teamRepository;
+        const team = await teamRepository.findById(teamId);
+        if (team === null) {
+          return reply.code(404).send({ message: `Team with id "${teamId.value}" not found` });
+        }
+
+        const rosterRepository = resolveRosterRepository(request);
+        const [memberships, players] = await Promise.all([
+          rosterRepository.findMembershipsByTeamId(teamId),
+          rosterRepository.findPlayersByTeamId(teamId),
+        ]);
+
+        return reply.code(200).send({
+          team: toTeamResponse(team),
+          leagues: memberships.map((membership) => ({
+            id: membership.leagueId,
+            name: membership.leagueName,
+            leagueCategory: membership.leagueCategory,
+            seasonId: membership.seasonId.value,
+            seasonYear: membership.seasonYear,
+          })),
+          players,
+        });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        return reply.code(statusCode as 400 | 404 | 500).send({ message });
       }
     },
   );

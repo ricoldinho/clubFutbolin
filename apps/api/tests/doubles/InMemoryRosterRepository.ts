@@ -4,7 +4,11 @@ import type { TeamSeasonId } from '@/domain/rosters/TeamSeasonId.value-object';
 import type { TeamId } from '@/domain/teams/TeamId.value-object';
 import type { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 import type { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
-import type { PlayerMembership } from '@/application/ports/rosters/Roster.repository';
+import type {
+  PlayerMembership,
+  TeamProfileMembership,
+  TeamProfilePlayer,
+} from '@/application/ports/rosters/Roster.repository';
 
 export class InMemoryRosterRepository implements IRosterRepository {
   private readonly rosters: TeamRoster[] = [];
@@ -29,6 +33,14 @@ export class InMemoryRosterRepository implements IRosterRepository {
   }
 
   async findMembershipsByPlayerId(_playerId: PlayerId): Promise<PlayerMembership[]> {
+    return [];
+  }
+
+  async findMembershipsByTeamId(_teamId: TeamId): Promise<TeamProfileMembership[]> {
+    return [];
+  }
+
+  async findPlayersByTeamId(_teamId: TeamId): Promise<TeamProfilePlayer[]> {
     return [];
   }
 

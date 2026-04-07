@@ -9,6 +9,8 @@ import { parsePosition } from '@/domain/rosters/Position';
 import type {
   IRosterRepository,
   PlayerMembership,
+  TeamProfileMembership,
+  TeamProfilePlayer,
 } from '@/application/ports/rosters/Roster.repository';
 
 export class PrismaRosterRepository implements IRosterRepository {
@@ -95,6 +97,72 @@ export class PrismaRosterRepository implements IRosterRepository {
       leagueId: teamSeason.season.leagueId,
       leagueName: teamSeason.season.league.name,
     }));
+  }
+
+  async findMembershipsByTeamId(teamId: TeamId): Promise<TeamProfileMembership[]> {
+    const rows = await this.prisma.teamSeason.findMany({
+      where: { teamId: teamId.value },
+      select: {
+        seasonId: true,
+        season: {
+          select: {
+            year: true,
+            leagueId: true,
+            league: {
+              select: {
+                name: true,
+                leagueCategory: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        season: { year: 'desc' },
+      },
+    });
+
+    return rows.map((row) => ({
+      seasonId: SeasonId.fromString(row.seasonId),
+      seasonYear: row.season.year,
+      leagueId: row.season.leagueId,
+      leagueName: row.season.league.name,
+      leagueCategory: row.season.league.leagueCategory,
+    }));
+  }
+
+  async findPlayersByTeamId(teamId: TeamId): Promise<TeamProfilePlayer[]> {
+    const rows = await this.prisma.rosterPlayer.findMany({
+      where: {
+        teamSeason: {
+          teamId: teamId.value,
+        },
+      },
+      select: {
+        player: {
+          select: {
+            id: true,
+            name: true,
+            lastname: true,
+            nickname: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    const dedup = new Map<string, TeamProfilePlayer>();
+    rows.forEach(({ player }) => {
+      dedup.set(player.id, {
+        id: player.id,
+        name: player.name,
+        lastname: player.lastname,
+        nickname: player.nickname,
+        category: player.category,
+      });
+    });
+
+    return Array.from(dedup.values());
   }
 
   private toDomain(row: {

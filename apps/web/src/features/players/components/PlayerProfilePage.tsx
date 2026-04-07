@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { usePlayerById, usePlayerMemberships } from '@/features/players/api';
 
@@ -37,6 +37,9 @@ export const PlayerProfilePage = () => {
 
   const player = playerQuery.data;
   const memberships = membershipsQuery.data?.data ?? [];
+  if (!player) {
+    return <p className="text-sm text-red-300">No se encontró la información del jugador.</p>;
+  }
 
   return (
     <section className="space-y-6">
@@ -86,8 +89,13 @@ export const PlayerProfilePage = () => {
                 key={membership.teamSeasonId}
                 className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2"
               >
-                <span className="font-medium">{membership.team.name}</span>
-                <span className="text-zinc-400"> - {membership.league.name}</span>
+                <Link to={`/teams/${membership.team.id}`} className="font-medium text-sky-400 hover:underline">
+                  {membership.team.name}
+                </Link>
+                <span className="text-zinc-400"> - </span>
+                <Link to={`/leagues/${membership.league.id}`} className="text-sky-400 hover:underline">
+                  {membership.league.name}
+                </Link>
                 <span className="text-zinc-500"> (Temporada {membership.season.year})</span>
               </li>
             ))}

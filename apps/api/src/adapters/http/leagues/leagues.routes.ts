@@ -2,6 +2,9 @@ import { z } from 'zod';
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { ILeagueRepository } from '@/application/ports/leagues/League.repository';
+import type { ISeasonRepository } from '@/application/ports/seasons/Season.repository';
+import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
+import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
 import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import { CreateLeague } from '@/application/use-cases/leagues/CreateLeague.use-case';
 import { UpdateLeague } from '@/application/use-cases/leagues/UpdateLeague.use-case';
@@ -9,6 +12,7 @@ import { DeleteLeague } from '@/application/use-cases/leagues/DeleteLeague.use-c
 import { ListLeagues } from '@/application/use-cases/leagues/ListLeagues.use-case';
 import { GetLeagueById } from '@/application/use-cases/leagues/GetLeagueById.use-case';
 import { LeagueId } from '@/domain/leagues/LeagueId.value-object';
+import { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 import { parseLeagueCategory } from '@/domain/leagues/LeagueCategory';
 import type { League } from '@/domain/leagues/League.entity';
 import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
@@ -19,6 +23,8 @@ import {
   getLeagueByIdParamsSchema,
   listLeaguesQuerySchema,
   listLeaguesResponseSchema,
+  leagueSeasonsResponseSchema,
+  seasonTeamsByCategoryResponseSchema,
   leagueResponseSchema,
   type CreateLeagueBody,
   type UpdateLeagueBody,
@@ -28,6 +34,9 @@ import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
 
 interface LeaguesRoutesOptions extends FastifyPluginOptions {
   repository?: ILeagueRepository;
+  seasonRepository?: ISeasonRepository;
+  rosterRepository?: IRosterRepository;
+  teamRepository?: ITeamRepository;
   jwtService?: IJwtService;
   createLeague?: CreateLeague;
   updateLeague?: UpdateLeague;
@@ -85,6 +94,15 @@ export async function leaguesRoutes(
     (options.repository
       ? new GetLeagueById(options.repository)
       : request.container.cradle.getLeagueById);
+
+  const resolveSeasonRepository = (request: FastifyRequest): ISeasonRepository =>
+    options.seasonRepository ?? request.container.cradle.seasonRepository;
+
+  const resolveRosterRepository = (request: FastifyRequest): IRosterRepository =>
+    options.rosterRepository ?? request.container.cradle.rosterRepository;
+
+  const resolveTeamRepository = (request: FastifyRequest): ITeamRepository =>
+    options.teamRepository ?? request.container.cradle.teamRepository;
 
   zodServer.post(
     '/leagues',
@@ -170,6 +188,105 @@ export async function leaguesRoutes(
         .code(statusCode as 400 | 500)
         .send({ message });
     }
+    },
+  );
+
+  zodServer.get(
+    '/leagues/:leagueId/seasons',
+    {
+      schema: {
+        params: getLeagueByIdParamsSchema,
+        response: {
+          200: leagueSeasonsResponseSchema,
+          400: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['leagues'],
+        summary: 'Listar seasons de una liga',
+      },
+    },
+    async (request, reply) => {
+      try {
+        const leagueId = LeagueId.fromString((request.params as { leagueId: string }).leagueId);
+        const league = await (options.repository ?? request.container.cradle.leagueRepository).findById(leagueId);
+        if (league === null) {
+          return reply.code(404).send({ message: `League with id "${leagueId.value}" not found` });
+        }
+
+        const seasons = await resolveSeasonRepository(request).findByLeagueId(leagueId);
+        const sorted = [...seasons].sort((a, b) => b.year - a.year);
+        return reply.code(200).send({
+          data: sorted.map((season) => ({
+            id: season.id!.value,
+            year: season.year,
+            leagueId: season.leagueId.value,
+            championId: season.championId?.value ?? null,
+            secondId: season.secondId?.value ?? null,
+          })),
+        });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        return reply.code(statusCode as 400 | 404 | 500).send({ message });
+      }
+    },
+  );
+
+  zodServer.get(
+    '/leagues/:leagueId/seasons/:seasonId/teams-by-category',
+    {
+      schema: {
+        params: getLeagueByIdParamsSchema.extend({
+          seasonId: getLeagueByIdParamsSchema.shape.leagueId,
+        }),
+        response: {
+          200: seasonTeamsByCategoryResponseSchema,
+          400: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['leagues'],
+        summary: 'Equipos de una season agrupados por categoría',
+      },
+    },
+    async (request, reply) => {
+      try {
+        const params = request.params as { leagueId: string; seasonId: string };
+        const leagueId = LeagueId.fromString(params.leagueId);
+        const seasonId = params.seasonId;
+
+        const league = await (options.repository ?? request.container.cradle.leagueRepository).findById(leagueId);
+        if (league === null) {
+          return reply.code(404).send({ message: `League with id "${leagueId.value}" not found` });
+        }
+
+        const season = await resolveSeasonRepository(request).findById(SeasonId.fromString(seasonId));
+        if (season === null || !season.leagueId.equals(leagueId)) {
+          return reply.code(404).send({ message: 'Season no encontrada para esta liga' });
+        }
+
+        const rosters = await resolveRosterRepository(request).findBySeasonId(season.id!);
+        const teamRepository = resolveTeamRepository(request);
+        const teams = await Promise.all(
+          rosters.map(async (roster) => {
+            const team = await teamRepository.findById(roster.teamId);
+            return team ? { id: team.id!.value, name: team.name } : null;
+          }),
+        );
+
+        return reply.code(200).send({
+          seasonId: season.id!.value,
+          categories: [
+            {
+              category: league.leagueCategory,
+              teams: teams.filter((team): team is { id: string; name: string } => team !== null),
+            },
+          ],
+        });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        return reply.code(statusCode as 400 | 404 | 500).send({ message });
+      }
     },
   );
 

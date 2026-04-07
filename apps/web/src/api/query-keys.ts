@@ -10,6 +10,13 @@ export const queryKeys = {
   leagues: {
     all: ['leagues'] as const,
     detail: (id: string) => ['leagues', 'detail', id] as const,
+    seasons: (leagueId: string) => ['leagues', 'seasons', leagueId] as const,
+    seasonTeamsByCategory: (leagueId: string, seasonId: string) =>
+      ['leagues', 'seasons', leagueId, 'teams-by-category', seasonId] as const,
+  },
+  teams: {
+    all: ['teams'] as const,
+    profile: (teamId: string) => ['teams', 'profile', teamId] as const,
   },
   matches: {
     all: ['matches'] as const,
