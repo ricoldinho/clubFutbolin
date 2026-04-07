@@ -54,7 +54,7 @@ export const MatchesTable = ({ matches, selectedMatchId, onSelectMatch }: Matche
                 <td className="border-b border-zinc-100 px-3 py-2">{match.round}</td>
                 <td className="border-b border-zinc-100 px-3 py-2">{formatDate(match.date)}</td>
                 <td className="border-b border-zinc-100 px-3 py-2">
-                  {match.homeTeamSeasonId.slice(0, 8)} vs {match.awayTeamSeasonId.slice(0, 8)}
+                  {match.homeTeam.name} vs {match.awayTeam.name}
                 </td>
                 <td className="border-b border-zinc-100 px-3 py-2">
                   {match.homeScore ?? '-'} - {match.awayScore ?? '-'}

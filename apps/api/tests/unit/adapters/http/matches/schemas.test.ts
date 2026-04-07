@@ -3,6 +3,7 @@ import {
   generateSeasonCalendarBodySchema,
   generateSeasonCalendarParamsSchema,
   listSeasonMatchesQuerySchema,
+  matchResponseSchema,
   updateMatchScoreBodySchema,
   updateMatchScoreParamsSchema,
   updateMatchStatusBodySchema,
@@ -52,5 +53,22 @@ describe('matches schemas', () => {
   it('rechaza estado FINISHED en update status', () => {
     const result = updateMatchStatusBodySchema.safeParse({ status: 'FINISHED' });
     expect(result.success).toBe(false);
+  });
+
+  it('acepta match response con equipos embebidos', () => {
+    const result = matchResponseSchema.safeParse({
+      id: validUuid,
+      seasonId: validUuid,
+      homeTeamSeasonId: validUuid,
+      awayTeamSeasonId: validUuid,
+      homeTeam: { teamId: validUuid, name: 'Equipo Local' },
+      awayTeam: { teamId: validUuid, name: 'Equipo Visitante' },
+      homeScore: 4,
+      awayScore: 0,
+      date: '2026-04-01T10:00:00.000Z',
+      round: 1,
+      status: 'FINISHED',
+    });
+    expect(result.success).toBe(true);
   });
 });

@@ -41,6 +41,14 @@ export const matchResponseSchema = z.object({
   seasonId: z.string().uuid(),
   homeTeamSeasonId: z.string().uuid(),
   awayTeamSeasonId: z.string().uuid(),
+  homeTeam: z.object({
+    teamId: z.string().uuid(),
+    name: z.string().min(1),
+  }),
+  awayTeam: z.object({
+    teamId: z.string().uuid(),
+    name: z.string().min(1),
+  }),
   homeScore: z.number().int().nonnegative().nullable(),
   awayScore: z.number().int().nonnegative().nullable(),
   date: z.iso.datetime(),

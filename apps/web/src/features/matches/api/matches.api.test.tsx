@@ -47,6 +47,8 @@ describe('matches api hooks', () => {
       seasonId: 'season-1',
       homeTeamSeasonId: 'home-1',
       awayTeamSeasonId: 'away-1',
+      homeTeam: { teamId: 'team-home-1', name: 'Home Team' },
+      awayTeam: { teamId: 'team-away-1', name: 'Away Team' },
       homeScore: null,
       awayScore: null,
       date: new Date().toISOString(),

@@ -4,6 +4,7 @@ import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import type { IMatchRepository } from '@/application/ports/matches/Match.repository';
 import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
 import type { ISeasonRepository } from '@/application/ports/seasons/Season.repository';
+import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
 import { GenerateSeasonCalendar } from '@/application/use-cases/matches/GenerateSeasonCalendar.use-case';
 import { GetMatchById } from '@/application/use-cases/matches/GetMatchById.use-case';
 import { UpdateMatchScore } from '@/application/use-cases/matches/UpdateMatchScore.use-case';
@@ -14,6 +15,7 @@ import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
 import { MatchId } from '@/domain/matches/MatchId.value-object';
 import { SeasonId } from '@/domain/seasons/SeasonId.value-object';
+import { TeamSeasonId } from '@/domain/rosters/TeamSeasonId.value-object';
 import { computeLastPage } from '@/shared/pagination';
 import {
   generateSeasonCalendarBodySchema,
@@ -35,6 +37,7 @@ interface MatchesRoutesOptions extends FastifyPluginOptions {
   repository?: IMatchRepository;
   rosterRepository?: IRosterRepository;
   seasonRepository?: ISeasonRepository;
+  teamRepository?: ITeamRepository;
   jwtService?: IJwtService;
   generateSeasonCalendar?: GenerateSeasonCalendar;
   getMatchById?: GetMatchById;
@@ -74,6 +77,11 @@ export async function matchesRoutes(
     (options.repository
       ? new GetMatchById(options.repository)
       : request.container.cradle.getMatchById);
+  const resolveTeamRepository = (request: FastifyRequest): ITeamRepository =>
+    options.teamRepository ?? request.container.cradle.teamRepository;
+
+  const resolveRosterRepository = (request: FastifyRequest): IRosterRepository =>
+    options.rosterRepository ?? request.container.cradle.rosterRepository;
   const resolveUpdateMatchStatus = (request: FastifyRequest): UpdateMatchStatus =>
     options.updateMatchStatus ??
     (options.repository
@@ -214,6 +222,8 @@ export async function matchesRoutes(
     async (request, reply) => {
       try {
         const getMatchById = resolveGetMatchById(request);
+        const teamRepository = resolveTeamRepository(request);
+        const rosterRepository = resolveRosterRepository(request);
         const { matchId } = request.params as { matchId: string };
         const result = await getMatchById.execute(MatchId.fromString(matchId));
         if (!result.ok) {
@@ -221,11 +231,27 @@ export async function matchesRoutes(
           return reply.code(statusCode as 400 | 404 | 500).send({ message });
         }
         const match = result.value;
+        const [homeTeamSeason, awayTeamSeason] = await Promise.all([
+          rosterRepository.findById(TeamSeasonId.fromString(match.homeTeamSeasonId.value)),
+          rosterRepository.findById(TeamSeasonId.fromString(match.awayTeamSeasonId.value)),
+        ]);
+        if (homeTeamSeason === null || awayTeamSeason === null) {
+          return reply.code(500).send({ message: 'No se pudo resolver TeamSeason para el match' });
+        }
+        const [homeTeam, awayTeam] = await Promise.all([
+          teamRepository.findById(homeTeamSeason.teamId),
+          teamRepository.findById(awayTeamSeason.teamId),
+        ]);
+        if (homeTeam === null || awayTeam === null) {
+          return reply.code(500).send({ message: 'No se pudo resolver Team para el match' });
+        }
         return reply.code(200).send({
           id: match.id!.value,
           seasonId: match.seasonId.value,
           homeTeamSeasonId: match.homeTeamSeasonId.value,
           awayTeamSeasonId: match.awayTeamSeasonId.value,
+          homeTeam: { teamId: homeTeam.id!.value, name: homeTeam.name },
+          awayTeam: { teamId: awayTeam.id!.value, name: awayTeam.name },
           homeScore: match.score.home,
           awayScore: match.score.away,
           date: match.date.toISOString(),
@@ -319,13 +345,50 @@ export async function matchesRoutes(
         const query = request.query as { page: number; limit: number; round?: number };
         const repository: IMatchRepository =
           options.repository ?? request.container.cradle.matchRepository;
+        const teamRepository = resolveTeamRepository(request);
+        const rosterRepository = resolveRosterRepository(request);
         const result = await repository.findBySeasonId(SeasonId.fromString(seasonId), query);
+        const teamSeasonIds = Array.from(
+          new Set(
+            result.data.flatMap((match) => [
+              match.homeTeamSeasonId.value,
+              match.awayTeamSeasonId.value,
+            ]),
+          ),
+        );
+        const teamSeasonEntries = await Promise.all(
+          teamSeasonIds.map(async (teamSeasonId) => {
+            const roster = await rosterRepository.findById(TeamSeasonId.fromString(teamSeasonId));
+            if (roster === null) {
+              return [teamSeasonId, null] as const;
+            }
+            const team = await teamRepository.findById(roster.teamId);
+            return [teamSeasonId, team] as const;
+          }),
+        );
+        const teamsByTeamSeasonId = new Map(teamSeasonEntries);
         return reply.code(200).send({
           data: result.data.map((match) => ({
             id: match.id!.value,
             seasonId: match.seasonId.value,
             homeTeamSeasonId: match.homeTeamSeasonId.value,
             awayTeamSeasonId: match.awayTeamSeasonId.value,
+            homeTeam: {
+              teamId:
+                teamsByTeamSeasonId.get(match.homeTeamSeasonId.value)?.id?.value ??
+                match.homeTeamSeasonId.value,
+              name:
+                teamsByTeamSeasonId.get(match.homeTeamSeasonId.value)?.name ??
+                match.homeTeamSeasonId.value,
+            },
+            awayTeam: {
+              teamId:
+                teamsByTeamSeasonId.get(match.awayTeamSeasonId.value)?.id?.value ??
+                match.awayTeamSeasonId.value,
+              name:
+                teamsByTeamSeasonId.get(match.awayTeamSeasonId.value)?.name ??
+                match.awayTeamSeasonId.value,
+            },
             homeScore: match.score.home,
             awayScore: match.score.away,
             date: match.date.toISOString(),

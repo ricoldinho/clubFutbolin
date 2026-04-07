@@ -7,6 +7,14 @@ export interface MatchDto {
   seasonId: string;
   homeTeamSeasonId: string;
   awayTeamSeasonId: string;
+  homeTeam: {
+    teamId: string;
+    name: string;
+  };
+  awayTeam: {
+    teamId: string;
+    name: string;
+  };
   homeScore: number | null;
   awayScore: number | null;
   date: string;

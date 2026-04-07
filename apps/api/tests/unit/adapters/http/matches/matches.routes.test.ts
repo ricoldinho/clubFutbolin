@@ -18,6 +18,8 @@ import { TeamSeasonId } from '@/domain/rosters/TeamSeasonId.value-object';
 import { TeamId } from '@/domain/teams/TeamId.value-object';
 import { Match } from '@/domain/matches/Match.entity';
 import { MatchId } from '@/domain/matches/MatchId.value-object';
+import { Team } from '@/domain/teams/Team.entity';
+import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
 
 const TEST_JWT_SECRET = 'test-secret';
 const TEST_JWT_EXPIRES = '1h';
@@ -30,21 +32,25 @@ function buildServer() {
   const matchRepository = new InMemoryMatchRepository();
   const rosterRepository = new InMemoryRosterRepository();
   const seasonRepository = new InMemorySeasonRepository();
+  const teamRepository = new InMemoryTeamRepository();
   const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
 
   app.register(matchesRoutes, {
     repository: matchRepository,
     rosterRepository,
     seasonRepository,
+    teamRepository,
     jwtService,
   });
 
-  return { app, matchRepository, rosterRepository, seasonRepository, jwtService };
+  return { app, matchRepository, rosterRepository, seasonRepository, teamRepository, jwtService };
 }
 
 describe('matches routes', () => {
   let server: ReturnType<typeof buildServer>['app'];
   let seasonId: SeasonId;
+  let teamSeasonAId: TeamSeasonId;
+  let teamSeasonBId: TeamSeasonId;
   let jwtService: JoseJwtService;
   let matchRepository: InMemoryMatchRepository;
 
@@ -62,17 +68,24 @@ describe('matches routes', () => {
         leagueId: LeagueId.generate(),
       }),
     );
+    const teamA = Team.create({ id: TeamId.generate(), name: 'Team A' });
+    const teamB = Team.create({ id: TeamId.generate(), name: 'Team B' });
+    await built.teamRepository.save(teamA);
+    await built.teamRepository.save(teamB);
+
+    teamSeasonAId = TeamSeasonId.generate();
+    teamSeasonBId = TeamSeasonId.generate();
     await built.rosterRepository.saveTeamSeason(
       TeamRoster.create({
-        teamSeasonId: TeamSeasonId.generate(),
-        teamId: TeamId.generate(),
+        teamSeasonId: teamSeasonAId,
+        teamId: teamA.id!,
         seasonId,
       }),
     );
     await built.rosterRepository.saveTeamSeason(
       TeamRoster.create({
-        teamSeasonId: TeamSeasonId.generate(),
-        teamId: TeamId.generate(),
+        teamSeasonId: teamSeasonBId,
+        teamId: teamB.id!,
         seasonId,
       }),
     );
@@ -111,8 +124,8 @@ describe('matches routes', () => {
       Match.create({
         id: MatchId.generate(),
         seasonId,
-        homeTeamSeasonId: TeamSeasonId.generate(),
-        awayTeamSeasonId: TeamSeasonId.generate(),
+        homeTeamSeasonId: teamSeasonAId,
+        awayTeamSeasonId: teamSeasonBId,
         date: new Date('2026-04-01T10:00:00.000Z'),
         round: 1,
       }),
@@ -124,11 +137,13 @@ describe('matches routes', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as {
-      data: Array<{ seasonId: string }>;
+      data: Array<{ seasonId: string; homeTeam: { name: string }; awayTeam: { name: string } }>;
       meta: { total: number; page: number; lastPage: number };
     };
     expect(body.data).toHaveLength(1);
     expect(body.data[0].seasonId).toBe(seasonId.value);
+    expect(body.data[0].homeTeam.name.length).toBeGreaterThan(0);
+    expect(body.data[0].awayTeam.name.length).toBeGreaterThan(0);
     expect(body.meta).toEqual({ total: 1, page: 1, lastPage: 1 });
   });
 
@@ -145,8 +160,8 @@ describe('matches routes', () => {
     const match = Match.create({
       id: MatchId.generate(),
       seasonId,
-      homeTeamSeasonId: TeamSeasonId.generate(),
-      awayTeamSeasonId: TeamSeasonId.generate(),
+      homeTeamSeasonId: teamSeasonAId,
+      awayTeamSeasonId: teamSeasonBId,
       date: new Date('2026-04-01T10:00:00.000Z'),
       round: 1,
     });
@@ -168,8 +183,8 @@ describe('matches routes', () => {
     const match = Match.create({
       id: MatchId.generate(),
       seasonId,
-      homeTeamSeasonId: TeamSeasonId.generate(),
-      awayTeamSeasonId: TeamSeasonId.generate(),
+      homeTeamSeasonId: teamSeasonAId,
+      awayTeamSeasonId: teamSeasonBId,
       date: new Date('2026-04-01T10:00:00.000Z'),
       round: 1,
     });
@@ -198,8 +213,8 @@ describe('matches routes', () => {
     const match = Match.create({
       id: MatchId.generate(),
       seasonId,
-      homeTeamSeasonId: TeamSeasonId.generate(),
-      awayTeamSeasonId: TeamSeasonId.generate(),
+      homeTeamSeasonId: teamSeasonAId,
+      awayTeamSeasonId: teamSeasonBId,
       date: new Date('2026-04-01T10:00:00.000Z'),
       round: 1,
     });
