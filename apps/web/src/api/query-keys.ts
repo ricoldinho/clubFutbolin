@@ -4,11 +4,15 @@
 export const queryKeys = {
   players: {
     all: ['players'] as const,
+    list: (filters: { page: number; limit: number }) =>
+      ['players', 'list', filters] as const,
     detail: (playerId: string) => ['players', 'detail', playerId] as const,
     memberships: (playerId: string) => ['players', 'memberships', playerId] as const,
   },
   leagues: {
     all: ['leagues'] as const,
+    list: (filters: { page: number; limit: number }) =>
+      ['leagues', 'list', filters] as const,
     detail: (id: string) => ['leagues', 'detail', id] as const,
     seasons: (leagueId: string) => ['leagues', 'seasons', leagueId] as const,
     seasonTeamsByCategory: (leagueId: string, seasonId: string) =>
@@ -16,6 +20,8 @@ export const queryKeys = {
   },
   teams: {
     all: ['teams'] as const,
+    list: (filters: { page: number; limit: number }) =>
+      ['teams', 'list', filters] as const,
     profile: (teamId: string) => ['teams', 'profile', teamId] as const,
   },
   matches: {

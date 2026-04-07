@@ -31,6 +31,7 @@ export const useLogin = (options: UseLoginOptions = {}) => {
     onSuccess: (data) => {
       setStoredAuthToken(data.token);
       void queryClient.invalidateQueries({ queryKey: queryKeys.leagues.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.players.all });
       options.onSuccess?.(data);
     },
   });

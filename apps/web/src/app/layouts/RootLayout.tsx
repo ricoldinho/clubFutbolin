@@ -1,4 +1,11 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import {
+  AUTH_TOKEN_CHANGED_EVENT,
+  AUTH_TOKEN_STORAGE_KEY,
+  clearStoredAuthToken,
+  getStoredAuthToken,
+} from '@/api/client';
 import { cn } from '@/lib/cn';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -11,7 +18,30 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
  * Layout raíz: shell común y `<Outlet />` para rutas hijas.
  */
 export const RootLayout = () => {
-  const apiBase = import.meta.env.VITE_API_BASE ?? '/api';
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(() => getStoredAuthToken() !== null);
+
+  useEffect(() => {
+    const syncAuth = () => setIsAuthenticated(getStoredAuthToken() !== null);
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === AUTH_TOKEN_STORAGE_KEY) {
+        syncAuth();
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, syncAuth);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(AUTH_TOKEN_CHANGED_EVENT, syncAuth);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    clearStoredAuthToken();
+    void navigate('/');
+  };
 
   return (
     <div className="min-h-dvh bg-zinc-950 font-sans text-zinc-100">
@@ -22,16 +52,29 @@ export const RootLayout = () => {
             <NavLink to="/" end className={linkClass}>
               Inicio
             </NavLink>
+            <NavLink to="/players" className={linkClass}>
+              Players
+            </NavLink>
+            <NavLink to="/teams" className={linkClass}>
+              Teams
+            </NavLink>
+            <NavLink to="/leagues" className={linkClass}>
+              Leagues
+            </NavLink>
+          </nav>
+          <div className="ml-auto flex items-center gap-2">
             <NavLink to="/login" className={linkClass}>
               Login
             </NavLink>
-            <NavLink to="/matches" className={linkClass}>
-              Matches
-            </NavLink>
-          </nav>
-          <span className="ml-auto text-xs text-zinc-500">
-            API: <code className="text-zinc-400">{apiBase}</code>
-          </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={!isAuthenticated}
+              className="rounded-md px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-6 py-8">

@@ -17,6 +17,27 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: 'players',
+        lazy: async () => {
+          const { PlayersListPage } = await import('@/features/players/PlayersListPage');
+          return { Component: PlayersListPage };
+        },
+      },
+      {
+        path: 'teams',
+        lazy: async () => {
+          const { TeamsListPage } = await import('@/features/teams/TeamsListPage');
+          return { Component: TeamsListPage };
+        },
+      },
+      {
+        path: 'leagues',
+        lazy: async () => {
+          const { LeaguesListPage } = await import('@/features/leagues/LeaguesListPage');
+          return { Component: LeaguesListPage };
+        },
+      },
+      {
         path: 'matches',
         lazy: async () => {
           const { MatchesPage } = await import('@/features/matches/MatchesPage');
