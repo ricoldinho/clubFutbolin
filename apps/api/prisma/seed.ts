@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { config as loadEnv } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { MatchStatus, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { faker } from '@faker-js/faker';
 
@@ -58,6 +58,50 @@ function pickN<T>(arr: T[], n: number): T[] {
   return result;
 }
 
+const ALLOWED_SCORES: ReadonlyArray<readonly [number, number]> = [
+  [4, 0],
+  [0, 4],
+  [2, 2],
+  [1, 3],
+  [3, 1],
+];
+
+function buildRoundRobinPairings(teamSeasonIds: string[]): Array<{
+  homeTeamSeasonId: string;
+  awayTeamSeasonId: string;
+  round: number;
+}> {
+  if (teamSeasonIds.length < 2) return [];
+  if (teamSeasonIds.length % 2 !== 0) {
+    throw new Error('Se necesitan equipos pares para generar calendario round-robin completo.');
+  }
+
+  const rotation = [...teamSeasonIds];
+  const rounds = rotation.length - 1;
+  const matchesPerRound = rotation.length / 2;
+  const pairings: Array<{ homeTeamSeasonId: string; awayTeamSeasonId: string; round: number }> = [];
+
+  for (let round = 1; round <= rounds; round += 1) {
+    for (let i = 0; i < matchesPerRound; i += 1) {
+      const home = rotation[i];
+      const away = rotation[rotation.length - 1 - i];
+      pairings.push({
+        homeTeamSeasonId: round % 2 === 0 ? away : home,
+        awayTeamSeasonId: round % 2 === 0 ? home : away,
+        round,
+      });
+    }
+
+    const fixed = rotation[0];
+    const tail = rotation.slice(1);
+    const moved = tail.pop();
+    if (!moved) continue;
+    rotation.splice(0, rotation.length, fixed, moved, ...tail);
+  }
+
+  return pairings;
+}
+
 async function main() {
   const seed =
     process.env.PRISMA_SEED_RANDOM_SEED !== undefined
@@ -107,15 +151,15 @@ async function main() {
     ),
   );
 
-  // 4) Seasons (una por cada liga)
-  const nowYear = new Date().getFullYear();
+  // 4) Seasons (2025 para las dos ligas solicitadas)
+  const seedYear = 2025;
   const seasons = await Promise.all(
     leagues.map((league, i) => {
       const champion = teams[i % teams.length];
       const second = teams[(i + 1) % teams.length];
       return prisma.season.create({
         data: {
-          year: nowYear - i,
+          year: seedYear,
           leagueId: league.id,
           championId: champion.id,
           secondId: second.id,
@@ -214,6 +258,45 @@ async function main() {
   await prisma.rosterPlayer.createMany({
     data: rosterPlayersData,
     skipDuplicates: true,
+  });
+
+  // 8) Matches completos por temporada (todos contra todos, una vuelta)
+  const matchesData: Array<{
+    seasonId: string;
+    homeTeamSeasonId: string;
+    awayTeamSeasonId: string;
+    homeScore: number;
+    awayScore: number;
+    date: Date;
+    round: number;
+    status: MatchStatus;
+  }> = [];
+
+  for (const season of seasons) {
+    const seasonTeamSeasons = teamSeasons
+      .filter((teamSeason) => teamSeason.seasonId === season.id)
+      .map((teamSeason) => teamSeason.id);
+
+    const pairings = buildRoundRobinPairings(seasonTeamSeasons);
+    pairings.forEach((pairing) => {
+      const [homeScore, awayScore] =
+        ALLOWED_SCORES[faker.number.int({ min: 0, max: ALLOWED_SCORES.length - 1 })];
+
+      matchesData.push({
+        seasonId: season.id,
+        homeTeamSeasonId: pairing.homeTeamSeasonId,
+        awayTeamSeasonId: pairing.awayTeamSeasonId,
+        homeScore,
+        awayScore,
+        date: new Date(Date.UTC(seedYear, 0, pairing.round, 20, 0, 0)),
+        round: pairing.round,
+        status: MatchStatus.FINISHED,
+      });
+    });
+  }
+
+  await prisma.match.createMany({
+    data: matchesData,
   });
 }
 
