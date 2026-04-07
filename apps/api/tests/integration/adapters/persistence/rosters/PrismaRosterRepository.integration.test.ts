@@ -227,4 +227,59 @@ describe('PrismaRosterRepository (integración)', () => {
     expect(memberships[0].teamId.value).toBe(teamId.value);
     expect(memberships[0].seasonId.value).toBe(seasonId.value);
   });
+
+  it('findPlayersByTeamId: marca isCurrent en la temporada de año máximo', async () => {
+    const leagueId = LeagueId.generate();
+    await leagueRepository.save(
+      League.create({ id: leagueId, name: 'Liga Current', leagueCategory: 'PRIMERA' }),
+    );
+    const teamId = TeamId.generate();
+    await teamRepository.save(Team.create({ id: teamId, name: 'Equipo Current' }));
+
+    const seasonOldId = SeasonId.generate();
+    const seasonNewId = SeasonId.generate();
+    await seasonRepository.save(Season.create({ id: seasonOldId, year: 2020, leagueId }));
+    await seasonRepository.save(Season.create({ id: seasonNewId, year: 2035, leagueId }));
+
+    const tsOld = TeamSeasonId.generate();
+    const tsNew = TeamSeasonId.generate();
+    await repository.saveTeamSeason(
+      TeamRoster.create({ teamSeasonId: tsOld, teamId, seasonId: seasonOldId, members: [] }),
+    );
+    await repository.saveTeamSeason(
+      TeamRoster.create({ teamSeasonId: tsNew, teamId, seasonId: seasonNewId, members: [] }),
+    );
+
+    const pOld = PlayerId.generate();
+    const pNew = PlayerId.generate();
+    for (const [pid, email] of [
+      [pOld, `old-${pOld.value}@example.com`],
+      [pNew, `new-${pNew.value}@example.com`],
+    ] as const) {
+      await prisma.player.create({
+        data: {
+          id: pid.value,
+          email,
+          name: 'N',
+          lastname: 'A',
+          nickname: null,
+          phoneNumber: '644444444',
+          birthdate: new Date('1990-01-01'),
+          category: 'PRIMERA',
+          role: 'USER',
+          passwordHash: '$2b$10$hashcurrent',
+        },
+      });
+    }
+
+    let rOld = (await repository.findById(tsOld))!;
+    await repository.saveRoster(rOld.addPlayer(pOld, 'PORTERO'));
+    let rNew = (await repository.findById(tsNew))!;
+    await repository.saveRoster(rNew.addPlayer(pNew, 'DELANTERO'));
+
+    const players = await repository.findPlayersByTeamId(teamId);
+    const byId = Object.fromEntries(players.map((p) => [p.id, p]));
+    expect(byId[pOld.value].isCurrent).toBe(false);
+    expect(byId[pNew.value].isCurrent).toBe(true);
+  });
 });

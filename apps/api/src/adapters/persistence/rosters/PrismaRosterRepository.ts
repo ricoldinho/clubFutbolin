@@ -132,6 +132,13 @@ export class PrismaRosterRepository implements IRosterRepository {
   }
 
   async findPlayersByTeamId(teamId: TeamId): Promise<TeamProfilePlayer[]> {
+    const maxYearRow = await this.prisma.teamSeason.findFirst({
+      where: { teamId: teamId.value },
+      orderBy: { season: { year: 'desc' } },
+      select: { season: { select: { year: true } } },
+    });
+    const maxYear = maxYearRow?.season.year ?? null;
+
     const rows = await this.prisma.rosterPlayer.findMany({
       where: {
         teamSeason: {
@@ -148,21 +155,36 @@ export class PrismaRosterRepository implements IRosterRepository {
             category: true,
           },
         },
+        teamSeason: {
+          select: {
+            season: { select: { year: true } },
+          },
+        },
       },
     });
 
     const dedup = new Map<string, TeamProfilePlayer>();
-    rows.forEach(({ player }) => {
-      dedup.set(player.id, {
+    rows.forEach(({ player, teamSeason }) => {
+      const seasonYear = teamSeason.season.year;
+      const isCurrent = maxYear !== null && seasonYear === maxYear;
+      const existing = dedup.get(player.id);
+      const next: TeamProfilePlayer = {
         id: player.id,
         name: player.name,
         lastname: player.lastname,
         nickname: player.nickname,
         category: player.category,
-      });
+        isCurrent: existing ? existing.isCurrent || isCurrent : isCurrent,
+      };
+      dedup.set(player.id, next);
     });
 
-    return Array.from(dedup.values());
+    return Array.from(dedup.values()).sort((a, b) => {
+      if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+      const last = a.lastname.localeCompare(b.lastname, 'es');
+      if (last !== 0) return last;
+      return a.name.localeCompare(b.name, 'es');
+    });
   }
 
   private toDomain(row: {

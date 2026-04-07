@@ -5,6 +5,7 @@ import {
   getTeamByIdParamsSchema,
   getTeamByNameParamsSchema,
   listTeamsQuerySchema,
+  teamProfileResponseSchema,
 } from '@/adapters/http/teams/schemas';
 
 describe('teams schemas', () => {
@@ -56,6 +57,30 @@ describe('teams schemas', () => {
         expect(result.data.page).toBe(1);
         expect(result.data.limit).toBe(20);
       }
+    });
+  });
+
+  describe('teamProfileResponseSchema', () => {
+    it('acepta perfil con isCurrent en jugadores', () => {
+      const result = teamProfileResponseSchema.safeParse({
+        team: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          name: 'Equipo',
+          createdAt: new Date().toISOString(),
+        },
+        leagues: [],
+        players: [
+          {
+            id: '223e4567-e89b-12d3-a456-426614174000',
+            name: 'Juan',
+            lastname: 'Pérez',
+            nickname: null,
+            category: 'PRIMERA',
+            isCurrent: true,
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
     });
   });
 });

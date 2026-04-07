@@ -28,6 +28,8 @@ export interface TeamProfilePlayer {
   lastname: string;
   nickname: string | null;
   category: string;
+  /** En la plantilla de la temporada más reciente en la que participa el equipo. */
+  isCurrent: boolean;
 }
 
 export interface IRosterRepository {

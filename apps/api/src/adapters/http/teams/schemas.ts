@@ -34,6 +34,7 @@ export const teamProfileResponseSchema = z.object({
       lastname: z.string(),
       nickname: z.string().nullable(),
       category: z.string(),
+      isCurrent: z.boolean(),
     }),
   ),
 });

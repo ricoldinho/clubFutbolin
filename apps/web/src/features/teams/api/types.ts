@@ -17,5 +17,6 @@ export interface TeamProfileDto {
     lastname: string;
     nickname: string | null;
     category: string;
+    isCurrent: boolean;
   }>;
 }
