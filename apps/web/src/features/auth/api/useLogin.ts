@@ -12,10 +12,14 @@ export interface LoginResponse {
   expiresIn: string;
 }
 
+interface UseLoginOptions {
+  onSuccess?: (data: LoginResponse) => void;
+}
+
 /**
  * Login: guarda el JWT y invalida listas que dependen del usuario autenticado (p. ej. ligas).
  */
-export const useLogin = () => {
+export const useLogin = (options: UseLoginOptions = {}) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -27,6 +31,7 @@ export const useLogin = () => {
     onSuccess: (data) => {
       setStoredAuthToken(data.token);
       void queryClient.invalidateQueries({ queryKey: queryKeys.leagues.all });
+      options.onSuccess?.(data);
     },
   });
 };

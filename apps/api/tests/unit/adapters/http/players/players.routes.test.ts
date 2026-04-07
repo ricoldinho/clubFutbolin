@@ -7,6 +7,7 @@ import {
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { playersRoutes } from '@/adapters/http/players/players.routes';
 import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepository';
+import { InMemoryRosterRepository } from '../../../../doubles/InMemoryRosterRepository';
 import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
 import type {
@@ -29,9 +30,10 @@ function buildServer() {
   app.setSerializerCompiler(serializerCompiler);
 
   const repository = new InMemoryPlayerRepository();
+  const rosterRepository = new InMemoryRosterRepository();
   const passwordHasher = new FakePasswordHasher();
   const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
-  app.register(playersRoutes, { repository, passwordHasher, jwtService });
+  app.register(playersRoutes, { repository, rosterRepository, passwordHasher, jwtService });
 
   return { app, jwtService };
 }
@@ -75,9 +77,10 @@ function buildServerWithFailingRepository() {
   app.setSerializerCompiler(serializerCompiler);
 
   const repository = new FailingRepository();
+  const rosterRepository = new InMemoryRosterRepository();
   const passwordHasher = new FakePasswordHasher();
   const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
-  app.register(playersRoutes, { repository, passwordHasher, jwtService });
+  app.register(playersRoutes, { repository, rosterRepository, passwordHasher, jwtService });
 
   return app;
 }
@@ -340,6 +343,81 @@ describe('players routes - Zod + Fastify integration', () => {
     const response = await server.inject({
       method: 'GET',
       url: `/players/${id2}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('devuelve 200 en GET /players/:playerId/memberships con lista vacía', async () => {
+    const createResponse = await server.inject({
+      method: 'POST',
+      url: '/players',
+      payload: {
+        name: 'Membresias',
+        lastname: 'Vacio',
+        nickname: null,
+        email: 'memberships-empty@example.com',
+        phoneNumber: '699111111',
+        birthdate: '1990-01-01',
+        category: 'PRIMERA',
+        password: 'password123',
+      },
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = createResponse.json() as { id: string };
+    const headers = await authHeaders(jwtService, created.id, 'USER');
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/players/${created.id}/memberships`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: [] });
+  });
+
+  it('devuelve 403 en GET /players/:playerId/memberships cuando un USER pide otro jugador', async () => {
+    const [r1, r2] = await Promise.all([
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Usuario',
+          lastname: 'Uno',
+          nickname: null,
+          email: 'user1-memberships-forbidden@example.com',
+          phoneNumber: '600111119',
+          birthdate: '1990-01-01',
+          category: 'PRIMERA',
+          password: 'password123',
+        },
+      }),
+      server.inject({
+        method: 'POST',
+        url: '/players',
+        payload: {
+          name: 'Otro',
+          lastname: 'Jugador',
+          nickname: null,
+          email: 'user2-memberships-forbidden@example.com',
+          phoneNumber: '600222229',
+          birthdate: '1991-01-01',
+          category: 'PRIMERA',
+          password: 'password456',
+        },
+      }),
+    ]);
+    expect(r1.statusCode).toBe(201);
+    expect(r2.statusCode).toBe(201);
+    const id1 = (r1.json() as { id: string }).id;
+    const id2 = (r2.json() as { id: string }).id;
+    const headers = await authHeaders(jwtService, id1, 'USER');
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/players/${id2}/memberships`,
       headers,
     });
 

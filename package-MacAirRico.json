@@ -49,8 +49,5 @@
   "bugs": {
     "url": "https://github.com/ricoldinho/clubFutbolin/issues"
   },
-  "homepage": "https://github.com/ricoldinho/clubFutbolin#readme",
-  "dependencies": {
-    "json-schema-traverse": "1.0.0"
-  }
+  "homepage": "https://github.com/ricoldinho/clubFutbolin#readme"
 }

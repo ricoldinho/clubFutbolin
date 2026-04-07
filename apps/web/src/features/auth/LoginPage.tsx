@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '@/api/client';
+import { parseAuthTokenPayload } from '@/api/auth-token';
 import { useLogin } from '@/features/auth/api/useLogin';
 import { cn } from '@/lib/cn';
 
@@ -8,9 +9,17 @@ import { cn } from '@/lib/cn';
  * Login con `useMutation` + invalidación de queries tras éxito.
  */
 export const LoginPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const login = useLogin();
+  const login = useLogin({
+    onSuccess: ({ token }) => {
+      const payload = parseAuthTokenPayload(token);
+      if (payload?.sub) {
+        void navigate(`/players/${payload.sub}`);
+      }
+    },
+  });
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();

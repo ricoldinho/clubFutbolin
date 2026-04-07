@@ -2,6 +2,11 @@
  * Fábricas de query keys (convención TanStack Query: arrays estables y jerárquicos).
  */
 export const queryKeys = {
+  players: {
+    all: ['players'] as const,
+    detail: (playerId: string) => ['players', 'detail', playerId] as const,
+    memberships: (playerId: string) => ['players', 'memberships', playerId] as const,
+  },
   leagues: {
     all: ['leagues'] as const,
     detail: (id: string) => ['leagues', 'detail', id] as const,

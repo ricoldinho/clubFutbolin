@@ -6,6 +6,7 @@ import {
   DEFAULT_LIST_PLAYERS_PAGE,
   DEFAULT_LIST_PLAYERS_LIMIT,
   updatePlayerBodySchema,
+  playerMembershipsResponseSchema,
 } from '@/adapters/http/players/schemas';
 
 describe('registerPlayerBodySchema', () => {
@@ -104,6 +105,23 @@ describe('listPlayersQuerySchema', () => {
 
   it('rechaza limit > 100', () => {
     expect(listPlayersQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  });
+});
+
+describe('playerMembershipsResponseSchema', () => {
+  it('acepta una respuesta válida de membresías', () => {
+    const result = playerMembershipsResponseSchema.safeParse({
+      data: [
+        {
+          teamSeasonId: '123e4567-e89b-12d3-a456-426614174000',
+          team: { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Futbolin A' },
+          season: { id: '123e4567-e89b-12d3-a456-426614174002', year: 2026 },
+          league: { id: '123e4567-e89b-12d3-a456-426614174003', name: 'Liga 981' },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
   });
 });
 

@@ -3,6 +3,8 @@ import { TeamRoster } from '@/domain/rosters/TeamRoster.entity';
 import type { TeamSeasonId } from '@/domain/rosters/TeamSeasonId.value-object';
 import type { TeamId } from '@/domain/teams/TeamId.value-object';
 import type { SeasonId } from '@/domain/seasons/SeasonId.value-object';
+import type { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
+import type { PlayerMembership } from '@/application/ports/rosters/Roster.repository';
 
 export class InMemoryRosterRepository implements IRosterRepository {
   private readonly rosters: TeamRoster[] = [];
@@ -24,6 +26,10 @@ export class InMemoryRosterRepository implements IRosterRepository {
 
   async findBySeasonId(seasonId: SeasonId): Promise<TeamRoster[]> {
     return this.rosters.filter((r) => r.seasonId.equals(seasonId));
+  }
+
+  async findMembershipsByPlayerId(_playerId: PlayerId): Promise<PlayerMembership[]> {
+    return [];
   }
 
   async saveTeamSeason(roster: TeamRoster): Promise<void> {

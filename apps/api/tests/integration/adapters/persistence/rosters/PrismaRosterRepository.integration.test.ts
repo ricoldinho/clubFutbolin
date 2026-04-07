@@ -181,4 +181,50 @@ describe('PrismaRosterRepository (integración)', () => {
     expect(loaded!.members).toHaveLength(1);
     expect(loaded!.members[0].playerId.value).toBe(p1.value);
   });
+
+  it('findMembershipsByPlayerId: devuelve equipos, temporada y liga del jugador', async () => {
+    const leagueId = LeagueId.generate();
+    await leagueRepository.save(
+      League.create({ id: leagueId, name: 'Liga Membresias', leagueCategory: 'PRIMERA' }),
+    );
+    const teamId = TeamId.generate();
+    await teamRepository.save(Team.create({ id: teamId, name: 'Equipo Membresias' }));
+    const seasonId = SeasonId.generate();
+    await seasonRepository.save(Season.create({ id: seasonId, year: 2031, leagueId }));
+
+    const teamSeasonId = TeamSeasonId.generate();
+    await repository.saveTeamSeason(
+      TeamRoster.create({ teamSeasonId, teamId, seasonId, members: [] }),
+    );
+
+    const playerId = PlayerId.generate();
+    await prisma.player.create({
+      data: {
+        id: playerId.value,
+        email: `membership-${playerId.value}@example.com`,
+        name: 'Jugador',
+        lastname: 'Membership',
+        nickname: null,
+        phoneNumber: '633333333',
+        birthdate: new Date('1995-05-05'),
+        category: 'PRIMERA',
+        role: 'USER',
+        passwordHash: '$2b$10$hashmembership',
+      },
+    });
+
+    const roster = (await repository.findById(teamSeasonId))!;
+    await repository.saveRoster(roster.addPlayer(playerId, 'DELANTERO'));
+
+    const memberships = await repository.findMembershipsByPlayerId(playerId);
+    expect(memberships).toHaveLength(1);
+    expect(memberships[0]).toMatchObject({
+      teamName: 'Equipo Membresias',
+      seasonYear: 2031,
+      leagueName: 'Liga Membresias',
+      leagueId: leagueId.value,
+    });
+    expect(memberships[0].teamId.value).toBe(teamId.value);
+    expect(memberships[0].seasonId.value).toBe(seasonId.value);
+  });
 });

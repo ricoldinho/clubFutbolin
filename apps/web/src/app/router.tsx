@@ -23,6 +23,13 @@ export const router = createBrowserRouter([
           return { Component: MatchesPage };
         },
       },
+      {
+        path: 'players/:playerId',
+        lazy: async () => {
+          const { PlayerProfilePage } = await import('@/features/players/PlayerProfilePage');
+          return { Component: PlayerProfilePage };
+        },
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

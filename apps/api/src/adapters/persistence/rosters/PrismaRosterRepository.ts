@@ -6,7 +6,10 @@ import { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 import { PlayerId } from '@/domain/players/value-objects/PlayerId.value-object';
 import { RosterMember } from '@/domain/rosters/RosterMember';
 import { parsePosition } from '@/domain/rosters/Position';
-import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
+import type {
+  IRosterRepository,
+  PlayerMembership,
+} from '@/application/ports/rosters/Roster.repository';
 
 export class PrismaRosterRepository implements IRosterRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -44,6 +47,54 @@ export class PrismaRosterRepository implements IRosterRepository {
       },
     });
     return rows.map((row) => this.toDomain(row));
+  }
+
+  async findMembershipsByPlayerId(playerId: PlayerId): Promise<PlayerMembership[]> {
+    const rows = await this.prisma.rosterPlayer.findMany({
+      where: { playerId: playerId.value },
+      select: {
+        teamSeason: {
+          select: {
+            id: true,
+            teamId: true,
+            seasonId: true,
+            team: {
+              select: {
+                name: true,
+              },
+            },
+            season: {
+              select: {
+                year: true,
+                leagueId: true,
+                league: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        teamSeason: {
+          season: {
+            year: 'desc',
+          },
+        },
+      },
+    });
+
+    return rows.map(({ teamSeason }) => ({
+      teamSeasonId: TeamSeasonId.fromString(teamSeason.id),
+      teamId: TeamId.fromString(teamSeason.teamId),
+      teamName: teamSeason.team.name,
+      seasonId: SeasonId.fromString(teamSeason.seasonId),
+      seasonYear: teamSeason.season.year,
+      leagueId: teamSeason.season.leagueId,
+      leagueName: teamSeason.season.league.name,
+    }));
   }
 
   private toDomain(row: {

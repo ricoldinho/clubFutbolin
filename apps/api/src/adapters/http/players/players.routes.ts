@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fast
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { IJwtService } from '@/application/ports/auth/JwtService.port';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
+import type { IRosterRepository } from '@/application/ports/rosters/Roster.repository';
 import type { IPasswordHasher } from '@/application/ports/auth/PasswordHasher.port';
 import { GetPlayerById } from '@/application/use-cases/players/GetPlayerById.use-case';
 import { ListPlayers } from '@/application/use-cases/players/ListPlayers.use-case';
@@ -25,6 +26,7 @@ import {
   listPlayersQuerySchema,
   listPlayersResponseSchema,
   playerResponseSchema,
+  playerMembershipsResponseSchema,
   registerPlayerBodySchema,
   updatePlayerBodySchema,
   type RegisterPlayerBody,
@@ -42,6 +44,7 @@ import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
  */
 interface PlayersRoutesOptions extends FastifyPluginOptions {
   repository?: IPlayerRepository;
+  rosterRepository?: IRosterRepository;
   passwordHasher?: IPasswordHasher;
   jwtService?: IJwtService;
   getPlayerById?: GetPlayerById;
@@ -88,6 +91,7 @@ function toPlayerResponse(player: Player): PlayerResponse {
  * Endpoints:
  * - GET    /players             → Listar Players paginados (query opcional: page, limit)
  * - GET    /players/:playerId   → Obtener un Player por id
+ * - GET    /players/:playerId/memberships → Obtener ligas/equipos en los que participa un Player
  * - POST   /players             → Registrar un nuevo Player
  * - PATCH  /players/:playerId   → Actualizar datos de un Player existente
  * - DELETE /players/:playerId   → Eliminar un Player
@@ -254,6 +258,86 @@ export async function playersRoutes(
         }
         return reply
           .code(statusCode as 400 | 401 | 403 | 404 | 500)
+          .send({ message });
+      }
+    },
+  );
+
+  /**
+   * GET /players/:playerId/memberships
+   *
+   * Obtiene las membresías del jugador (equipos, temporadas y ligas).
+   * Requiere autenticación; solo el propio Player o ADMIN.
+   * - 200: listado (posiblemente vacío)
+   * - 401: sin token o token inválido
+   * - 403: sin permiso para ver este jugador
+   * - 400: playerId inválido
+   */
+  zodServer.get(
+    '/players/:playerId/memberships',
+    {
+      preHandler: [requireAuth],
+      schema: {
+        params: getPlayerByIdParamsSchema,
+        response: {
+          200: playerMembershipsResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['players'],
+        summary: 'Obtener membresías de player',
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { playerId: rawId } = request.params as { playerId: string };
+        const playerId = PlayerId.fromString(rawId);
+        const actorId = PlayerId.fromString(request.user!.playerId);
+        const actorRole = parsePlayerRole(request.user!.role);
+
+        if (!actorId.equals(playerId) && actorRole !== 'ADMIN') {
+          return reply.code(403).send({ message: 'No tienes permisos para este recurso' });
+        }
+
+        const rosterRepository =
+          options.rosterRepository ?? request.container.cradle.rosterRepository;
+        const memberships = await rosterRepository.findMembershipsByPlayerId(playerId);
+
+        return reply.code(200).send({
+          data: memberships.map((membership) => ({
+            teamSeasonId: membership.teamSeasonId.value,
+            team: {
+              id: membership.teamId.value,
+              name: membership.teamName,
+            },
+            season: {
+              id: membership.seasonId.value,
+              year: membership.seasonYear,
+            },
+            league: {
+              id: membership.leagueId,
+              name: membership.leagueName,
+            },
+          })),
+        });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        if (statusCode >= 500) {
+          request.log.error(
+            { err: error },
+            'Error inesperado obteniendo membresías de Player',
+          );
+        } else {
+          request.log.warn(
+            { err: error },
+            'Error de dominio en GET /players/:playerId/memberships',
+          );
+        }
+        return reply
+          .code(statusCode as 400 | 401 | 403 | 500)
           .send({ message });
       }
     },

@@ -64,6 +64,26 @@ export const getPlayerByIdParamsSchema = z.object({
   playerId: z.string().uuid(),
 });
 
+export const playerMembershipSchema = z.object({
+  teamSeasonId: z.string().uuid(),
+  team: z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1),
+  }),
+  season: z.object({
+    id: z.string().uuid(),
+    year: z.number().int(),
+  }),
+  league: z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1),
+  }),
+});
+
+export const playerMembershipsResponseSchema = z.object({
+  data: z.array(playerMembershipSchema),
+});
+
 /**
  * Schema Zod para los query params de GET /players (paginación/filtros futuros).
  */
