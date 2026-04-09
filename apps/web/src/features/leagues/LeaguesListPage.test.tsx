@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LeaguesListPage } from './LeaguesListPage';
 
 const mockUseVerifiedAdmin = vi.fn();
@@ -51,6 +51,10 @@ const setupListMock = () => {
 };
 
 describe('LeaguesListPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('muestra controles de escritura para admin verificado', async () => {
     // Arrange
     const user = userEvent.setup();
@@ -97,5 +101,60 @@ describe('LeaguesListPage', () => {
     // Assert
     expect(screen.queryByPlaceholderText('Nombre de la liga')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+  });
+
+  it('permite editar una liga desde el listado', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <LeaguesListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    const nameInput = screen.getByDisplayValue('Liga Norte');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Liga Oeste');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    // Assert
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        leagueId: 'league-1',
+        name: 'Liga Oeste',
+      }),
+    );
+  });
+
+  it('permite borrar una liga desde el listado', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <LeaguesListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Borrar' }));
+
+    // Assert
+    expect(mockDeleteMutate).toHaveBeenCalledWith('league-1');
   });
 });

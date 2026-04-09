@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayersListPage } from './PlayersListPage';
 
 const mockUseVerifiedAdmin = vi.fn();
@@ -64,6 +64,10 @@ const setupListMock = () => {
 };
 
 describe('PlayersListPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('oculta acciones de escritura cuando no es admin verificado', () => {
     // Arrange
     setupListMock();
@@ -109,7 +113,13 @@ describe('PlayersListPage', () => {
     await user.type(screen.getByPlaceholderText('Email'), 'maria@example.com');
     await user.type(screen.getByPlaceholderText('Teléfono'), '600000002');
     await user.type(screen.getByPlaceholderText('Contraseña (mínimo 8)'), 'password123');
-    await user.type(screen.getByDisplayValue(''), '1992-02-02');
+    const createForm = screen.getByRole('heading', { name: 'Crear Player' }).closest('form');
+    if (!createForm) throw new Error('No se encontró el formulario de creación');
+    const birthdateInput = createForm.querySelector('input[type="date"]');
+    if (!(birthdateInput instanceof HTMLInputElement)) {
+      throw new Error('No se encontró el input de fecha de nacimiento');
+    }
+    await user.type(birthdateInput, '1992-02-02');
     await user.click(screen.getByRole('button', { name: 'Crear' }));
 
     // Assert
@@ -117,5 +127,60 @@ describe('PlayersListPage', () => {
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Borrar' })).toBeInTheDocument();
     expect(mockCreateMutate).toHaveBeenCalled();
+  });
+
+  it('permite editar un player desde el listado', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <PlayersListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    const editInput = screen.getByDisplayValue('Juan');
+    await user.clear(editInput);
+    await user.type(editInput, 'Juanito');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    // Assert
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerId: 'player-1',
+        name: 'Juanito',
+      }),
+    );
+  });
+
+  it('permite borrar un player desde el listado', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <PlayersListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Borrar' }));
+
+    // Assert
+    expect(mockDeleteMutate).toHaveBeenCalledWith('player-1');
   });
 });

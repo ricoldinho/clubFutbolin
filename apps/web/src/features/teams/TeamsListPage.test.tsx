@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TeamsListPage } from './TeamsListPage';
 
 const mockUseVerifiedAdmin = vi.fn();
@@ -50,6 +50,10 @@ const setupListMock = () => {
 };
 
 describe('TeamsListPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('muestra controles de escritura para admin verificado', async () => {
     // Arrange
     const user = userEvent.setup();
@@ -96,5 +100,55 @@ describe('TeamsListPage', () => {
     // Assert
     expect(screen.queryByPlaceholderText('Nombre del equipo')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+  });
+
+  it('permite editar un equipo desde el listado', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <TeamsListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    const nameInput = screen.getByDisplayValue('Atléticos');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Atléticos B');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    // Assert
+    expect(mockUpdateMutate).toHaveBeenCalledWith({ teamId: 'team-1', name: 'Atléticos B' });
+  });
+
+  it('permite borrar un equipo desde el listado', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <TeamsListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Borrar' }));
+
+    // Assert
+    expect(mockDeleteMutate).toHaveBeenCalledWith('team-1');
   });
 });
