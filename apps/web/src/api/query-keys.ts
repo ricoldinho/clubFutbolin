@@ -2,6 +2,10 @@
  * Fábricas de query keys (convención TanStack Query: arrays estables y jerárquicos).
  */
 export const queryKeys = {
+  auth: {
+    all: ['auth'] as const,
+    verifyAdmin: (tokenHash: string) => ['auth', 'verify-admin', tokenHash] as const,
+  },
   players: {
     all: ['players'] as const,
     list: (filters: { page: number; limit: number }) =>

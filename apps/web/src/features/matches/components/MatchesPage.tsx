@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  AUTH_TOKEN_CHANGED_EVENT,
-  AUTH_TOKEN_STORAGE_KEY,
   ApiError,
-  getStoredAuthToken,
 } from '@/api/client';
+import { useVerifiedAdmin } from '@/features/auth/api/useVerifiedAdmin';
 import {
   useGenerateSeasonCalendar,
   useMatchById,
@@ -16,31 +15,11 @@ import { MatchDetailCard } from './MatchDetailCard';
 import { MatchesFilters } from './MatchesFilters';
 import { MatchesTable } from './MatchesTable';
 
-const decodeBase64Url = (value: string): string => {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  return atob(padded);
-};
-
-const parseAdminRoleFromToken = (token: string | null): boolean => {
-  if (!token) return false;
-
-  const chunks = token.split('.');
-  if (chunks.length !== 3) return false;
-
-  try {
-    const payload = JSON.parse(decodeBase64Url(chunks[1])) as {
-      role?: string;
-    };
-    return payload.role === 'ADMIN';
-  } catch {
-    return false;
-  }
-};
-
 export const MatchesPage = () => {
-  const [draftSeasonId, setDraftSeasonId] = useState('');
-  const [seasonId, setSeasonId] = useState('');
+  const [searchParams] = useSearchParams();
+  const initialSeasonId = searchParams.get('seasonId')?.trim() ?? '';
+  const [draftSeasonId, setDraftSeasonId] = useState(initialSeasonId);
+  const [seasonId, setSeasonId] = useState(initialSeasonId);
   const [roundInput, setRoundInput] = useState('');
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -54,27 +33,8 @@ export const MatchesPage = () => {
   const generateCalendar = useGenerateSeasonCalendar();
   const updateScore = useUpdateMatchScore();
   const updateStatus = useUpdateMatchStatus();
-  const [isAdmin, setIsAdmin] = useState<boolean>(() =>
-    parseAdminRoleFromToken(getStoredAuthToken()),
-  );
+  const { isVerifiedAdmin: isAdmin } = useVerifiedAdmin();
   const hasNextPage = seasonMatches.data ? page < seasonMatches.data.meta.lastPage : false;
-
-  useEffect(() => {
-    const syncAdminRole = () => setIsAdmin(parseAdminRoleFromToken(getStoredAuthToken()));
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === AUTH_TOKEN_STORAGE_KEY) {
-        syncAdminRole();
-      }
-    };
-
-    window.addEventListener('storage', onStorage);
-    window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, syncAdminRole);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener(AUTH_TOKEN_CHANGED_EVENT, syncAdminRole);
-    };
-  }, []);
 
   const applyFilters = () => {
     setSeasonId(draftSeasonId.trim());

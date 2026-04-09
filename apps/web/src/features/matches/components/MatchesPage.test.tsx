@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError, AUTH_TOKEN_STORAGE_KEY } from '@/api/client';
+import { ApiError } from '@/api/client';
 import { MatchesPage } from './MatchesPage';
 
 const mockUseSeasonMatches = vi.fn();
@@ -9,6 +10,7 @@ const mockUseMatchById = vi.fn();
 const mockUseGenerateSeasonCalendar = vi.fn();
 const mockUseUpdateMatchScore = vi.fn();
 const mockUseUpdateMatchStatus = vi.fn();
+const mockUseVerifiedAdmin = vi.fn();
 
 vi.mock('@/features/matches/api', () => ({
   useSeasonMatches: (...args: unknown[]) => mockUseSeasonMatches(...args),
@@ -18,11 +20,9 @@ vi.mock('@/features/matches/api', () => ({
   useUpdateMatchStatus: () => mockUseUpdateMatchStatus(),
 }));
 
-const buildJwt = (role: 'ADMIN' | 'USER'): string => {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ role }));
-  return `${header}.${payload}.signature`;
-};
+vi.mock('@/features/auth/api/useVerifiedAdmin', () => ({
+  useVerifiedAdmin: () => mockUseVerifiedAdmin(),
+}));
 
 const defaultSeasonResponse = {
   data: [
@@ -44,6 +44,12 @@ const defaultSeasonResponse = {
 };
 
 const setupDefaultMocks = () => {
+  mockUseVerifiedAdmin.mockReturnValue({
+    token: null,
+    isAdminClaim: false,
+    isVerifiedAdmin: false,
+    isVerifyingAdmin: false,
+  });
   mockUseSeasonMatches.mockReturnValue({
     data: defaultSeasonResponse,
     isFetching: false,
@@ -93,13 +99,22 @@ const setupDefaultMocks = () => {
   });
 };
 
+const renderPage = (initialPath = '/matches') =>
+  render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <Routes>
+        <Route path="/matches" element={<MatchesPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
 describe('MatchesPage', () => {
   it('renderiza listado de partidos', () => {
     // Arrange
     setupDefaultMocks();
 
     // Act
-    render(<MatchesPage />);
+    renderPage();
 
     // Assert
     expect(screen.getByRole('heading', { name: 'Matches' })).toBeInTheDocument();
@@ -112,7 +127,7 @@ describe('MatchesPage', () => {
     setupDefaultMocks();
 
     // Act
-    render(<MatchesPage />);
+    renderPage();
     await user.type(screen.getByLabelText('Season ID'), 'season-xyz');
     await user.type(screen.getByLabelText('Jornada (opcional)'), '3');
     await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
@@ -127,13 +142,18 @@ describe('MatchesPage', () => {
     });
   });
 
-  it('permite generar calendario para admin', async () => {
+  it('permite generar calendario para admin verificado', async () => {
     // Arrange
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const mutateGenerate = vi.fn();
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, buildJwt('ADMIN'));
     setupDefaultMocks();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
     mockUseGenerateSeasonCalendar.mockReturnValue({
       mutate: mutateGenerate,
       isPending: false,
@@ -143,7 +163,7 @@ describe('MatchesPage', () => {
     });
 
     // Act
-    render(<MatchesPage />);
+    renderPage();
     await user.type(screen.getByLabelText('Season ID'), 'season-xyz');
     await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await user.click(screen.getByRole('button', { name: 'Generar calendario' }));
@@ -153,13 +173,18 @@ describe('MatchesPage', () => {
     confirmSpy.mockRestore();
   });
 
-  it('permite actualizar marcador y estado para admin', async () => {
+  it('permite actualizar marcador y estado para admin verificado', async () => {
     // Arrange
     const user = userEvent.setup();
     const mutateScore = vi.fn();
     const mutateStatus = vi.fn();
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, buildJwt('ADMIN'));
     setupDefaultMocks();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
     mockUseUpdateMatchScore.mockReturnValue({
       mutate: mutateScore,
       isPending: false,
@@ -176,7 +201,7 @@ describe('MatchesPage', () => {
     });
 
     // Act
-    render(<MatchesPage />);
+    renderPage();
     await user.clear(screen.getByLabelText('Goles equipo local'));
     await user.type(screen.getByLabelText('Goles equipo local'), '2');
     await user.clear(screen.getByLabelText('Goles equipo visitante'));
@@ -208,9 +233,26 @@ describe('MatchesPage', () => {
     });
 
     // Act
-    render(<MatchesPage />);
+    renderPage();
 
     // Assert
     expect(screen.getByText('Listado inválido')).toBeInTheDocument();
+  });
+
+  it('precarga el seasonId desde query params', async () => {
+    // Arrange
+    setupDefaultMocks();
+
+    // Act
+    renderPage('/matches?seasonId=season-from-query');
+
+    // Assert
+    await waitFor(() => {
+      expect(mockUseSeasonMatches).toHaveBeenLastCalledWith('season-from-query', {
+        page: 1,
+        limit: 20,
+        round: undefined,
+      });
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { useLeagueSeasons, useSeasonTeamsByCategory } from '@/features/leagues/api';
@@ -60,16 +60,11 @@ const buildStandings = (matches: MatchDto[]): TeamStanding[] => {
 export const LeagueDetailPage = () => {
   const { leagueId = '' } = useParams<{ leagueId: string }>();
   const seasonsQuery = useLeagueSeasons(leagueId);
-  const [selectedSeasonId, setSelectedSeasonId] = useState('');
+  const [selectedSeasonIdState, setSelectedSeasonId] = useState('');
   const [selectedView, setSelectedView] = useState<LeagueSeasonView>('classification');
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!selectedSeasonId && seasonsQuery.data?.data.length) {
-      setSelectedSeasonId(seasonsQuery.data.data[0].id);
-    }
-  }, [selectedSeasonId, seasonsQuery.data]);
-
+  const seasons = seasonsQuery.data?.data ?? [];
+  const selectedSeasonId = selectedSeasonIdState || seasons[0]?.id || '';
   const teamsByCategoryQuery = useSeasonTeamsByCategory(leagueId, selectedSeasonId);
   const seasonMatchesQuery = useSeasonMatches(selectedSeasonId, { page: 1, limit: 100 });
 
@@ -82,8 +77,6 @@ export const LeagueDetailPage = () => {
       </p>
     );
   }
-
-  const seasons = seasonsQuery.data?.data ?? [];
 
   return (
     <section className="space-y-6">
@@ -153,6 +146,16 @@ export const LeagueDetailPage = () => {
 
       <article className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
         <h2 className="mb-3 text-lg font-medium">Season</h2>
+        {selectedSeasonId && (
+          <div className="mb-4">
+            <Link
+              to={`/matches?seasonId=${selectedSeasonId}`}
+              className="inline-flex rounded-md border border-sky-700/70 bg-sky-900/40 px-3 py-1.5 text-sm font-medium text-sky-200 hover:bg-sky-900/70"
+            >
+              Gestionar partidos de esta season
+            </Link>
+          </div>
+        )}
         <nav className="mb-4 flex flex-wrap gap-2" aria-label="Navegación de season">
           <button
             type="button"

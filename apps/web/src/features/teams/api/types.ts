@@ -20,3 +20,18 @@ export interface TeamProfileDto {
     isCurrent: boolean;
   }>;
 }
+
+export interface TeamListItemDto {
+  id: string | null;
+  name: string;
+  createdAt: string;
+}
+
+export interface CreateTeamInput {
+  name: string;
+}
+
+export interface UpdateTeamInput {
+  teamId: string;
+  name: string;
+}

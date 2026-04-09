@@ -2,12 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiJson } from '@/api/client';
 import { queryKeys } from '@/api/query-keys';
 import type { PaginatedResponse } from '@/api/types';
-
-export interface LeagueDto {
-  id: string | null;
-  name: string;
-  leagueCategory: string;
-}
+import type { LeagueDto } from './types';
 
 const listQuery = (page: number, limit: number) =>
   `/leagues?${new URLSearchParams({
