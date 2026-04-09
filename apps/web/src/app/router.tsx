@@ -17,6 +17,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: 'register',
+        lazy: async () => {
+          const { RegisterPage } = await import('@/features/auth/RegisterPage');
+          return { Component: RegisterPage };
+        },
+      },
+      {
         path: 'players',
         lazy: async () => {
           const { PlayersListPage } = await import('@/features/players/PlayersListPage');

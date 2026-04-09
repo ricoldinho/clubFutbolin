@@ -63,6 +63,11 @@ export const RootLayout = () => {
             </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            {!isAuthenticated && (
+              <NavLink to="/register" className={linkClass}>
+                Registro
+              </NavLink>
+            )}
             <NavLink to="/login" className={linkClass}>
               Login
             </NavLink>

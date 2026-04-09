@@ -71,9 +71,14 @@ export const LoginPage = () => {
         <p className="text-sm text-emerald-400">Sesión iniciada. Token guardado.</p>
       )}
 
-      <Link to="/" className="text-sm text-sky-400 underline-offset-2 hover:underline">
-        Volver al inicio
-      </Link>
+      <div className="flex gap-4 text-sm">
+        <Link to="/register" className="text-sky-400 underline-offset-2 hover:underline">
+          Crear cuenta
+        </Link>
+        <Link to="/" className="text-sky-400 underline-offset-2 hover:underline">
+          Volver al inicio
+        </Link>
+      </div>
     </div>
   );
 };
