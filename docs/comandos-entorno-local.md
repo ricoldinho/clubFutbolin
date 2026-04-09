@@ -86,6 +86,7 @@ PRISMA_SEED_RANDOM_SEED=42 PRISMA_SEED_ADMIN_PASSWORD=admin123456 PRISMA_SEED_US
 Credenciales útiles tras el seed:
 
 - Admin: `admin@seed.local` / `admin123456` (si no cambiaste `PRISMA_SEED_ADMIN_PASSWORD`)
+- User: `user@seed.local` / `user123456` (si no cambiaste `PRISMA_SEED_USER_PASSWORD`)
 
 ## 7) Levantar backend Fastify
 

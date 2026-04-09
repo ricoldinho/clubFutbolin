@@ -54,6 +54,11 @@ Credenciales admin del seed:
 - email: `admin@seed.local`
 - password: `admin123456`
 
+Credenciales user del seed:
+
+- email: `user@seed.local`
+- password: `user123456`
+
 ## 6) Levantar API (Fastify)
 
 ```bash

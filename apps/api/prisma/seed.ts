@@ -28,6 +28,9 @@ const prisma = new PrismaClient({
 });
 
 const ADMIN_PLAYER_ID = '019d66e3-1d5b-730d-b5de-72a010eb62b4';
+const USER_PLAYER_ID = '019d66e3-1d5b-730d-b5de-72a010eb62b5';
+const ADMIN_PLAYER_EMAIL = 'admin@seed.local';
+const USER_PLAYER_EMAIL = 'user@seed.local';
 
 function randomDigits(length: number): string {
   let out = '';
@@ -190,6 +193,7 @@ async function main() {
   const players = await Promise.all(
     Array.from({ length: playerCount }).map(async (_, i) => {
       const isAdmin = i === 0;
+      const isDefaultUser = i === 1;
       const role = isAdmin ? PlayerRole.ADMIN : PlayerRole.USER;
       const passwordHash = isAdmin ? adminPasswordHash : userPasswordHash;
 
@@ -197,11 +201,19 @@ async function main() {
 
       return prisma.player.create({
         data: {
-          id: isAdmin ? ADMIN_PLAYER_ID : PlayerId.generate().value,
-          email: isAdmin ? 'admin@seed.local' : `player${i + 1}@seed.local`,
-          name: faker.person.firstName(),
-          lastname: faker.person.lastName(),
-          nickname: faker.person.firstName(),
+          id: isAdmin
+            ? ADMIN_PLAYER_ID
+            : isDefaultUser
+              ? USER_PLAYER_ID
+              : PlayerId.generate().value,
+          email: isAdmin
+            ? ADMIN_PLAYER_EMAIL
+            : isDefaultUser
+              ? USER_PLAYER_EMAIL
+              : `player${i + 1}@seed.local`,
+          name: isDefaultUser ? 'Usuario' : faker.person.firstName(),
+          lastname: isDefaultUser ? 'Seed' : faker.person.lastName(),
+          nickname: isDefaultUser ? 'user-seed' : faker.person.firstName(),
           phoneNumber: randomDigits(faker.number.int({ min: 9, max: 15 })),
           birthdate: birthdate,
           category:
