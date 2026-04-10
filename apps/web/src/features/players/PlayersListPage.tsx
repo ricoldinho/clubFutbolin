@@ -16,7 +16,7 @@ import {
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
 
-type PlayersSortMode = 'default' | 'name' | 'nickname';
+type PlayersSortMode = 'name' | 'nickname';
 
 const nameCollator = new Intl.Collator('es', { sensitivity: 'base' });
 
@@ -45,7 +45,7 @@ export const PlayersListPage = () => {
   const [searchText, setSearchText] = useState('');
   const debouncedSearch = useDebouncedValue(searchText, SEARCH_DEBOUNCE_MS);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [sortMode, setSortMode] = useState<PlayersSortMode>('default');
+  const [sortMode, setSortMode] = useState<PlayersSortMode>('name');
   const [newName, setNewName] = useState('');
   const [newLastname, setNewLastname] = useState('');
   const [newNickname, setNewNickname] = useState('');
@@ -92,26 +92,11 @@ export const PlayersListPage = () => {
     const rows = [...query.data.data];
     if (sortMode === 'name') {
       rows.sort(comparePlayersByFullName);
-    } else if (sortMode === 'nickname') {
+    } else {
       rows.sort(comparePlayersByNickname);
     }
     return rows;
   }, [query.data, sortMode]);
-
-  const cycleSortMode = () => {
-    setSortMode((prev) => {
-      if (prev === 'default') return 'name';
-      if (prev === 'name') return 'nickname';
-      return 'default';
-    });
-  };
-
-  const sortButtonLabel =
-    sortMode === 'default'
-      ? 'Ordenar (predeterminado del servidor)'
-      : sortMode === 'name'
-        ? 'Ordenar por nombre (A-Z)'
-        : 'Ordenar por alias (A-Z)';
 
   const onSubmitUpdate = (event: FormEvent<HTMLFormElement>, playerId: string) => {
     event.preventDefault();
@@ -236,17 +221,21 @@ export const PlayersListPage = () => {
             <p className="text-xs text-zinc-500">
               Total: {query.data.meta.total} · Mostrando {query.data.data.length} en esta página
             </p>
-            <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={cycleSortMode}
-                className="self-start rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+            <div className="flex min-w-[200px] flex-col gap-1">
+              <label htmlFor="players-sort" className="text-xs font-medium text-zinc-400">
+                Ordenar
+              </label>
+              <select
+                id="players-sort"
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as PlayersSortMode)}
+                aria-label="Ordenar listado de jugadores"
+                className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200"
               >
-                {sortButtonLabel}
-              </button>
-              <p className="text-[11px] text-zinc-600">
-                Pulsa para alternar: predeterminado → nombre → alias. Solo ordena la página actual.
-              </p>
+                <option value="name">Por nombre (A-Z)</option>
+                <option value="nickname">Por alias (A-Z)</option>
+              </select>
+              <p className="text-[11px] text-zinc-600">Solo ordena los jugadores de esta página.</p>
             </div>
           </div>
 
