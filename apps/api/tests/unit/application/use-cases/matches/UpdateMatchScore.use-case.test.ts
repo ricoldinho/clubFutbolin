@@ -91,6 +91,29 @@ describe('UpdateMatchScore', () => {
     expect(updated?.score.home).toBe(3);
     expect(updated?.score.away).toBe(1);
   });
+
+  it('permite actualizar marcador de un partido ya finalizado', async () => {
+    // Arrange
+    const repository = new InMemoryMatchRepository();
+    const match = createMatch(MatchStatus.FINISHED);
+    await repository.save(match);
+    const useCase = new UpdateMatchScore(repository);
+
+    // Act
+    const result = await useCase.execute({
+      matchId: match.id!,
+      homeScore: 4,
+      awayScore: 2,
+    });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const updated = await repository.findById(match.id!);
+    expect(updated?.status).toBe(MatchStatus.FINISHED);
+    expect(updated?.score.home).toBe(4);
+    expect(updated?.score.away).toBe(2);
+  });
 });
 
 function createMatch(status: MatchStatus): Match {

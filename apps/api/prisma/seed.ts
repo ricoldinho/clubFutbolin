@@ -69,6 +69,23 @@ const ALLOWED_SCORES: ReadonlyArray<readonly [number, number]> = [
   [3, 1],
 ];
 
+/**
+ * Genera una fecha UTC para una jornada concreta repartiendo el calendario
+ * a lo largo del año de seed (evita depender del día del mes = round).
+ */
+function buildSeedMatchDateUtc(seedYear: number, round: number, totalRounds: number): Date {
+  const normalizedRound = Math.max(1, round);
+  const normalizedTotalRounds = Math.max(1, totalRounds);
+
+  // Distribuye rounds en el rango [0..364] para mantenerse en el mismo año.
+  const dayOffset =
+    normalizedTotalRounds === 1
+      ? 0
+      : Math.floor(((normalizedRound - 1) * 364) / (normalizedTotalRounds - 1));
+
+  return new Date(Date.UTC(seedYear, 0, 1 + dayOffset, 20, 0, 0));
+}
+
 function buildRoundRobinPairings(teamSeasonIds: string[]): Array<{
   homeTeamSeasonId: string;
   awayTeamSeasonId: string;
@@ -232,17 +249,6 @@ async function main() {
     position: (typeof positions)[number];
   }> = [];
 
-  for (const teamSeason of teamSeasons) {
-    const rosterPlayers = pickN(players, 4);
-    rosterPlayers.forEach((player) => {
-      rosterPlayersData.push({
-        teamSeasonId: teamSeason.id,
-        playerId: player.id,
-        position: positions[faker.number.int({ min: 0, max: positions.length - 1 })],
-      });
-    });
-  }
-
   // El admin debe pertenecer a más de un equipo en ligas distintas:
   // forzamos una membresía por cada liga/temporada creada.
   const adminPlayer = players.find((player) => player.id === ADMIN_PLAYER_ID);
@@ -250,6 +256,7 @@ async function main() {
     throw new Error('No se pudo encontrar el player admin en seed');
   }
 
+  const forcedAdminTeamSeasonIds = new Set<string>();
   seasons.forEach((season, seasonIndex) => {
     const targetTeam = teams[(seasonIndex + 1) % teams.length];
     const targetTeamSeason = teamSeasons.find(
@@ -260,8 +267,26 @@ async function main() {
       throw new Error(`No se encontró TeamSeason para season=${season.id} team=${targetTeam.id}`);
     }
 
+    forcedAdminTeamSeasonIds.add(targetTeamSeason.id);
+  });
+
+  const playersWithoutAdmin = players.filter((player) => player.id !== ADMIN_PLAYER_ID);
+
+  for (const teamSeason of teamSeasons) {
+    const pool = forcedAdminTeamSeasonIds.has(teamSeason.id) ? playersWithoutAdmin : players;
+    const rosterPlayers = pickN(pool, 4);
+    rosterPlayers.forEach((player) => {
+      rosterPlayersData.push({
+        teamSeasonId: teamSeason.id,
+        playerId: player.id,
+        position: positions[faker.number.int({ min: 0, max: positions.length - 1 })],
+      });
+    });
+  }
+
+  forcedAdminTeamSeasonIds.forEach((teamSeasonId) => {
     rosterPlayersData.push({
-      teamSeasonId: targetTeamSeason.id,
+      teamSeasonId,
       playerId: adminPlayer.id,
       position: 'DELANTERO',
     });
@@ -290,6 +315,7 @@ async function main() {
       .map((teamSeason) => teamSeason.id);
 
     const pairings = buildRoundRobinPairings(seasonTeamSeasons);
+    const totalRounds = pairings.reduce((max, pairing) => Math.max(max, pairing.round), 1);
     pairings.forEach((pairing) => {
       const [homeScore, awayScore] =
         ALLOWED_SCORES[faker.number.int({ min: 0, max: ALLOWED_SCORES.length - 1 })];
@@ -300,7 +326,7 @@ async function main() {
         awayTeamSeasonId: pairing.awayTeamSeasonId,
         homeScore,
         awayScore,
-        date: new Date(Date.UTC(seedYear, 0, pairing.round, 20, 0, 0)),
+        date: buildSeedMatchDateUtc(seedYear, pairing.round, totalRounds),
         round: pairing.round,
         status: MatchStatus.FINISHED,
       });

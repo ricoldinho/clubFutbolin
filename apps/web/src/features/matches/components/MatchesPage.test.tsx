@@ -176,6 +176,7 @@ describe('MatchesPage', () => {
   it('permite actualizar marcador y estado para admin verificado', async () => {
     // Arrange
     const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const mutateScore = vi.fn();
     const mutateStatus = vi.fn();
     setupDefaultMocks();
@@ -219,6 +220,8 @@ describe('MatchesPage', () => {
       matchId: 'match-1',
       status: 'POSTPONED',
     });
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+    confirmSpy.mockRestore();
   });
 
   it('muestra error de API en el listado', () => {
@@ -237,6 +240,46 @@ describe('MatchesPage', () => {
 
     // Assert
     expect(screen.getByText('Listado inválido')).toBeInTheDocument();
+  });
+
+  it('no envía mutaciones si el usuario cancela la confirmación', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const mutateScore = vi.fn();
+    const mutateStatus = vi.fn();
+    setupDefaultMocks();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+    mockUseUpdateMatchScore.mockReturnValue({
+      mutate: mutateScore,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+    });
+    mockUseUpdateMatchStatus.mockReturnValue({
+      mutate: mutateStatus,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+    });
+
+    // Act
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await user.click(screen.getByRole('button', { name: 'Marcar aplazado' }));
+
+    // Assert
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+    expect(mutateScore).not.toHaveBeenCalled();
+    expect(mutateStatus).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it('precarga el seasonId desde query params', async () => {

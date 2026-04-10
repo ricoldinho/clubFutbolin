@@ -32,7 +32,20 @@ export const MatchDetailCard = ({
   const onSubmitScore = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (homeScore < 0 || awayScore < 0 || hasInvalidScore) return;
+    const confirmed = window.confirm(
+      'Se va a guardar el resultado del partido y se marcará como finalizado. ¿Continuar?',
+    );
+    if (!confirmed) return;
     onUpdateScore({ matchId: match.id, homeScore, awayScore });
+  };
+
+  const onConfirmUpdateStatus = (status: 'POSTPONED' | 'CANCELLED') => {
+    const statusLabel = status === 'POSTPONED' ? 'aplazado' : 'cancelado';
+    const confirmed = window.confirm(
+      `Se va a cambiar el estado del partido a "${statusLabel}". ¿Continuar?`,
+    );
+    if (!confirmed) return;
+    onUpdateStatus({ matchId: match.id, status });
   };
 
   return (
@@ -112,7 +125,7 @@ export const MatchDetailCard = ({
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => onUpdateStatus({ matchId: match.id, status: 'POSTPONED' })}
+                onClick={() => onConfirmUpdateStatus('POSTPONED')}
                 disabled={isUpdatingStatus}
                 className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-50"
               >
@@ -120,7 +133,7 @@ export const MatchDetailCard = ({
               </button>
               <button
                 type="button"
-                onClick={() => onUpdateStatus({ matchId: match.id, status: 'CANCELLED' })}
+                onClick={() => onConfirmUpdateStatus('CANCELLED')}
                 disabled={isUpdatingStatus}
                 className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-50"
               >

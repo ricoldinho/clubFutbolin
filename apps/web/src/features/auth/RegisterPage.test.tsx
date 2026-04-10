@@ -25,6 +25,38 @@ vi.mock('@/features/players/api', () => ({
 }));
 
 describe('RegisterPage', () => {
+  it('deshabilita registro cuando faltan campos o contraseñas no coinciden', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    mockUseRegister.mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+    const submitButton = screen.getByRole('button', { name: 'Crear cuenta' });
+    await user.type(screen.getByLabelText('Nombre'), 'Pedro');
+    await user.type(screen.getByLabelText('Apellidos'), 'López');
+    await user.type(screen.getByLabelText('Email'), 'pedro@seed.local');
+    await user.type(screen.getByLabelText('Teléfono'), '600000003');
+    await user.type(screen.getByLabelText('Fecha de nacimiento'), '1994-05-10');
+    await user.type(screen.getByLabelText('Contraseña'), 'password123');
+    await user.type(screen.getByLabelText('Repite la contraseña'), 'password124');
+
+    // Assert
+    expect(screen.getByText('Las contraseñas no coinciden.')).toBeInTheDocument();
+    expect(submitButton).toBeDisabled();
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
   it('registra un usuario sin permitir elegir role', async () => {
     // Arrange
     const user = userEvent.setup();
@@ -48,6 +80,8 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText('Teléfono'), '600000003');
     await user.type(screen.getByLabelText('Fecha de nacimiento'), '1994-05-10');
     await user.type(screen.getByLabelText('Contraseña'), 'password123');
+    await user.type(screen.getByLabelText('Repite la contraseña'), 'password123');
+    expect(screen.getByText('Las contraseñas coinciden.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
 
     // Assert
