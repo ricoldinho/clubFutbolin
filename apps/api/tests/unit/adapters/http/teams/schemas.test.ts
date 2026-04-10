@@ -58,6 +58,26 @@ describe('teams schemas', () => {
         expect(result.data.limit).toBe(20);
       }
     });
+
+    it('acepta q opcional y recorta espacios', () => {
+      const result = listTeamsQuerySchema.safeParse({ q: '  fc  ' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.q).toBe('fc');
+      }
+    });
+
+    it('transforma q vacío a undefined', () => {
+      const result = listTeamsQuerySchema.safeParse({ q: '   ' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.q).toBeUndefined();
+      }
+    });
+
+    it('rechaza q con más de 100 caracteres', () => {
+      expect(listTeamsQuerySchema.safeParse({ q: 'x'.repeat(101) }).success).toBe(false);
+    });
   });
 
   describe('teamProfileResponseSchema', () => {

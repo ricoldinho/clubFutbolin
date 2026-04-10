@@ -34,4 +34,22 @@ describe('ListTeams', () => {
     const names = result.value.data.map((t) => t.name).sort();
     expect(names).toEqual(['Equipo Dos', 'Equipo Uno']);
   });
+
+  it('con searchQuery solo devuelve equipos cuyo nombre coincide', async () => {
+    const repository = new InMemoryTeamRepository();
+    const createTeam = new CreateTeam(repository);
+    await createTeam.execute({ name: 'Atlético Norte' });
+    await createTeam.execute({ name: 'Betis Sur' });
+    const listTeams = new ListTeams(repository);
+
+    const result = await listTeams.execute({
+      pagination: { page: 1, limit: 20 },
+      searchQuery: 'Atl',
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.total).toBe(1);
+    expect(result.value.data[0].name).toBe('Atlético Norte');
+  });
 });

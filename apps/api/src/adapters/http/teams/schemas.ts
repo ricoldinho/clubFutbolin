@@ -63,4 +63,15 @@ export const getTeamByNameParamsSchema = z.object({
 export const listTeamsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
+  q: z
+    .string()
+    .max(100, 'q no puede superar 100 caracteres')
+    .optional()
+    .transform((val) => {
+      if (val === undefined) return undefined;
+      const t = val.trim();
+      return t.length === 0 ? undefined : t;
+    }),
 });
+
+export type ListTeamsQuery = z.infer<typeof listTeamsQuerySchema>;

@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TeamsListPage } from './TeamsListPage';
 
 const mockUseVerifiedAdmin = vi.fn();
@@ -36,15 +36,21 @@ vi.mock('@/features/teams/api', () => ({
   }),
 }));
 
-const setupListMock = () => {
+const createdAt = new Date().toISOString();
+
+const setupListMock = (teams?: Array<{ id: string; name: string }>) => {
+  const data =
+    teams?.map((t) => ({ ...t, createdAt })) ?? [
+      { id: 'team-1', name: 'Atléticos', createdAt },
+    ];
   mockUseTeams.mockReturnValue({
     isPending: false,
     isError: false,
     error: null,
     isFetching: false,
     data: {
-      data: [{ id: 'team-1', name: 'Atléticos', createdAt: new Date().toISOString() }],
-      meta: { total: 1, page: 1, lastPage: 1 },
+      data,
+      meta: { total: data.length, page: 1, lastPage: 1 },
     },
   });
 };
@@ -52,6 +58,64 @@ const setupListMock = () => {
 describe('TeamsListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('aplica la búsqueda al hook tras el debounce', () => {
+    vi.useFakeTimers();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: null,
+      isAdminClaim: false,
+      isVerifiedAdmin: false,
+      isVerifyingAdmin: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <TeamsListPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Buscar equipos por nombre'), {
+      target: { value: 'fc' },
+    });
+    expect(mockUseTeams.mock.calls.at(-1)).toEqual([1, 20, '']);
+
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(mockUseTeams.mock.calls.at(-1)).toEqual([1, 20, 'fc']);
+  });
+
+  it('ordena alfabéticamente la página al pulsar Ordenar A-Z', async () => {
+    const user = userEvent.setup();
+    setupListMock([
+      { id: 'a', name: 'Zamora FC' },
+      { id: 'b', name: 'Albacete' },
+    ]);
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: null,
+      isAdminClaim: false,
+      isVerifiedAdmin: false,
+      isVerifyingAdmin: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <TeamsListPage />
+      </MemoryRouter>,
+    );
+
+    const links = () => screen.getAllByRole('link', { name: /FC|Albacete/ });
+    expect(links()[0]).toHaveTextContent('Zamora FC');
+
+    await user.click(screen.getByRole('button', { name: 'Ordenar A-Z' }));
+    expect(links()[0]).toHaveTextContent('Albacete');
+    expect(links()[1]).toHaveTextContent('Zamora FC');
   });
 
   it('muestra controles de escritura para admin verificado', async () => {

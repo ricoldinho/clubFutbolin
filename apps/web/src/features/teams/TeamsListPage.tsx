@@ -1,22 +1,47 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { PaginationBar } from '@/app/components/PaginationBar';
+import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
 import { useVerifiedAdmin } from '@/features/auth/api/useVerifiedAdmin';
 import { useCreateTeam, useDeleteTeam, useTeams, useUpdateTeam } from '@/features/teams/api';
+import type { TeamListItemDto } from '@/features/teams/api/types';
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 350;
+
+const nameCollator = new Intl.Collator('es', { sensitivity: 'base' });
+
+function compareTeamsByName(a: TeamListItemDto, b: TeamListItemDto): number {
+  return nameCollator.compare(a.name, b.name);
+}
 
 export const TeamsListPage = () => {
   const [page, setPage] = useState(1);
+  const [searchText, setSearchText] = useState('');
+  const debouncedSearch = useDebouncedValue(searchText, SEARCH_DEBOUNCE_MS);
+  const [sortAlphabetically, setSortAlphabetically] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState('');
-  const query = useTeams(page, PAGE_SIZE);
+  const query = useTeams(page, PAGE_SIZE, debouncedSearch);
   const createTeam = useCreateTeam();
   const updateTeam = useUpdateTeam();
   const deleteTeam = useDeleteTeam();
   const { isVerifiedAdmin, isVerifyingAdmin } = useVerifiedAdmin();
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const displayedTeams = useMemo(() => {
+    if (!query.data) return [];
+    const rows = [...query.data.data];
+    if (sortAlphabetically) {
+      rows.sort(compareTeamsByName);
+    }
+    return rows;
+  }, [query.data, sortAlphabetically]);
 
   const onSubmitCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -33,9 +58,29 @@ export const TeamsListPage = () => {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">Teams</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Listado paginado. Pulsa un equipo para ver su perfil y plantilla.
+          Listado paginado. Busca por nombre; pulsa un equipo para ver su perfil y plantilla.
         </p>
       </header>
+
+      <div className="flex max-w-md flex-col gap-1">
+        <label htmlFor="teams-search" className="text-xs font-medium text-zinc-400">
+          Buscar
+        </label>
+        <input
+          id="teams-search"
+          type="search"
+          enterKeyHint="search"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Nombre del equipo…"
+          maxLength={100}
+          aria-label="Buscar equipos por nombre"
+          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
+        />
+        {searchText !== debouncedSearch && (
+          <p className="text-xs text-zinc-500">Aplicando búsqueda en un momento…</p>
+        )}
+      </div>
 
       {isVerifyingAdmin && (
         <p className="text-xs text-zinc-500">Verificando permisos de administrador...</p>
@@ -65,15 +110,32 @@ export const TeamsListPage = () => {
 
       {query.data && (
         <>
-          <p className="text-xs text-zinc-500">
-            Total: {query.data.meta.total} · Mostrando {query.data.data.length} en esta página
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <p className="text-xs text-zinc-500">
+              Total: {query.data.meta.total} · Mostrando {query.data.data.length} en esta página
+            </p>
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setSortAlphabetically((v) => !v)}
+                aria-pressed={sortAlphabetically}
+                className={`self-start rounded-md border px-3 py-1.5 text-xs font-medium ${
+                  sortAlphabetically
+                    ? 'border-sky-600 bg-sky-950/50 text-sky-200'
+                    : 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:bg-zinc-800'
+                }`}
+              >
+                {sortAlphabetically ? 'Quitar orden A-Z' : 'Ordenar A-Z'}
+              </button>
+              <p className="text-[11px] text-zinc-600">El orden A-Z solo afecta a los equipos de esta página.</p>
+            </div>
+          </div>
 
           {query.data.data.length === 0 ? (
             <p className="text-sm text-zinc-400">No hay equipos registrados.</p>
           ) : (
             <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/60">
-              {query.data.data.map((team) => (
+              {displayedTeams.map((team) => (
                 <li key={team.id ?? team.name} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>

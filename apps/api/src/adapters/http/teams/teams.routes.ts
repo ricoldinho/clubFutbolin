@@ -19,6 +19,7 @@ import {
   getTeamByIdParamsSchema,
   getTeamByNameParamsSchema,
   listTeamsQuerySchema,
+  type ListTeamsQuery,
   listTeamsResponseSchema,
   teamProfileResponseSchema,
   teamResponseSchema,
@@ -144,14 +145,17 @@ export async function teamsRoutes(
         },
         tags: ['teams'],
         summary: 'Listar equipos paginados',
+        description:
+          'Lista paginada. El parámetro opcional `q` filtra por coincidencia parcial en el nombre (sin distinguir mayúsculas).',
       },
     },
     async (_request, reply) => {
       try {
         const listTeams = resolveListTeams(_request);
-        const query = _request.query as { page: number; limit: number };
+        const query = _request.query as ListTeamsQuery;
         const result = await listTeams.execute({
           pagination: { page: query.page, limit: query.limit },
+          searchQuery: query.q,
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);

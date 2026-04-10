@@ -24,7 +24,7 @@ export const queryKeys = {
   },
   teams: {
     all: ['teams'] as const,
-    list: (filters: { page: number; limit: number }) =>
+    list: (filters: { page: number; limit: number; q?: string }) =>
       ['teams', 'list', filters] as const,
     profile: (teamId: string) => ['teams', 'profile', teamId] as const,
   },

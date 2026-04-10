@@ -69,6 +69,18 @@ describe('PrismaTeamRepository (integración)', () => {
     expect(names).toEqual(['T1', 'T2']);
   });
 
+  it('findAll con paginación y searchQuery filtra por nombre', async () => {
+    await repository.save(Team.create({ name: 'Alfa Club' }));
+    await repository.save(Team.create({ name: 'Beta United' }));
+
+    const filtered = await repository.findAll(
+      { page: 1, limit: 10 },
+      { searchQuery: 'alfa' },
+    );
+    expect(filtered.total).toBe(1);
+    expect(filtered.data[0].name).toBe('Alfa Club');
+  });
+
   it('save: actualiza nombre del equipo', async () => {
     const id = TeamId.generate();
     await repository.save(Team.create({ id, name: 'Viejo' }));

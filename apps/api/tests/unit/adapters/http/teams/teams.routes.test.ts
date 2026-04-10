@@ -51,6 +51,40 @@ describe('teams routes', () => {
     });
   });
 
+  it('devuelve 400 en GET /teams cuando q supera 100 caracteres', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: `/teams?q=${encodeURIComponent('a'.repeat(101))}`,
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('GET /teams con q filtra por nombre', async () => {
+    const headers = await adminHeaders(jwtService);
+    await server.inject({
+      method: 'POST',
+      url: '/teams',
+      headers,
+      payload: { name: 'Equipo Zeta' },
+    });
+    await server.inject({
+      method: 'POST',
+      url: '/teams',
+      headers,
+      payload: { name: 'Otro Club' },
+    });
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/teams?q=Zeta',
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { data: Array<{ name: string }>; meta: { total: number } };
+    expect(body.meta.total).toBe(1);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].name).toBe('Equipo Zeta');
+  });
+
   it('POST /teams requiere admin y devuelve 201', async () => {
     const headers = await adminHeaders(jwtService);
     const response = await server.inject({

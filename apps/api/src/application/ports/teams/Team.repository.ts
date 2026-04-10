@@ -7,11 +7,20 @@ export interface TeamListResult {
   readonly total: number;
 }
 
+/** Filtros opcionales para el listado paginado de equipos. */
+export interface ListTeamsFilters {
+  /** Coincidencia parcial (sin distinguir mayúsculas) en el nombre del equipo. */
+  readonly searchQuery?: string;
+}
+
 export interface ITeamRepository {
   findById(id: TeamId): Promise<Team | null>;
   findByName(name: string): Promise<Team | null>;
   findAll(): Promise<Team[]>;
-  findAll(pagination: PaginationParams): Promise<TeamListResult>;
+  findAll(
+    pagination: PaginationParams,
+    filters?: ListTeamsFilters,
+  ): Promise<TeamListResult>;
   save(team: Team): Promise<void>;
   delete(id: TeamId): Promise<void>;
 }

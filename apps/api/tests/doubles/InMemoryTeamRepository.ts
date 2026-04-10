@@ -1,4 +1,4 @@
-import type { ITeamRepository } from '@/application/ports/teams/Team.repository';
+import type { ITeamRepository, ListTeamsFilters } from '@/application/ports/teams/Team.repository';
 import { Team } from '@/domain/teams/Team.entity';
 import type { TeamId } from '@/domain/teams/TeamId.value-object';
 import type { PaginationParams } from '@/shared/pagination';
@@ -18,16 +18,27 @@ export class InMemoryTeamRepository implements ITeamRepository {
   }
 
   async findAll(): Promise<Team[]>;
-  async findAll(pagination: PaginationParams): Promise<{ data: Team[]; total: number }>;
-  async findAll(pagination?: PaginationParams): Promise<Team[] | { data: Team[]; total: number }> {
+  async findAll(
+    pagination: PaginationParams,
+    filters?: ListTeamsFilters,
+  ): Promise<{ data: Team[]; total: number }>;
+  async findAll(
+    pagination?: PaginationParams,
+    filters?: ListTeamsFilters,
+  ): Promise<Team[] | { data: Team[]; total: number }> {
     const all = [...this.teams];
     if (pagination === undefined) {
       return all;
     }
+    const q = filters?.searchQuery?.trim().toLowerCase();
+    const filtered =
+      q !== undefined && q.length > 0
+        ? all.filter((t) => t.name.toLowerCase().includes(q))
+        : all;
     const start = (pagination.page - 1) * pagination.limit;
     return {
-      data: all.slice(start, start + pagination.limit),
-      total: all.length,
+      data: filtered.slice(start, start + pagination.limit),
+      total: filtered.length,
     };
   }
 

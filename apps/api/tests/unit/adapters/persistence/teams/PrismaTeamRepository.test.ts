@@ -85,15 +85,38 @@ describe('PrismaTeamRepository', () => {
 
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: {},
         skip: 2,
         take: 2,
         orderBy: { createdAt: 'asc' },
       }),
     );
+    expect(mockCount).toHaveBeenCalledWith({ where: {} });
     expect(result).toEqual({
       data: expect.any(Array),
       total: 5,
     });
+  });
+
+  it('findAll con búsqueda pasa contains insensible a mayúsculas en name', async () => {
+    const mockCount = vi.fn().mockResolvedValue(1);
+    const prismaWithCount = {
+      ...mockPrisma,
+      team: { ...mockPrisma.team, count: mockCount },
+    };
+    const paginatedRepository = new PrismaTeamRepository(prismaWithCount as never);
+    mockFindMany.mockResolvedValue([makePrismaRow({ name: 'Beta FC' })]);
+
+    await paginatedRepository.findAll(
+      { page: 1, limit: 10 },
+      { searchQuery: '  beta  ' },
+    );
+
+    const expectedWhere = { name: { contains: 'beta', mode: 'insensitive' } };
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expectedWhere }),
+    );
+    expect(mockCount).toHaveBeenCalledWith({ where: expectedWhere });
   });
 
   it('save con id existente hace upsert con where/update correctos', async () => {

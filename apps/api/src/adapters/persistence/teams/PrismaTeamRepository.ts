@@ -1,11 +1,23 @@
-import { PrismaClient } from '@prisma/client';
+import { type Prisma, PrismaClient } from '@prisma/client';
 import { Team } from '@/domain/teams/Team.entity';
 import { TeamId } from '@/domain/teams/TeamId.value-object';
-import type { ITeamRepository, TeamListResult } from '@/application/ports/teams/Team.repository';
+import type {
+  ITeamRepository,
+  ListTeamsFilters,
+  TeamListResult,
+} from '@/application/ports/teams/Team.repository';
 import type { PaginationParams } from '@/shared/pagination';
 
 export class PrismaTeamRepository implements ITeamRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private static searchWhere(searchQuery?: string): Prisma.TeamWhereInput {
+    const trimmed = searchQuery?.trim();
+    if (trimmed === undefined || trimmed.length === 0) {
+      return {};
+    }
+    return { name: { contains: trimmed, mode: 'insensitive' } };
+  }
 
   private toDomain(row: { id: string; name: string; createdAt: Date }): Team {
     return Team.create({
@@ -32,9 +44,17 @@ export class PrismaTeamRepository implements ITeamRepository {
   }
 
   async findAll(): Promise<Team[]>;
-  async findAll(pagination: PaginationParams): Promise<TeamListResult>;
-  async findAll(pagination?: PaginationParams): Promise<Team[] | TeamListResult> {
+  async findAll(
+    pagination: PaginationParams,
+    filters?: ListTeamsFilters,
+  ): Promise<TeamListResult>;
+  async findAll(
+    pagination?: PaginationParams,
+    filters?: ListTeamsFilters,
+  ): Promise<Team[] | TeamListResult> {
+    const where = PrismaTeamRepository.searchWhere(filters?.searchQuery);
     const rows = await this.prisma.team.findMany({
+      where,
       select: { id: true, name: true, createdAt: true },
       ...(pagination
         ? {
@@ -47,7 +67,7 @@ export class PrismaTeamRepository implements ITeamRepository {
     if (pagination === undefined) {
       return rows.map((r) => this.toDomain(r));
     }
-    const total = await this.prisma.team.count();
+    const total = await this.prisma.team.count({ where });
     return {
       data: rows.map((r) => this.toDomain(r)),
       total,
