@@ -8,7 +8,7 @@ export const queryKeys = {
   },
   players: {
     all: ['players'] as const,
-    list: (filters: { page: number; limit: number }) =>
+    list: (filters: { page: number; limit: number; q?: string }) =>
       ['players', 'list', filters] as const,
     detail: (playerId: string) => ['players', 'detail', playerId] as const,
     memberships: (playerId: string) => ['players', 'memberships', playerId] as const,

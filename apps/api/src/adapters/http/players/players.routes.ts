@@ -24,6 +24,7 @@ import type { PlayerRole } from '@/domain/players/PlayerRole';
 import {
   getPlayerByIdParamsSchema,
   listPlayersQuerySchema,
+  type ListPlayersQuery,
   listPlayersResponseSchema,
   playerResponseSchema,
   playerMembershipsResponseSchema,
@@ -515,9 +516,10 @@ export async function playersRoutes(
    * GET /players
    *
    * Lista Players. Requiere autenticación (cualquier role).
-   * Query opcional: `page`, `limit` (máx. 100). Si no se envían, usa defaults page=1, limit=20.
+   * Query opcional: `page`, `limit` (máx. 100), `q` (búsqueda en nombre, apellidos o alias, máx. 100 caracteres).
+   * Si no se envían page/limit, usa defaults page=1, limit=20.
    * - 200: objeto paginado con lista (posiblemente vacía)
-   * - 400: query inválida (page/limit)
+   * - 400: query inválida (page/limit/q)
    * - 401: sin token o token inválido
    */
   zodServer.get(
@@ -534,15 +536,18 @@ export async function playersRoutes(
         },
         tags: ['players'],
         summary: 'Listar players paginados',
+        description:
+          'Lista paginada. El parámetro opcional `q` filtra por coincidencia parcial en nombre, apellidos o alias (sin distinguir mayúsculas).',
         security: [{ bearerAuth: [] }],
       },
     },
     async (request, reply) => {
       try {
         const listPlayers = resolveListPlayers(request);
-        const query = request.query as { page: number; limit: number };
+        const query = request.query as ListPlayersQuery;
         const result = await listPlayers.execute({
           pagination: { page: query.page, limit: query.limit },
+          searchQuery: query.q,
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);

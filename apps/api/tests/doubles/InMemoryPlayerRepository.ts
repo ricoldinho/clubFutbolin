@@ -1,5 +1,6 @@
 import type {
   IPlayerRepository,
+  ListPlayersFilters,
   PlayerListResult,
   PlayerLoginData,
 } from '@/application/ports/players/Player.repository';
@@ -25,16 +26,34 @@ export class InMemoryPlayerRepository implements IPlayerRepository {
   }
 
   async findAll(): Promise<Player[]>;
-  async findAll(pagination: PaginationParams): Promise<PlayerListResult>;
-  async findAll(pagination?: PaginationParams): Promise<Player[] | PlayerListResult> {
+  async findAll(
+    pagination: PaginationParams,
+    filters?: ListPlayersFilters,
+  ): Promise<PlayerListResult>;
+  async findAll(
+    pagination?: PaginationParams,
+    filters?: ListPlayersFilters,
+  ): Promise<Player[] | PlayerListResult> {
     const all = [...this.players];
     if (pagination === undefined) {
       return all;
     }
+    const q = filters?.searchQuery?.trim().toLowerCase();
+    const filtered =
+      q !== undefined && q.length > 0
+        ? all.filter((p) => {
+            const nick = p.nickname?.toLowerCase() ?? '';
+            return (
+              p.name.toLowerCase().includes(q) ||
+              p.lastname.toLowerCase().includes(q) ||
+              nick.includes(q)
+            );
+          })
+        : all;
     const start = (pagination.page - 1) * pagination.limit;
     return {
-      data: all.slice(start, start + pagination.limit),
-      total: all.length,
+      data: filtered.slice(start, start + pagination.limit),
+      total: filtered.length,
     };
   }
 

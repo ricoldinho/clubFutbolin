@@ -106,6 +106,26 @@ describe('listPlayersQuerySchema', () => {
   it('rechaza limit > 100', () => {
     expect(listPlayersQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
   });
+
+  it('acepta q opcional y recorta espacios en blanco', () => {
+    const result = listPlayersQuerySchema.safeParse({ q: '  ana  ' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.q).toBe('ana');
+    }
+  });
+
+  it('transforma q vacío a undefined', () => {
+    const result = listPlayersQuerySchema.safeParse({ q: '   ' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.q).toBeUndefined();
+    }
+  });
+
+  it('rechaza q con más de 100 caracteres', () => {
+    expect(listPlayersQuerySchema.safeParse({ q: 'x'.repeat(101) }).success).toBe(false);
+  });
 });
 
 describe('playerMembershipsResponseSchema', () => {

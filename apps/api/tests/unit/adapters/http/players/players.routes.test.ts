@@ -53,8 +53,14 @@ class FailingRepository implements IPlayerRepository {
   }
 
   async findAll(): Promise<Player[]>;
-  async findAll(_pagination: { page: number; limit: number }): Promise<{ data: Player[]; total: number }>;
-  async findAll(): Promise<Player[] | { data: Player[]; total: number }> {
+  async findAll(
+    _pagination: { page: number; limit: number },
+    _filters?: { searchQuery?: string },
+  ): Promise<{ data: Player[]; total: number }>;
+  async findAll(
+    _pagination?: { page: number; limit: number },
+    _filters?: { searchQuery?: string },
+  ): Promise<Player[] | { data: Player[]; total: number }> {
     throw new Error('Infra error in findAll');
   }
 
@@ -189,6 +195,16 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it('devuelve 400 en GET /players cuando q supera 100 caracteres', async () => {
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
+    const response = await server.inject({
+      method: 'GET',
+      url: `/players?q=${encodeURIComponent('a'.repeat(101))}`,
+      headers,
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
   it('devuelve 200 en GET /players con query de paginación válida', async () => {
     const headers = await authHeaders(jwtService, PlayerId.generate().value);
     const response = await server.inject({
@@ -234,6 +250,43 @@ describe('players routes - Zod + Fastify integration', () => {
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data).toHaveLength(1);
     expect(body.meta).toMatchObject({ total: 2, page: 1, lastPage: 2 });
+  });
+
+  it('GET /players con q filtra por nombre o apellidos', async () => {
+    const p1 = {
+      name: 'Carlos',
+      lastname: 'Uno',
+      nickname: null,
+      email: 'carlos.uno@example.com',
+      phoneNumber: '600111111',
+      birthdate: '1990-01-01',
+      category: 'PRIMERA',
+      password: 'password12',
+    };
+    const p2 = {
+      name: 'Diana',
+      lastname: 'Dos',
+      nickname: null,
+      email: 'diana.dos@example.com',
+      phoneNumber: '600222222',
+      birthdate: '1991-02-02',
+      category: 'PRIMERA',
+      password: 'password12',
+    };
+    await server.inject({ method: 'POST', url: '/players', payload: p1 });
+    await server.inject({ method: 'POST', url: '/players', payload: p2 });
+
+    const headers = await authHeaders(jwtService, PlayerId.generate().value);
+    const response = await server.inject({
+      method: 'GET',
+      url: '/players?q=Carlos',
+      headers,
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.meta.total).toBe(1);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].name).toBe('Carlos');
   });
 
   it('devuelve 200 y lista con players en GET /players', async () => {

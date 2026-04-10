@@ -10,6 +10,8 @@ import { GetMatchById } from '@/application/use-cases/matches/GetMatchById.use-c
 import { UpdateMatchScore } from '@/application/use-cases/matches/UpdateMatchScore.use-case';
 import { UpdateMatchStatus } from '@/application/use-cases/matches/UpdateMatchStatus.use-case';
 import { MatchStatus } from '@/domain/matches/MatchStatus';
+import { Team } from '@/domain/teams/Team.entity';
+import { InfrastructureError } from '@/domain/shared/errors';
 import { createRequireAdmin } from '@/adapters/http/auth/auth-plugin';
 import { mapDomainErrorToHttp } from '@/adapters/http/http-error-mapper';
 import { httpErrorResponseSchema } from '@/adapters/http/http-response-schemas';
@@ -32,6 +34,23 @@ import {
   updateMatchScoreResponseSchema,
   updateMatchStatusBodySchema,
 } from './schemas';
+
+/**
+ * Resuelve Team persistido para un TeamSeason; nunca devuelve un TeamSeason id como teamId ni como nombre.
+ */
+function teamPayloadForSeasonMatch(
+  teamsByTeamSeasonId: Map<string, Team | null>,
+  teamSeasonId: string,
+  side: 'local' | 'visitante',
+): { teamId: string; name: string } {
+  const team = teamsByTeamSeasonId.get(teamSeasonId);
+  if (team === undefined || team === null || team.id === undefined) {
+    throw new InfrastructureError(
+      `No se pudo resolver el equipo ${side} para un partido (TeamSeason ${teamSeasonId}).`,
+    );
+  }
+  return { teamId: team.id.value, name: team.name };
+}
 
 interface MatchesRoutesOptions extends FastifyPluginOptions {
   repository?: IMatchRepository;
@@ -322,7 +341,7 @@ export async function matchesRoutes(
    * - 200: Listado paginado
    * - 400: Parámetros inválidos
    * - público (sin autenticación)
-   * - 500: Error inesperado
+   * - 500: Error inesperado o datos incoherentes (p. ej. partido con TeamSeason sin roster o sin Team)
    */
   zodServer.get(
     '/seasons/:seasonId/matches',
@@ -366,29 +385,23 @@ export async function matchesRoutes(
             return [teamSeasonId, team] as const;
           }),
         );
-        const teamsByTeamSeasonId = new Map(teamSeasonEntries);
+        const teamsByTeamSeasonId = new Map<string, Team | null>(teamSeasonEntries);
         return reply.code(200).send({
           data: result.data.map((match) => ({
             id: match.id!.value,
             seasonId: match.seasonId.value,
             homeTeamSeasonId: match.homeTeamSeasonId.value,
             awayTeamSeasonId: match.awayTeamSeasonId.value,
-            homeTeam: {
-              teamId:
-                teamsByTeamSeasonId.get(match.homeTeamSeasonId.value)?.id?.value ??
-                match.homeTeamSeasonId.value,
-              name:
-                teamsByTeamSeasonId.get(match.homeTeamSeasonId.value)?.name ??
-                match.homeTeamSeasonId.value,
-            },
-            awayTeam: {
-              teamId:
-                teamsByTeamSeasonId.get(match.awayTeamSeasonId.value)?.id?.value ??
-                match.awayTeamSeasonId.value,
-              name:
-                teamsByTeamSeasonId.get(match.awayTeamSeasonId.value)?.name ??
-                match.awayTeamSeasonId.value,
-            },
+            homeTeam: teamPayloadForSeasonMatch(
+              teamsByTeamSeasonId,
+              match.homeTeamSeasonId.value,
+              'local',
+            ),
+            awayTeam: teamPayloadForSeasonMatch(
+              teamsByTeamSeasonId,
+              match.awayTeamSeasonId.value,
+              'visitante',
+            ),
             homeScore: match.score.home,
             awayScore: match.score.away,
             date: match.date.toISOString(),

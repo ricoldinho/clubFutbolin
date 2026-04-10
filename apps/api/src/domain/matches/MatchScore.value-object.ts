@@ -14,14 +14,14 @@ export class MatchScore {
   }
 
   static fromNullable(home: number | null, away: number | null): MatchScore {
-    if ((home === null) !== (away === null)) {
+    if (home === null && away === null) {
+      return MatchScore.pending();
+    }
+
+    if (home === null || away === null) {
       throw new InvalidMatchScoreError(
         'El marcador debe tener ambos valores o ambos en null',
       );
-    }
-
-    if (home === null && away === null) {
-      return MatchScore.pending();
     }
 
     MatchScore.validateScore(home);

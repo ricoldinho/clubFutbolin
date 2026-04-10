@@ -95,4 +95,48 @@ describe('ListPlayers', () => {
     if (!isOk(page2)) return;
     expect(page2.value.data).toHaveLength(1);
   });
+
+  it('con searchQuery filtra por nombre, apellidos o alias', async () => {
+    const repository = new InMemoryPlayerRepository();
+    const registerPlayer = new RegisterPlayer(repository, new FakePasswordHasher());
+    const listPlayers = new ListPlayers(repository);
+    await registerPlayer.execute({
+      name: 'Ana',
+      lastname: 'López',
+      nickname: 'anita',
+      email: Email.create('ana@example.com'),
+      phoneNumber: PhoneNumber.create('612345678'),
+      birthdate: Birthdate.create('1998-01-10'),
+      category: PlayerCategory.TERCERA,
+      password: 'password1',
+    });
+    await registerPlayer.execute({
+      name: 'Bruno',
+      lastname: 'Martín',
+      nickname: 'Bru',
+      email: Email.create('bruno@example.com'),
+      phoneNumber: PhoneNumber.create('698765432'),
+      birthdate: Birthdate.create('2000-05-20'),
+      category: PlayerCategory.SEGUNDA,
+      password: 'password2',
+    });
+
+    const byNick = await listPlayers.execute({
+      pagination: { page: 1, limit: 20 },
+      searchQuery: 'bru',
+    });
+    expect(isOk(byNick)).toBe(true);
+    if (!isOk(byNick)) return;
+    expect(byNick.value.total).toBe(1);
+    expect(byNick.value.data[0].name).toBe('Bruno');
+
+    const byLastname = await listPlayers.execute({
+      pagination: { page: 1, limit: 20 },
+      searchQuery: 'López',
+    });
+    expect(isOk(byLastname)).toBe(true);
+    if (!isOk(byLastname)) return;
+    expect(byLastname.value.total).toBe(1);
+    expect(byLastname.value.data[0].name).toBe('Ana');
+  });
 });

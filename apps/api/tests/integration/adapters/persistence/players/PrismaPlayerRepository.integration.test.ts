@@ -123,6 +123,31 @@ describe('PrismaPlayerRepository (integración)', () => {
     expect(secondPage.data).toHaveLength(1);
   });
 
+  it('findAll con paginación y searchQuery filtra por nombre, apellidos o alias', async () => {
+    const pMatch = makePlayer({
+      email: 'search-hit@example.com',
+      name: 'Carmen',
+      lastname: 'Vega',
+      nickname: 'carmela',
+    });
+    const pOther = makePlayer({
+      email: 'search-miss@example.com',
+      name: 'Luis',
+      lastname: 'Nada',
+      nickname: null,
+    });
+    await repository.save(pMatch, 'h1');
+    await repository.save(pOther, 'h2');
+
+    const byName = await repository.findAll({ page: 1, limit: 10 }, { searchQuery: 'Car' });
+    expect(byName.total).toBe(1);
+    expect(byName.data[0].name).toBe('Carmen');
+
+    const byNickname = await repository.findAll({ page: 1, limit: 10 }, { searchQuery: 'mel' });
+    expect(byNickname.total).toBe(1);
+    expect(byNickname.data[0].nickname).toBe('carmela');
+  });
+
   it('findByEmail: recupera por email', async () => {
     const player = makePlayer({ email: 'byemail@example.com' });
     await repository.save(player, 'hash');

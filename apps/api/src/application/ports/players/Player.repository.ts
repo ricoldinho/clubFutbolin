@@ -28,6 +28,12 @@ export interface PlayerListResult {
   readonly total: number;
 }
 
+/** Filtros opcionales para el listado paginado de jugadores. */
+export interface ListPlayersFilters {
+  /** Coincidencia parcial (sin distinguir mayúsculas) en nombre, apellidos o alias. */
+  readonly searchQuery?: string;
+}
+
 export interface IPlayerRepository {
   findByEmail(email: Email): Promise<Player | null>;
 
@@ -37,7 +43,10 @@ export interface IPlayerRepository {
    * Lista jugadores con paginación obligatoria y total para metadata.
    */
   findAll(): Promise<Player[]>;
-  findAll(pagination: PaginationParams): Promise<PlayerListResult>;
+  findAll(
+    pagination: PaginationParams,
+    filters?: ListPlayersFilters,
+  ): Promise<PlayerListResult>;
 
   /**
    * Persiste un Player. En registro (create) se debe pasar passwordHash.

@@ -151,7 +151,7 @@ describe('PrismaPlayerRepository', () => {
       expect(result[1].email.value).toBe('b@b.com');
     });
 
-    it('con paginación pasa skip, take y orderBy a findMany', async () => {
+    it('con paginación pasa skip, take, where y orderBy a findMany', async () => {
       mockFindMany.mockResolvedValue([]);
       mockCount.mockResolvedValue(0);
 
@@ -159,11 +159,37 @@ describe('PrismaPlayerRepository', () => {
 
       expect(mockFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: {},
           orderBy: { createdAt: 'asc' },
           skip: 5,
           take: 5,
         }),
       );
+      expect(mockCount).toHaveBeenCalledWith({ where: {} });
+    });
+
+    it('con búsqueda pasa OR insensible a mayúsculas en name, lastname y nickname', async () => {
+      mockFindMany.mockResolvedValue([]);
+      mockCount.mockResolvedValue(0);
+
+      await repository.findAll(
+        { page: 1, limit: 10 },
+        { searchQuery: '  ana  ' },
+      );
+
+      const expectedWhere = {
+        OR: [
+          { name: { contains: 'ana', mode: 'insensitive' } },
+          { lastname: { contains: 'ana', mode: 'insensitive' } },
+          { nickname: { contains: 'ana', mode: 'insensitive' } },
+        ],
+      };
+      expect(mockFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expectedWhere,
+        }),
+      );
+      expect(mockCount).toHaveBeenCalledWith({ where: expectedWhere });
     });
   });
 

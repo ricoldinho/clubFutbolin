@@ -156,6 +156,28 @@ describe('matches routes', () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it('GET /seasons/:seasonId/matches devuelve 500 si un partido referencia TeamSeason sin roster', async () => {
+    const orphanTeamSeasonId = TeamSeasonId.generate();
+    await matchRepository.save(
+      Match.create({
+        id: MatchId.generate(),
+        seasonId,
+        homeTeamSeasonId: orphanTeamSeasonId,
+        awayTeamSeasonId: teamSeasonBId,
+        date: new Date('2026-04-01T10:00:00.000Z'),
+        round: 1,
+      }),
+    );
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/seasons/${seasonId.value}/matches?page=1&limit=20`,
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect((response.json() as { message: string }).message).toBe('Error interno del servidor');
+  });
+
   it('PATCH /matches/:matchId/score devuelve 200 con admin', async () => {
     const match = Match.create({
       id: MatchId.generate(),

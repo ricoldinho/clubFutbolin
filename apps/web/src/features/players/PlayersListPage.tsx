@@ -1,7 +1,8 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { PaginationBar } from '@/app/components/PaginationBar';
+import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
 import { useVerifiedAdmin } from '@/features/auth/api/useVerifiedAdmin';
 import {
   PLAYER_CATEGORIES,
@@ -13,9 +14,38 @@ import {
 } from '@/features/players/api';
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 350;
+
+type PlayersSortMode = 'default' | 'name' | 'nickname';
+
+const nameCollator = new Intl.Collator('es', { sensitivity: 'base' });
+
+function comparePlayersByFullName(
+  a: { name: string; lastname: string },
+  b: { name: string; lastname: string },
+): number {
+  return nameCollator.compare(
+    `${a.name} ${a.lastname}`.trim(),
+    `${b.name} ${b.lastname}`.trim(),
+  );
+}
+
+function comparePlayersByNickname(
+  a: { nickname: string | null },
+  b: { nickname: string | null },
+): number {
+  if (a.nickname === null && b.nickname === null) return 0;
+  if (a.nickname === null) return 1;
+  if (b.nickname === null) return -1;
+  return nameCollator.compare(a.nickname, b.nickname);
+}
 
 export const PlayersListPage = () => {
   const [page, setPage] = useState(1);
+  const [searchText, setSearchText] = useState('');
+  const debouncedSearch = useDebouncedValue(searchText, SEARCH_DEBOUNCE_MS);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [sortMode, setSortMode] = useState<PlayersSortMode>('default');
   const [newName, setNewName] = useState('');
   const [newLastname, setNewLastname] = useState('');
   const [newNickname, setNewNickname] = useState('');
@@ -30,7 +60,7 @@ export const PlayersListPage = () => {
   const [editingNickname, setEditingNickname] = useState('');
   const [editingCategory, setEditingCategory] = useState<(typeof PLAYER_CATEGORIES)[number]>('CUARTA');
   const [editingRole, setEditingRole] = useState<(typeof PLAYER_ROLES)[number]>('USER');
-  const query = usePlayersList(page, PAGE_SIZE);
+  const query = usePlayersList(page, PAGE_SIZE, debouncedSearch);
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
@@ -38,6 +68,10 @@ export const PlayersListPage = () => {
 
   const authRequired =
     query.isError && query.error instanceof ApiError && query.error.status === 401;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const onSubmitCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,6 +86,32 @@ export const PlayersListPage = () => {
       password: newPassword,
     });
   };
+
+  const displayedPlayers = useMemo(() => {
+    if (!query.data) return [];
+    const rows = [...query.data.data];
+    if (sortMode === 'name') {
+      rows.sort(comparePlayersByFullName);
+    } else if (sortMode === 'nickname') {
+      rows.sort(comparePlayersByNickname);
+    }
+    return rows;
+  }, [query.data, sortMode]);
+
+  const cycleSortMode = () => {
+    setSortMode((prev) => {
+      if (prev === 'default') return 'name';
+      if (prev === 'name') return 'nickname';
+      return 'default';
+    });
+  };
+
+  const sortButtonLabel =
+    sortMode === 'default'
+      ? 'Ordenar (predeterminado del servidor)'
+      : sortMode === 'name'
+        ? 'Ordenar por nombre (A-Z)'
+        : 'Ordenar por alias (A-Z)';
 
   const onSubmitUpdate = (event: FormEvent<HTMLFormElement>, playerId: string) => {
     event.preventDefault();
@@ -70,20 +130,61 @@ export const PlayersListPage = () => {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">Players</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Listado paginado (requiere iniciar sesión). Pulsa un jugador para ver su perfil.
+          Listado paginado (requiere iniciar sesión). Busca por nombre o alias; pulsa un jugador para ver su perfil.
         </p>
       </header>
+
+      {!authRequired && (
+        <div className="flex max-w-md flex-col gap-1">
+          <label htmlFor="players-search" className="text-xs font-medium text-zinc-400">
+            Buscar
+          </label>
+          <input
+            id="players-search"
+            type="search"
+            enterKeyHint="search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Nombre, apellidos o alias…"
+            maxLength={100}
+            aria-label="Buscar jugadores por nombre, apellidos o alias"
+            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
+          />
+          {searchText !== debouncedSearch && (
+            <p className="text-xs text-zinc-500">Aplicando búsqueda en un momento…</p>
+          )}
+        </div>
+      )}
 
       {isVerifyingAdmin && (
         <p className="text-xs text-zinc-500">Verificando permisos de administrador...</p>
       )}
 
-      {isVerifiedAdmin && (
+      {isVerifiedAdmin && !showCreateForm && (
+        <button
+          type="button"
+          onClick={() => setShowCreateForm(true)}
+          className="self-start rounded-md border border-sky-700 bg-sky-950/40 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-950/60"
+        >
+          Crear Player
+        </button>
+      )}
+
+      {isVerifiedAdmin && showCreateForm && (
         <form
           onSubmit={onSubmitCreate}
           className="grid grid-cols-1 gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 md:grid-cols-2"
         >
-          <h2 className="md:col-span-2 text-lg font-medium text-zinc-100">Crear Player</h2>
+          <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-medium text-zinc-100">Crear Player</h2>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+            >
+              Cerrar formulario
+            </button>
+          </div>
           <input value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="Nombre" className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100" />
           <input value={newLastname} onChange={(e) => setNewLastname(e.target.value)} required placeholder="Apellidos" className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100" />
           <input value={newNickname} onChange={(e) => setNewNickname(e.target.value)} placeholder="Alias (opcional)" className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100" />
@@ -131,15 +232,29 @@ export const PlayersListPage = () => {
 
       {query.data && (
         <>
-          <p className="text-xs text-zinc-500">
-            Total: {query.data.meta.total} · Mostrando {query.data.data.length} en esta página
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <p className="text-xs text-zinc-500">
+              Total: {query.data.meta.total} · Mostrando {query.data.data.length} en esta página
+            </p>
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={cycleSortMode}
+                className="self-start rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+              >
+                {sortButtonLabel}
+              </button>
+              <p className="text-[11px] text-zinc-600">
+                Pulsa para alternar: predeterminado → nombre → alias. Solo ordena la página actual.
+              </p>
+            </div>
+          </div>
 
           {query.data.data.length === 0 ? (
             <p className="text-sm text-zinc-400">No hay jugadores registrados.</p>
           ) : (
             <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/60">
-              {query.data.data.map((player) => {
+              {displayedPlayers.map((player) => {
                 const label = [player.name, player.lastname].filter(Boolean).join(' ');
                 return (
                   <li key={player.id ?? player.email} className="px-4 py-3">

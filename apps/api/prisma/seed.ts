@@ -148,44 +148,47 @@ async function main() {
 
   // 2) Leagues (mínimo 2 para garantizar membresías del admin en ligas distintas)
   const leagues = await Promise.all(
-    [1, 2].map((leagueIdx) =>
+    [0, 1].map((leagueIdx) =>
       prisma.league.create({
         data: {
-          name: `Liga Seed ${seed} - ${leagueIdx}`,
-          leagueCategory:
-            LEAGUE_CATEGORIES[faker.number.int({ min: 0, max: LEAGUE_CATEGORIES.length - 1 })],
+          name: `Liga Seed ${seed} - ${leagueIdx + 1}`,
+          leagueCategory: LEAGUE_CATEGORIES[leagueIdx % LEAGUE_CATEGORIES.length],
         },
       }),
     ),
   );
 
-  // 3) Teams
-  const teamCount = 8;
+  // 3) Teams (30 equipos; nombres reparten categorías de liga para variedad en datos de demo)
+  const teamCount = 30;
   const teams = await Promise.all(
-    Array.from({ length: teamCount }).map((_, i) =>
-      prisma.team.create({
+    Array.from({ length: teamCount }).map((_, i) => {
+      const categoryLabel = LEAGUE_CATEGORIES[i % LEAGUE_CATEGORIES.length];
+      const slotInCategory = Math.floor(i / LEAGUE_CATEGORIES.length) + 1;
+      return prisma.team.create({
         data: {
-          name: `Equipo ${i + 1}`,
-        },
-      }),
-    ),
-  );
-
-  // 4) Seasons (2025 para las dos ligas solicitadas)
-  const seedYear = 2025;
-  const seasons = await Promise.all(
-    leagues.map((league, i) => {
-      const champion = teams[i % teams.length];
-      const second = teams[(i + 1) % teams.length];
-      return prisma.season.create({
-        data: {
-          year: seedYear,
-          leagueId: league.id,
-          championId: champion.id,
-          secondId: second.id,
+          name: `${categoryLabel} FC ${slotInCategory}`,
         },
       });
     }),
+  );
+
+  // 4) Varias temporadas por liga (mismo calendario de años para ambas)
+  const seasonYears = [2021, 2022, 2023, 2024, 2025];
+  const seasons = await Promise.all(
+    leagues.flatMap((league, leagueIndex) =>
+      seasonYears.map((year, yearIndex) => {
+        const champion = teams[(leagueIndex + yearIndex) % teams.length];
+        const second = teams[(leagueIndex + yearIndex + 1) % teams.length];
+        return prisma.season.create({
+          data: {
+            year,
+            leagueId: league.id,
+            championId: champion.id,
+            secondId: second.id,
+          },
+        });
+      }),
+    ),
   );
 
   // 5) TeamSeasons (todos los equipos en todas las temporadas)
@@ -202,8 +205,8 @@ async function main() {
     ),
   );
 
-  // 6) Players
-  const playerCount = 20;
+  // 6) Players (20 iniciales + 100 extra para escenarios con más plantilla/listados)
+  const playerCount = 120;
   const playerCategories = Object.values(PlayerCategory);
   const positions = POSITIONS;
 
@@ -326,7 +329,7 @@ async function main() {
         awayTeamSeasonId: pairing.awayTeamSeasonId,
         homeScore,
         awayScore,
-        date: buildSeedMatchDateUtc(seedYear, pairing.round, totalRounds),
+        date: buildSeedMatchDateUtc(season.year, pairing.round, totalRounds),
         round: pairing.round,
         status: MatchStatus.FINISHED,
       });

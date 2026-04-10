@@ -1,4 +1,5 @@
 import {
+  type Prisma,
   PrismaClient,
   PlayerCategory as PrismaPlayerCategory,
   PlayerRole as PrismaPlayerRole,
@@ -15,6 +16,7 @@ import { parsePlayerRole } from "@/domain/players/PlayerRole";
 import { InfrastructureError } from "@/domain/shared/errors";
 import type {
   IPlayerRepository,
+  ListPlayersFilters,
   PlayerListResult,
   PlayerLoginData,
 } from "@/application/ports/players/Player.repository";
@@ -34,6 +36,20 @@ type PrismaPlayer = {
 
 export class PrismaPlayerRepository implements IPlayerRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private static searchWhere(searchQuery?: string): Prisma.PlayerWhereInput {
+    const trimmed = searchQuery?.trim();
+    if (trimmed === undefined || trimmed.length === 0) {
+      return {};
+    }
+    return {
+      OR: [
+        { name: { contains: trimmed, mode: "insensitive" } },
+        { lastname: { contains: trimmed, mode: "insensitive" } },
+        { nickname: { contains: trimmed, mode: "insensitive" } },
+      ],
+    };
+  }
 
   private toDomain(row: PrismaPlayer): Player {
     return Player.create({
@@ -86,9 +102,17 @@ export class PrismaPlayerRepository implements IPlayerRepository {
   }
 
   async findAll(): Promise<Player[]>;
-  async findAll(pagination: PaginationParams): Promise<PlayerListResult>;
-  async findAll(pagination?: PaginationParams): Promise<Player[] | PlayerListResult> {
+  async findAll(
+    pagination: PaginationParams,
+    filters?: ListPlayersFilters,
+  ): Promise<PlayerListResult>;
+  async findAll(
+    pagination?: PaginationParams,
+    filters?: ListPlayersFilters,
+  ): Promise<Player[] | PlayerListResult> {
+    const where = PrismaPlayerRepository.searchWhere(filters?.searchQuery);
     const rows = await this.prisma.player.findMany({
+      where,
       select: {
         id: true,
         email: true,
@@ -111,7 +135,7 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     if (pagination === undefined) {
       return rows.map((row: PrismaPlayer) => this.toDomain(row));
     }
-    const total = await this.prisma.player.count();
+    const total = await this.prisma.player.count({ where });
     return {
       data: rows.map((row: PrismaPlayer) => this.toDomain(row)),
       total,

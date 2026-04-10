@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayersListPage } from './PlayersListPage';
 
 const mockUseVerifiedAdmin = vi.fn();
@@ -68,6 +68,10 @@ describe('PlayersListPage', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('oculta acciones de escritura cuando no es admin verificado', () => {
     // Arrange
     setupListMock();
@@ -108,6 +112,7 @@ describe('PlayersListPage', () => {
         <PlayersListPage />
       </MemoryRouter>,
     );
+    await user.click(screen.getByRole('button', { name: 'Crear Player' }));
     await user.type(screen.getByPlaceholderText('Nombre'), 'María');
     await user.type(screen.getByPlaceholderText('Apellidos'), 'Gómez');
     await user.type(screen.getByPlaceholderText('Email'), 'maria@example.com');
@@ -184,6 +189,36 @@ describe('PlayersListPage', () => {
     // Assert
     expect(mockDeleteMutate).toHaveBeenCalledWith('player-1');
     confirmSpy.mockRestore();
+  });
+
+  it('aplica la búsqueda al API tras el debounce', () => {
+    vi.useFakeTimers();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 't',
+      isAdminClaim: false,
+      isVerifiedAdmin: false,
+      isVerifyingAdmin: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <PlayersListPage />
+      </MemoryRouter>,
+    );
+
+    const input = screen.getByLabelText('Buscar jugadores por nombre, apellidos o alias');
+    fireEvent.change(input, { target: { value: 'ana' } });
+
+    const lastCallBefore = mockUsePlayersList.mock.calls.at(-1);
+    expect(lastCallBefore).toEqual([1, 20, '']);
+
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(mockUsePlayersList.mock.calls.at(-1)).toEqual([1, 20, 'ana']);
+    vi.useRealTimers();
   });
 
   it('no borra un player si se cancela la confirmación', async () => {
