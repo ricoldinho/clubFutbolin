@@ -25,6 +25,8 @@ describe('RootLayout', () => {
 
     // Assert
     expect(screen.getByRole('link', { name: 'Registro' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Login' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Logout' })).not.toBeInTheDocument();
   });
 
   it('oculta botón Registro cuando hay sesión iniciada', () => {
@@ -36,5 +38,7 @@ describe('RootLayout', () => {
 
     // Assert
     expect(screen.queryByRole('link', { name: 'Registro' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Login' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Logout' })).toBeInTheDocument();
   });
 });

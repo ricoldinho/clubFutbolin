@@ -177,7 +177,13 @@ export const PlayersListPage = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => deletePlayer.mutate(player.id!)}
+                            onClick={() => {
+                              const confirmed = window.confirm(
+                                'Se va a eliminar el player. Esta acción no se puede deshacer. ¿Continuar?',
+                              );
+                              if (!confirmed) return;
+                              deletePlayer.mutate(player.id!);
+                            }}
                             disabled={deletePlayer.isPending}
                             className="rounded-md border border-red-800 px-2 py-1 text-xs text-red-300 disabled:opacity-50"
                           >

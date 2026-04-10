@@ -68,17 +68,20 @@ export const RootLayout = () => {
                 Registro
               </NavLink>
             )}
-            <NavLink to="/login" className={linkClass}>
-              Login
-            </NavLink>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={!isAuthenticated}
-              className="rounded-md px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-            >
-              Logout
-            </button>
+            {!isAuthenticated && (
+              <NavLink to="/login" className={linkClass}>
+                Login
+              </NavLink>
+            )}
+            {isAuthenticated && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-md px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </header>

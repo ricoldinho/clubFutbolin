@@ -164,6 +164,7 @@ describe('PlayersListPage', () => {
   it('permite borrar un player desde el listado', async () => {
     // Arrange
     const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     setupListMock();
     mockUseVerifiedAdmin.mockReturnValue({
       token: 'token-admin',
@@ -182,5 +183,32 @@ describe('PlayersListPage', () => {
 
     // Assert
     expect(mockDeleteMutate).toHaveBeenCalledWith('player-1');
+    confirmSpy.mockRestore();
+  });
+
+  it('no borra un player si se cancela la confirmación', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <PlayersListPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Borrar' }));
+
+    // Assert
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 });
