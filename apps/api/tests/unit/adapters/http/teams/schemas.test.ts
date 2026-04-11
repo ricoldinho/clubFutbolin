@@ -10,13 +10,30 @@ import {
 
 describe('teams schemas', () => {
   describe('createTeamBodySchema', () => {
+    const p1 = '123e4567-e89b-12d3-a456-426614174000';
+    const p2 = '223e4567-e89b-12d3-a456-426614174001';
+
     it('acepta payload válido', () => {
-      const result = createTeamBodySchema.safeParse({ name: 'Equipo Alpha' });
+      const result = createTeamBodySchema.safeParse({
+        name: 'Equipo Alpha',
+        playerIds: [p1, p2],
+      });
       expect(result.success).toBe(true);
     });
 
     it('rechaza name vacío', () => {
-      const result = createTeamBodySchema.safeParse({ name: '' });
+      const result = createTeamBodySchema.safeParse({ name: '', playerIds: [p1, p2] });
+      expect(result.success).toBe(false);
+    });
+
+    it('rechaza menos de 2 playerIds', () => {
+      const result = createTeamBodySchema.safeParse({ name: 'E', playerIds: [p1] });
+      expect(result.success).toBe(false);
+    });
+
+    it('rechaza más de 4 playerIds', () => {
+      const ids = [p1, p2, p1, p2, p1];
+      const result = createTeamBodySchema.safeParse({ name: 'E', playerIds: ids });
       expect(result.success).toBe(false);
     });
   });

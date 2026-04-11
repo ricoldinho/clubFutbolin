@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { TeamsListPage } from './TeamsListPage';
 
 const mockUseVerifiedAdmin = vi.fn();
 const mockUseTeams = vi.fn();
+const mockUsePlayersList = vi.fn();
 const mockCreateMutate = vi.fn();
 const mockUpdateMutate = vi.fn();
 const mockDeleteMutate = vi.fn();
@@ -14,10 +15,15 @@ vi.mock('@/features/auth/api/useVerifiedAdmin', () => ({
   useVerifiedAdmin: () => mockUseVerifiedAdmin(),
 }));
 
+vi.mock('@/features/players/api', () => ({
+  usePlayersList: (...args: unknown[]) => mockUsePlayersList(...args),
+}));
+
 vi.mock('@/features/teams/api', () => ({
   useTeams: (...args: unknown[]) => mockUseTeams(...args),
   useCreateTeam: () => ({
     mutate: mockCreateMutate,
+    reset: vi.fn(),
     isPending: false,
     isError: false,
     error: null,
@@ -55,9 +61,40 @@ const setupListMock = (teams?: Array<{ id: string; name: string }>) => {
   });
 };
 
+const playerA = {
+  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  name: 'Ana',
+  lastname: 'García',
+  nickname: 'Ag',
+  email: 'a@test.com',
+  phoneNumber: '600',
+  birthdate: '2000-01-01',
+  category: 'PRIMERA' as const,
+  role: 'USER' as const,
+};
+
+const playerB = {
+  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  name: 'Ben',
+  lastname: 'López',
+  nickname: null,
+  email: 'b@test.com',
+  phoneNumber: '601',
+  birthdate: '2001-01-01',
+  category: 'PRIMERA' as const,
+  role: 'USER' as const,
+};
+
 describe('TeamsListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUsePlayersList.mockReturnValue({
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+      data: { data: [], meta: { total: 0, page: 1, lastPage: 0 } },
+    });
   });
 
   afterEach(() => {
@@ -118,8 +155,7 @@ describe('TeamsListPage', () => {
     expect(links()[1]).toHaveTextContent('Zamora FC');
   });
 
-  it('muestra controles de escritura para admin verificado', async () => {
-    // Arrange
+  it('abre el modal y crea equipo con al menos 2 jugadores', async () => {
     const user = userEvent.setup();
     setupListMock();
     mockUseVerifiedAdmin.mockReturnValue({
@@ -129,23 +165,72 @@ describe('TeamsListPage', () => {
       isVerifyingAdmin: false,
     });
 
-    // Act
+    mockUsePlayersList.mockImplementation((_page, _limit, q?: string) => {
+      const trimmed = q?.trim() ?? '';
+      if (trimmed === 'ana') {
+        return {
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          data: { data: [playerA], meta: { total: 1, page: 1, lastPage: 1 } },
+        };
+      }
+      if (trimmed === 'ben') {
+        return {
+          isPending: false,
+          isFetching: false,
+          isError: false,
+          error: null,
+          data: { data: [playerB], meta: { total: 1, page: 1, lastPage: 1 } },
+        };
+      }
+      return {
+        isPending: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        data: { data: [], meta: { total: 0, page: 1, lastPage: 0 } },
+      };
+    });
+
     render(
       <MemoryRouter>
         <TeamsListPage />
       </MemoryRouter>,
     );
-    await user.type(screen.getByPlaceholderText('Nombre del equipo'), 'Nuevos');
-    await user.click(screen.getByRole('button', { name: 'Crear equipo' }));
 
-    // Assert
+    await user.click(screen.getByRole('button', { name: 'Crear equipo' }));
+    const modal = screen.getByRole('dialog');
+    await user.type(screen.getByLabelText('Nombre del equipo'), 'Nuevos');
+
+    const playerSearch = screen.getByLabelText('Buscar jugador por nombre o alias');
+    await user.type(playerSearch, 'ana');
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    await user.click(within(modal).getByRole('button', { name: /Asociar a Ana García/ }));
+
+    await user.clear(playerSearch);
+    await user.type(playerSearch, 'ben');
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    await user.click(within(modal).getByRole('button', { name: /Asociar a Ben López/ }));
+
+    const submitCreate = screen.getByRole('button', { name: 'Finalizar creación' });
+    expect(submitCreate).not.toBeDisabled();
+    await user.click(submitCreate);
+
+    expect(mockCreateMutate).toHaveBeenCalledWith(
+      { name: 'Nuevos', playerIds: [playerA.id, playerB.id] },
+      expect.any(Object),
+    );
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Borrar' })).toBeInTheDocument();
-    expect(mockCreateMutate).toHaveBeenCalledWith({ name: 'Nuevos' });
   });
 
   it('oculta controles de escritura cuando no es admin', () => {
-    // Arrange
     setupListMock();
     mockUseVerifiedAdmin.mockReturnValue({
       token: null,
@@ -154,20 +239,17 @@ describe('TeamsListPage', () => {
       isVerifyingAdmin: false,
     });
 
-    // Act
     render(
       <MemoryRouter>
         <TeamsListPage />
       </MemoryRouter>,
     );
 
-    // Assert
-    expect(screen.queryByPlaceholderText('Nombre del equipo')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Crear equipo' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
   });
 
   it('permite editar un equipo desde el listado', async () => {
-    // Arrange
     const user = userEvent.setup();
     setupListMock();
     mockUseVerifiedAdmin.mockReturnValue({
@@ -177,7 +259,6 @@ describe('TeamsListPage', () => {
       isVerifyingAdmin: false,
     });
 
-    // Act
     render(
       <MemoryRouter>
         <TeamsListPage />
@@ -189,12 +270,10 @@ describe('TeamsListPage', () => {
     await user.type(nameInput, 'Atléticos B');
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    // Assert
     expect(mockUpdateMutate).toHaveBeenCalledWith({ teamId: 'team-1', name: 'Atléticos B' });
   });
 
   it('permite borrar un equipo desde el listado', async () => {
-    // Arrange
     const user = userEvent.setup();
     setupListMock();
     mockUseVerifiedAdmin.mockReturnValue({
@@ -204,7 +283,6 @@ describe('TeamsListPage', () => {
       isVerifyingAdmin: false,
     });
 
-    // Act
     render(
       <MemoryRouter>
         <TeamsListPage />
@@ -212,7 +290,6 @@ describe('TeamsListPage', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Borrar' }));
 
-    // Assert
     expect(mockDeleteMutate).toHaveBeenCalledWith('team-1');
   });
 });

@@ -5,7 +5,7 @@ import { InMemoryRosterRepository } from '../../../../doubles/InMemoryRosterRepo
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
 import { InMemorySeasonRepository } from '../../../../doubles/InMemorySeasonRepository';
 import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepository';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
+import { saveTeamInMemory } from '../../../../doubles/saveTeamInMemory';
 import { CreateSeason } from '@/application/use-cases/seasons/CreateSeason.use-case';
 import { RegisterTeamToSeason } from '@/application/use-cases/rosters/RegisterTeamToSeason.use-case';
 import { League } from '@/domain/leagues/League.entity';
@@ -25,8 +25,7 @@ describe('RemovePlayerFromRoster', () => {
     const seasonRepo = new InMemorySeasonRepository();
     const rosterRepo = new InMemoryRosterRepository();
 
-    const teamResult = await new CreateTeam(teamRepo).execute({ name: 'Equipo D' });
-    if (!isOk(teamResult)) throw new Error('Expected team create');
+    const team = await saveTeamInMemory(teamRepo, 'Equipo D');
     const seasonResult = await new CreateSeason(seasonRepo, leagueRepo).execute({
       year: 2025,
       leagueId,
@@ -36,7 +35,7 @@ describe('RemovePlayerFromRoster', () => {
       rosterRepo,
       teamRepo,
       seasonRepo,
-    ).execute({ teamId: teamResult.value.id!, seasonId: seasonResult.value.id! });
+    ).execute({ teamId: team.id!, seasonId: seasonResult.value.id! });
     if (!isOk(regResult)) throw new Error('Expected register');
     const teamSeasonId = regResult.value.teamSeasonId;
     const playerId = PlayerId.generate();
@@ -87,8 +86,7 @@ describe('RemovePlayerFromRoster', () => {
     const seasonRepo = new InMemorySeasonRepository();
     const rosterRepo = new InMemoryRosterRepository();
 
-    const teamResult = await new CreateTeam(teamRepo).execute({ name: 'Equipo E' });
-    if (!isOk(teamResult)) throw new Error('Expected team create');
+    const team = await saveTeamInMemory(teamRepo, 'Equipo E');
     const seasonResult = await new CreateSeason(seasonRepo, leagueRepo).execute({
       year: 2025,
       leagueId,
@@ -98,7 +96,7 @@ describe('RemovePlayerFromRoster', () => {
       rosterRepo,
       teamRepo,
       seasonRepo,
-    ).execute({ teamId: teamResult.value.id!, seasonId: seasonResult.value.id! });
+    ).execute({ teamId: team.id!, seasonId: seasonResult.value.id! });
     if (!isOk(regResult)) throw new Error('Expected register');
     const teamSeasonId = regResult.value.teamSeasonId;
     const playerInRoster = PlayerId.generate();

@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { GetTeamByName } from '@/application/use-cases/teams/GetTeamByName.use-case';
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
+import { saveTeamInMemory } from '../../../../doubles/saveTeamInMemory';
 import { isOk } from '@/shared/result';
 
 describe('GetTeamByName', () => {
   it('devuelve el equipo cuando existe', async () => {
     const repo = new InMemoryTeamRepository();
-    const createResult = await new CreateTeam(repo).execute({ name: 'Equipo Alpha' });
-    if (!isOk(createResult)) throw new Error('Expected team create');
+    await saveTeamInMemory(repo, 'Equipo Alpha');
     const getTeam = new GetTeamByName(repo);
     const result = await getTeam.execute('Equipo Alpha');
     expect(isOk(result)).toBe(true);

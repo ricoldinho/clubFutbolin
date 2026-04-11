@@ -4,7 +4,7 @@ import { InMemorySeasonRepository } from '../../../../doubles/InMemorySeasonRepo
 import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepository';
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
 import { CreateSeason } from '@/application/use-cases/seasons/CreateSeason.use-case';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
+import { saveTeamInMemory } from '../../../../doubles/saveTeamInMemory';
 import { League } from '@/domain/leagues/League.entity';
 import { LeagueId } from '@/domain/leagues/LeagueId.value-object';
 import { SeasonId } from '@/domain/seasons/SeasonId.value-object';
@@ -23,36 +23,34 @@ describe('SetSeasonWinners', () => {
     const createSeason = new CreateSeason(seasonRepo, leagueRepo);
     const createResult = await createSeason.execute({ year: 2025, leagueId });
     if (!isOk(createResult)) throw new Error('Expected season create');
-    const team1Result = await new CreateTeam(teamRepo).execute({ name: 'Campeón' });
-    const team2Result = await new CreateTeam(teamRepo).execute({ name: 'Subcampeón' });
-    if (!isOk(team1Result) || !isOk(team2Result)) throw new Error('Expected team create');
+    const t1 = await saveTeamInMemory(teamRepo, 'Campeón');
+    const t2 = await saveTeamInMemory(teamRepo, 'Subcampeón');
 
     const setWinners = new SetSeasonWinners(seasonRepo, teamRepo);
     const result = await setWinners.execute({
       seasonId: createResult.value.id!,
-      championId: team1Result.value.id!,
-      secondId: team2Result.value.id!,
+      championId: t1.id!,
+      secondId: t2.id!,
     });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.championId?.value).toBe(team1Result.value.id!.value);
-    expect(result.value.secondId?.value).toBe(team2Result.value.id!.value);
+    expect(result.value.championId?.value).toBe(t1.id!.value);
+    expect(result.value.secondId?.value).toBe(t2.id!.value);
   });
 
   it('falla con NotFound cuando la temporada no existe', async () => {
     const seasonRepo = new InMemorySeasonRepository();
     const teamRepo = new InMemoryTeamRepository();
-    const team1Result = await new CreateTeam(teamRepo).execute({ name: 'T1' });
-    const team2Result = await new CreateTeam(teamRepo).execute({ name: 'T2' });
-    if (!isOk(team1Result) || !isOk(team2Result)) throw new Error('Expected team create');
+    const t1 = await saveTeamInMemory(teamRepo, 'T1');
+    const t2 = await saveTeamInMemory(teamRepo, 'T2');
     const seasonId = SeasonId.generate();
 
     const setWinners = new SetSeasonWinners(seasonRepo, teamRepo);
     const result = await setWinners.execute({
       seasonId,
-      championId: team1Result.value.id!,
-      secondId: team2Result.value.id!,
+      championId: t1.id!,
+      secondId: t2.id!,
     });
 
     expect(result.ok).toBe(false);
@@ -71,15 +69,14 @@ describe('SetSeasonWinners', () => {
     const createSeason = new CreateSeason(seasonRepo, leagueRepo);
     const createResult = await createSeason.execute({ year: 2025, leagueId });
     if (!isOk(createResult)) throw new Error('Expected season create');
-    const team2Result = await new CreateTeam(teamRepo).execute({ name: 'Sub' });
-    if (!isOk(team2Result)) throw new Error('Expected team create');
+    const t2 = await saveTeamInMemory(teamRepo, 'Sub');
     const fakeChampionId = TeamId.generate();
 
     const setWinners = new SetSeasonWinners(seasonRepo, teamRepo);
     const result = await setWinners.execute({
       seasonId: createResult.value.id!,
       championId: fakeChampionId,
-      secondId: team2Result.value.id!,
+      secondId: t2.id!,
     });
 
     expect(result.ok).toBe(false);
@@ -98,14 +95,13 @@ describe('SetSeasonWinners', () => {
     const createSeason = new CreateSeason(seasonRepo, leagueRepo);
     const createResult = await createSeason.execute({ year: 2025, leagueId });
     if (!isOk(createResult)) throw new Error('Expected season create');
-    const teamResult = await new CreateTeam(teamRepo).execute({ name: 'Mismo' });
-    if (!isOk(teamResult)) throw new Error('Expected team create');
+    const team = await saveTeamInMemory(teamRepo, 'Mismo');
 
     const setWinners = new SetSeasonWinners(seasonRepo, teamRepo);
     const result = await setWinners.execute({
       seasonId: createResult.value.id!,
-      championId: teamResult.value.id!,
-      secondId: teamResult.value.id!,
+      championId: team.id!,
+      secondId: team.id!,
     });
 
     expect(result.ok).toBe(false);

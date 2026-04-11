@@ -41,6 +41,11 @@ export const teamProfileResponseSchema = z.object({
 
 export const createTeamBodySchema = z.object({
   name: z.string().min(1),
+  /** Mínimo 2 jugadores distintos; máximo 4 (tamaño de plantilla). */
+  playerIds: z
+    .array(z.string().uuid())
+    .min(2, 'Se requieren al menos 2 jugadores')
+    .max(4, 'Como máximo 4 jugadores en la plantilla inicial'),
 });
 
 export type CreateTeamBody = z.infer<typeof createTeamBodySchema>;

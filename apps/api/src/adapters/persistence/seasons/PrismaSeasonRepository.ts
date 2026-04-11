@@ -33,6 +33,14 @@ export class PrismaSeasonRepository implements ISeasonRepository {
     return row ? this.toDomain(row) : null;
   }
 
+  async findLatestByYear(): Promise<Season | null> {
+    const row = await this.prisma.season.findFirst({
+      select: { id: true, year: true, leagueId: true, championId: true, secondId: true },
+      orderBy: [{ year: 'desc' }, { id: 'asc' }],
+    });
+    return row ? this.toDomain(row) : null;
+  }
+
   async findAll(): Promise<Season[]>;
   async findAll(pagination: PaginationParams): Promise<SeasonListResult>;
   async findAll(pagination?: PaginationParams): Promise<Season[] | SeasonListResult> {

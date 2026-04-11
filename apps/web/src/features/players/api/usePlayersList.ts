@@ -16,7 +16,12 @@ function listQuery(page: number, limit: number, q?: string): string {
   return `/players?${params}`;
 }
 
-export const usePlayersList = (page: number, limit: number, q?: string) =>
+export const usePlayersList = (
+  page: number,
+  limit: number,
+  q?: string,
+  options?: { enabled?: boolean },
+) =>
   useQuery({
     queryKey: queryKeys.players.list({
       page,
@@ -24,4 +29,5 @@ export const usePlayersList = (page: number, limit: number, q?: string) =>
       q: q?.trim() ? q.trim() : undefined,
     }),
     queryFn: () => apiJson<PaginatedResponse<PlayerDto>>(listQuery(page, limit, q)),
+    enabled: options?.enabled !== false,
   });

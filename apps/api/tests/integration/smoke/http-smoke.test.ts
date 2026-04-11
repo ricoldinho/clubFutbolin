@@ -132,28 +132,8 @@ describe('HTTP smoke (integración)', () => {
     expect(createSeasonRes.statusCode).toBe(201);
     const createdSeason = createSeasonRes.json() as { id: string };
 
-    // 6) Crear equipo (ADMIN)
-    const createTeamRes = await server.inject({
-      method: 'POST',
-      url: '/teams',
-      headers: authHeaders,
-      payload: { name: 'Equipo Smoke' },
-    });
-    expect(createTeamRes.statusCode).toBe(201);
-    const createdTeam = createTeamRes.json() as { id: string };
-
-    // 7) Inscribir equipo en temporada (ADMIN)
-    const registerRosterRes = await server.inject({
-      method: 'POST',
-      url: '/rosters/register',
-      headers: authHeaders,
-      payload: { teamId: createdTeam.id, seasonId: createdSeason.id },
-    });
-    expect(registerRosterRes.statusCode).toBe(201);
-    const registeredRoster = registerRosterRes.json() as { teamSeasonId: string };
-
-    // 8) Crear player normal (público)
-    const createPlayerRes = await server.inject({
+    // 6) Crear dos jugadores (público) — hacen falta para crear equipo con plantilla
+    const createPlayer1Res = await server.inject({
       method: 'POST',
       url: '/players',
       payload: {
@@ -167,21 +147,41 @@ describe('HTTP smoke (integración)', () => {
         password: 'user123456',
       },
     });
-    expect(createPlayerRes.statusCode).toBe(201);
-    const createdPlayer = createPlayerRes.json() as { id: string };
+    expect(createPlayer1Res.statusCode).toBe(201);
+    const createdPlayer1 = createPlayer1Res.json() as { id: string };
 
-    // 9) Añadir jugador al roster (ADMIN)
-    const addPlayerRes = await server.inject({
+    const createPlayer2Res = await server.inject({
       method: 'POST',
-      url: `/rosters/${registeredRoster.teamSeasonId}/players`,
-      headers: authHeaders,
-      payload: { playerId: createdPlayer.id, position: 'PORTERO' },
+      url: '/players',
+      payload: {
+        name: 'Jugador Smoke',
+        lastname: 'Dos',
+        nickname: null,
+        email: 'player-smoke-dos@example.com',
+        phoneNumber: '612345680',
+        birthdate: '1996-06-16',
+        category: 'CUARTA',
+        password: 'user123456',
+      },
     });
-    expect(addPlayerRes.statusCode).toBe(200);
-    const addPlayerBody = addPlayerRes.json() as { membersCount: number };
-    expect(addPlayerBody.membersCount).toBe(1);
+    expect(createPlayer2Res.statusCode).toBe(201);
+    const createdPlayer2 = createPlayer2Res.json() as { id: string };
 
-    // 10) Listado paginado (ADMIN token): GET /players
+    // 7) Crear equipo con plantilla en la temporada más reciente (2027) — ADMIN
+    const createTeamRes = await server.inject({
+      method: 'POST',
+      url: '/teams',
+      headers: authHeaders,
+      payload: {
+        name: 'Equipo Smoke',
+        playerIds: [createdPlayer1.id, createdPlayer2.id],
+      },
+    });
+    expect(createTeamRes.statusCode).toBe(201);
+    const createTeamBody = createTeamRes.json() as { id: string; name: string };
+    expect(createTeamBody.name).toBe('Equipo Smoke');
+
+    // 8) Listado paginado (ADMIN token): GET /players
     const listPlayersRes = await server.inject({
       method: 'GET',
       url: '/players?page=1&limit=20',
@@ -192,8 +192,9 @@ describe('HTTP smoke (integración)', () => {
       data: Array<{ id: string | null; email: string; role: string }>;
       meta: { total: number; page: number; lastPage: number };
     };
-    expect(listPlayersBody.meta).toMatchObject({ page: 1, lastPage: 1, total: 2 });
+    expect(listPlayersBody.meta).toMatchObject({ page: 1, lastPage: 1, total: 3 });
     expect(listPlayersBody.data.some((p) => p.email === 'player-smoke-uno@example.com')).toBe(true);
+    expect(listPlayersBody.data.some((p) => p.email === 'player-smoke-dos@example.com')).toBe(true);
   });
 
   it('OpenAPI: /documentation/json incluye listados paginados', async () => {

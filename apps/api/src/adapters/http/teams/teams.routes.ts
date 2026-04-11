@@ -61,10 +61,7 @@ export async function teamsRoutes(
   const zodServer = server.withTypeProvider<ZodTypeProvider>();
   const requireAdmin = createRequireAdmin(options.jwtService ?? server.container.cradle.jwtService);
   const resolveCreateTeam = (request: FastifyRequest): CreateTeam =>
-    options.createTeam ??
-    (options.repository
-      ? new CreateTeam(options.repository)
-      : request.container.cradle.createTeam);
+    options.createTeam ?? request.container.cradle.createTeam;
 
   const resolveUpdateTeam = (request: FastifyRequest): UpdateTeam =>
     options.updateTeam ??
@@ -93,6 +90,16 @@ export async function teamsRoutes(
   const resolveRosterRepository = (request: FastifyRequest): IRosterRepository =>
     options.rosterRepository ?? request.container.cradle.rosterRepository;
 
+  /**
+   * POST /teams
+   *
+   * Crea un equipo e inscribe la plantilla inicial (2–4 jugadores) en la temporada
+   * con el año más alto registrado en el sistema.
+   * - 201: Equipo creado
+   * - 400: Validación (p. ej. menos de 2 jugadores) o aún no hay temporadas
+   * - 404: Algún `playerId` no existe
+   * - 409: Nombre de equipo duplicado
+   */
   zodServer.post(
     '/teams',
     {
@@ -104,6 +111,7 @@ export async function teamsRoutes(
           400: httpErrorResponseSchema,
           401: httpErrorResponseSchema,
           403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
           409: httpErrorResponseSchema,
           500: httpErrorResponseSchema,
         },
@@ -116,18 +124,18 @@ export async function teamsRoutes(
       try {
         const createTeam = resolveCreateTeam(request);
         const body = request.body as CreateTeamBody;
-        const result = await createTeam.execute({ name: body.name });
+        const result = await createTeam.execute({ name: body.name, playerIds: body.playerIds });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
           return reply
-            .code(statusCode as 400 | 401 | 403 | 409 | 500)
+            .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
             .send({ message });
         }
         return reply.code(201).send(toTeamResponse(result.value));
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
         return reply
-          .code(statusCode as 400 | 401 | 403 | 409 | 500)
+          .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
           .send({ message });
       }
     },

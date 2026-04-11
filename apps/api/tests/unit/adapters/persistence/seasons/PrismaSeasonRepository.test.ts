@@ -25,6 +25,7 @@ function makeRow(overrides: Partial<{
 describe('PrismaSeasonRepository', () => {
   const mockFindUnique = vi.fn();
   const mockFindMany = vi.fn();
+  const mockFindFirst = vi.fn();
   const mockUpsert = vi.fn();
   const mockDeleteMany = vi.fn();
 
@@ -32,6 +33,7 @@ describe('PrismaSeasonRepository', () => {
     season: {
       findUnique: mockFindUnique,
       findMany: mockFindMany,
+      findFirst: mockFindFirst,
       upsert: mockUpsert,
       deleteMany: mockDeleteMany,
     },
@@ -56,6 +58,24 @@ describe('PrismaSeasonRepository', () => {
     const result = await repository.findById(SeasonId.fromString(row.id));
     expect(result).not.toBeNull();
     expect(result?.year).toBe(2025);
+  });
+
+  it('findLatestByYear usa findFirst ordenado por año desc e id asc', async () => {
+    const row = makeRow({ year: 2030 });
+    mockFindFirst.mockResolvedValue(row);
+    const result = await repository.findLatestByYear();
+    expect(mockFindFirst).toHaveBeenCalledWith({
+      select: { id: true, year: true, leagueId: true, championId: true, secondId: true },
+      orderBy: [{ year: 'desc' }, { id: 'asc' }],
+    });
+    expect(result).not.toBeNull();
+    expect(result?.year).toBe(2030);
+  });
+
+  it('findLatestByYear devuelve null si no hay temporadas', async () => {
+    mockFindFirst.mockResolvedValue(null);
+    const result = await repository.findLatestByYear();
+    expect(result).toBeNull();
   });
 
   it('findAll devuelve lista', async () => {

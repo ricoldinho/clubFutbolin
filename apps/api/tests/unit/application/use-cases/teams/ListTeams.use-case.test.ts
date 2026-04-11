@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ListTeams } from '@/application/use-cases/teams/ListTeams.use-case';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
+import { saveTeamInMemory } from '../../../../doubles/saveTeamInMemory';
 import { isOk } from '@/shared/result';
 
 describe('ListTeams', () => {
@@ -19,10 +19,8 @@ describe('ListTeams', () => {
 
   it('devuelve Result.ok con todos los equipos guardados', async () => {
     const repository = new InMemoryTeamRepository();
-    const createTeam = new CreateTeam(repository);
-    const r1 = await createTeam.execute({ name: 'Equipo Uno' });
-    const r2 = await createTeam.execute({ name: 'Equipo Dos' });
-    if (!isOk(r1) || !isOk(r2)) throw new Error('Expected team create');
+    await saveTeamInMemory(repository, 'Equipo Uno');
+    await saveTeamInMemory(repository, 'Equipo Dos');
     const listTeams = new ListTeams(repository);
 
     const result = await listTeams.execute({ pagination: { page: 1, limit: 20 } });
@@ -37,9 +35,8 @@ describe('ListTeams', () => {
 
   it('con searchQuery solo devuelve equipos cuyo nombre coincide', async () => {
     const repository = new InMemoryTeamRepository();
-    const createTeam = new CreateTeam(repository);
-    await createTeam.execute({ name: 'Atlético Norte' });
-    await createTeam.execute({ name: 'Betis Sur' });
+    await saveTeamInMemory(repository, 'Atlético Norte');
+    await saveTeamInMemory(repository, 'Betis Sur');
     const listTeams = new ListTeams(repository);
 
     const result = await listTeams.execute({

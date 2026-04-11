@@ -29,6 +29,8 @@ export interface TeamListItemDto {
 
 export interface CreateTeamInput {
   name: string;
+  /** Mínimo 2 ids distintos; máximo 4 (plantilla). */
+  playerIds: string[];
 }
 
 export interface UpdateTeamInput {

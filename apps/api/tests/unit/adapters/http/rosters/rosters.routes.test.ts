@@ -13,9 +13,9 @@ import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepo
 import { League } from '@/domain/leagues/League.entity';
 import { LeagueId } from '@/domain/leagues/LeagueId.value-object';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
 import { CreateSeason } from '@/application/use-cases/seasons/CreateSeason.use-case';
 import { RegisterTeamToSeason } from '@/application/use-cases/rosters/RegisterTeamToSeason.use-case';
+import { saveTeamInMemory } from '../../../../doubles/saveTeamInMemory';
 import { isOk } from '@/shared/result';
 
 const TEST_JWT_SECRET = 'test-secret';
@@ -54,9 +54,8 @@ describe('rosters routes', () => {
     await built.leagueRepo.save(
       League.create({ id: leagueId, name: 'Liga R', leagueCategory: 'ELITE' }),
     );
-    const teamResult = await new CreateTeam(built.teamRepo).execute({ name: 'Equipo R' });
-    if (!isOk(teamResult)) throw new Error('Expected team create');
-    teamId = teamResult.value.id!.value;
+    const team = await saveTeamInMemory(built.teamRepo, 'Equipo R');
+    teamId = team.id!.value;
     const seasonResult = await new CreateSeason(built.seasonRepo, built.leagueRepo).execute({
       year: 2026,
       leagueId,
@@ -67,7 +66,7 @@ describe('rosters routes', () => {
       built.rosterRepo,
       built.teamRepo,
       built.seasonRepo,
-    ).execute({ teamId: teamResult.value.id!, seasonId: seasonResult.value.id! });
+    ).execute({ teamId: team.id!, seasonId: seasonResult.value.id! });
     if (!isOk(regResult)) throw new Error('Expected register');
     teamSeasonId = regResult.value.teamSeasonId.value;
     await server.ready();
@@ -117,9 +116,7 @@ describe('rosters routes', () => {
     await built.leagueRepo.save(
       League.create({ id: newLeagueId, name: 'Liga 2027', leagueCategory: 'ELITE' }),
     );
-    const createTeam = new CreateTeam(built.teamRepo);
-    const teamRes = await createTeam.execute({ name: 'Nuevo Equipo Reg' });
-    if (!isOk(teamRes)) throw new Error('Expected team');
+    const teamRes = await saveTeamInMemory(built.teamRepo, 'Nuevo Equipo Reg');
     const createSeason = new CreateSeason(built.seasonRepo, built.leagueRepo);
     const seasonRes = await createSeason.execute({ year: 2027, leagueId: newLeagueId });
     if (!isOk(seasonRes)) throw new Error('Expected season');
@@ -128,14 +125,14 @@ describe('rosters routes', () => {
       url: '/rosters/register',
       headers: { Authorization: `Bearer ${token}` },
       payload: {
-        teamId: teamRes.value.id!.value,
+        teamId: teamRes.id!.value,
         seasonId: seasonRes.value.id!.value,
       },
     });
     expect(response.statusCode).toBe(201);
     const body = response.json() as { teamSeasonId: string; teamId: string; seasonId: string; membersCount: number };
     expect(body.teamSeasonId).toBeDefined();
-    expect(body.teamId).toBe(teamRes.value.id!.value);
+    expect(body.teamId).toBe(teamRes.id!.value);
     expect(body.membersCount).toBe(0);
   });
 

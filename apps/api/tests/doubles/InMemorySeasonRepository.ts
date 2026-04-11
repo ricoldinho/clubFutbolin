@@ -11,6 +11,15 @@ export class InMemorySeasonRepository implements ISeasonRepository {
     return this.seasons.find((s) => s.id?.equals(id)) ?? null;
   }
 
+  async findLatestByYear(): Promise<Season | null> {
+    if (this.seasons.length === 0) return null;
+    const maxYear = Math.max(...this.seasons.map((s) => s.year));
+    const candidates = this.seasons.filter((s) => s.year === maxYear && s.id !== undefined);
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.id!.value.localeCompare(b.id!.value));
+    return candidates[0] ?? null;
+  }
+
   async findAll(): Promise<Season[]>;
   async findAll(pagination: PaginationParams): Promise<{ data: Season[]; total: number }>;
   async findAll(pagination?: PaginationParams): Promise<Season[] | { data: Season[]; total: number }> {

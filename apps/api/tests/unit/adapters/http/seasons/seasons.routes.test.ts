@@ -13,7 +13,7 @@ import { League } from '@/domain/leagues/League.entity';
 import { LeagueId } from '@/domain/leagues/LeagueId.value-object';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
 import { CreateSeason } from '@/application/use-cases/seasons/CreateSeason.use-case';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
+import { saveTeamInMemory } from '../../../../doubles/saveTeamInMemory';
 
 const TEST_JWT_SECRET = 'test-secret';
 const TEST_JWT_EXPIRES = '1h';
@@ -125,24 +125,22 @@ describe('seasons routes', () => {
     const createSeason = new CreateSeason(built.seasonRepo, built.leagueRepo);
     const seasonRes = await createSeason.execute({ year: 2025, leagueId: newLeagueId });
     if (!seasonRes.ok) throw new Error('Expected season create');
-    const createTeam = new CreateTeam(built.teamRepo);
-    const team1Res = await createTeam.execute({ name: 'Campeón' });
-    const team2Res = await createTeam.execute({ name: 'Subcampeón' });
-    if (!team1Res.ok || !team2Res.ok) throw new Error('Expected team create');
+    const team1 = await saveTeamInMemory(built.teamRepo, 'Campeón');
+    const team2 = await saveTeamInMemory(built.teamRepo, 'Subcampeón');
     const headers = await adminHeaders(built.jwtService);
     const response = await built.app.inject({
       method: 'PATCH',
       url: `/seasons/${seasonRes.value.id!.value}/winners`,
       headers,
       payload: {
-        championId: team1Res.value.id!.value,
-        secondId: team2Res.value.id!.value,
+        championId: team1.id!.value,
+        secondId: team2.id!.value,
       },
     });
     expect(response.statusCode).toBe(200);
     const body = response.json() as { championId: string; secondId: string };
-    expect(body.championId).toBe(team1Res.value.id!.value);
-    expect(body.secondId).toBe(team2Res.value.id!.value);
+    expect(body.championId).toBe(team1.id!.value);
+    expect(body.secondId).toBe(team2.id!.value);
   });
 
   it('PATCH /seasons/:seasonId/winners devuelve 401 sin token', async () => {
@@ -160,18 +158,16 @@ describe('seasons routes', () => {
   it('PATCH /seasons/:seasonId/winners devuelve 404 cuando temporada no existe', async () => {
     const built = buildServer();
     await built.app.ready();
-    const createTeam = new CreateTeam(built.teamRepo);
-    const t1 = await createTeam.execute({ name: 'T1' });
-    const t2 = await createTeam.execute({ name: 'T2' });
-    if (!t1.ok || !t2.ok) throw new Error('Expected teams');
+    const t1 = await saveTeamInMemory(built.teamRepo, 'T1');
+    const t2 = await saveTeamInMemory(built.teamRepo, 'T2');
     const headers = await adminHeaders(built.jwtService);
     const response = await built.app.inject({
       method: 'PATCH',
       url: '/seasons/123e4567-e89b-12d3-a456-426614174000/winners',
       headers,
       payload: {
-        championId: t1.value.id!.value,
-        secondId: t2.value.id!.value,
+        championId: t1.id!.value,
+        secondId: t2.id!.value,
       },
     });
     expect(response.statusCode).toBe(404);
@@ -217,17 +213,15 @@ describe('seasons routes', () => {
     const createSeason = new CreateSeason(built.seasonRepo, built.leagueRepo);
     const seasonRes = await createSeason.execute({ year: 2026, leagueId: newLeagueId });
     if (!seasonRes.ok) throw new Error('Expected season');
-    const createTeam = new CreateTeam(built.teamRepo);
-    const teamRes = await createTeam.execute({ name: 'Solo Uno' });
-    if (!teamRes.ok) throw new Error('Expected team');
+    const solo = await saveTeamInMemory(built.teamRepo, 'Solo Uno');
     const headers = await adminHeaders(built.jwtService);
     const response = await built.app.inject({
       method: 'PATCH',
       url: `/seasons/${seasonRes.value.id!.value}/winners`,
       headers,
       payload: {
-        championId: teamRes.value.id!.value,
-        secondId: teamRes.value.id!.value,
+        championId: solo.id!.value,
+        secondId: solo.id!.value,
       },
     });
     expect(response.statusCode).toBe(400);

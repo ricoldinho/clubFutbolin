@@ -10,6 +10,13 @@ export interface SeasonListResult {
 
 export interface ISeasonRepository {
   findById(id: SeasonId): Promise<Season | null>;
+
+  /**
+   * Temporada con año más alto; si hay empate, la de menor id (UUID lexicográfico).
+   * Sirve para inscribir equipos nuevos con plantilla inicial sin exigir seasonId en el cliente.
+   */
+  findLatestByYear(): Promise<Season | null>;
+
   findAll(): Promise<Season[]>;
   findAll(pagination: PaginationParams): Promise<SeasonListResult>;
   findByLeagueId(leagueId: LeagueId): Promise<Season[]>;
