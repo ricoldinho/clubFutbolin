@@ -10,10 +10,13 @@ export const useGenerateSeasonCalendar = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ seasonId, startDate }: GenerateSeasonCalendarInput) =>
+    mutationFn: ({ seasonId, startDate, doubleRoundRobin }: GenerateSeasonCalendarInput) =>
       apiJson<GenerateSeasonCalendarResponseDto>(`/seasons/${seasonId}/calendar/generate`, {
         method: 'POST',
-        body: startDate ? { startDate } : undefined,
+        body: {
+          ...(startDate ? { startDate } : {}),
+          ...(doubleRoundRobin !== undefined ? { doubleRoundRobin } : {}),
+        },
       }),
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({

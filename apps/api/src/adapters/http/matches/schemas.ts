@@ -12,6 +12,7 @@ export const generateSeasonCalendarParamsSchema = z.object({
 export const generateSeasonCalendarBodySchema = z
   .object({
     startDate: z.iso.datetime().optional(),
+    doubleRoundRobin: z.boolean().optional(),
   })
   .optional();
 
@@ -67,6 +68,19 @@ export const generateSeasonCalendarResponseSchema = z.object({
 
 export const updateMatchScoreResponseSchema = z.object({
   matchId: z.string().uuid(),
+});
+
+export const updateSeasonRoundDateParamsSchema = z.object({
+  seasonId: z.string().uuid(),
+  round: z.coerce.number().int().positive(),
+});
+
+export const updateSeasonRoundDateBodySchema = z.object({
+  date: z.iso.datetime(),
+});
+
+export const updateSeasonRoundDateResponseSchema = z.object({
+  updatedMatches: z.number().int().nonnegative(),
 });
 
 export const updateMatchStatusBodySchema = z.object({

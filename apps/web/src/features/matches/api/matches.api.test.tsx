@@ -8,6 +8,7 @@ import { useMatchById } from './useMatchById';
 import { useSeasonMatches } from './useSeasonMatches';
 import { useUpdateMatchScore } from './useUpdateMatchScore';
 import { useUpdateMatchStatus } from './useUpdateMatchStatus';
+import { useUpdateSeasonRoundDate } from './useUpdateSeasonRoundDate';
 
 vi.mock('@/api/client', async () => {
   const actual = await vi.importActual<typeof import('@/api/client')>('@/api/client');
@@ -77,10 +78,21 @@ describe('matches api hooks', () => {
     // Act
     const { result } = renderHook(() => useGenerateSeasonCalendar(), { wrapper });
     await act(async () => {
-      await result.current.mutateAsync({ seasonId: 'season-1' });
+      await result.current.mutateAsync({
+        seasonId: 'season-1',
+        startDate: '2026-01-06T12:00:00.000Z',
+        doubleRoundRobin: true,
+      });
     });
 
     // Assert
+    expect(mockedApiJson).toHaveBeenCalledWith('/seasons/season-1/calendar/generate', {
+      method: 'POST',
+      body: {
+        startDate: '2026-01-06T12:00:00.000Z',
+        doubleRoundRobin: true,
+      },
+    });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queryKeys.matches.season('season-1'),
     });
@@ -125,6 +137,34 @@ describe('matches api hooks', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.matches.all });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queryKeys.matches.detail('match-1'),
+    });
+  });
+
+  it('useUpdateSeasonRoundDate invalida listado de season', async () => {
+    // Arrange
+    const mockedApiJson = vi.mocked(apiJson);
+    mockedApiJson.mockResolvedValueOnce({ updatedMatches: 4 });
+    const client = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    const wrapper = createQueryClientWrapper(client);
+
+    // Act
+    const { result } = renderHook(() => useUpdateSeasonRoundDate(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({
+        seasonId: 'season-1',
+        round: 2,
+        date: '2026-01-13T12:00:00.000Z',
+      });
+    });
+
+    // Assert
+    expect(mockedApiJson).toHaveBeenCalledWith('/seasons/season-1/rounds/2/date', {
+      method: 'PATCH',
+      body: { date: '2026-01-13T12:00:00.000Z' },
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.matches.season('season-1'),
     });
   });
 });

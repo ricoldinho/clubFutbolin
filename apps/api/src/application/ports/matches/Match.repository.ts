@@ -44,4 +44,9 @@ export interface IMatchRepository {
    * Persiste una colección de partidos en lote.
    */
   saveMany(matches: readonly Match[]): Promise<void>;
+  /**
+   * Actualiza la fecha de todos los partidos de una jornada concreta de la season.
+   * Devuelve cuántos partidos fueron actualizados.
+   */
+  updateRoundDate(seasonId: SeasonId, round: number, date: Date): Promise<number>;
 }

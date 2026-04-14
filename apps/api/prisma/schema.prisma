@@ -90,6 +90,7 @@ model Team {
 
 model Season {
   id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String?
   year       Int
   leagueId   String  @db.Uuid
   championId String? @db.Uuid

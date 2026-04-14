@@ -3,7 +3,7 @@ import type {
   MatchListFilters,
   MatchListResult,
 } from '@/application/ports/matches/Match.repository';
-import type { Match } from '@/domain/matches/Match.entity';
+import { Match } from '@/domain/matches/Match.entity';
 import type { MatchId } from '@/domain/matches/MatchId.value-object';
 import type { SeasonId } from '@/domain/seasons/SeasonId.value-object';
 
@@ -57,5 +57,27 @@ export class InMemoryMatchRepository implements IMatchRepository {
     for (const match of matches) {
       await this.save(match);
     }
+  }
+
+  async updateRoundDate(seasonId: SeasonId, round: number, date: Date): Promise<number> {
+    let updatedCount = 0;
+    for (let i = 0; i < this.matches.length; i += 1) {
+      const current = this.matches[i]!;
+      if (!current.seasonId.equals(seasonId) || current.round !== round) {
+        continue;
+      }
+      this.matches[i] = Match.create({
+        id: current.id!,
+        seasonId: current.seasonId,
+        homeTeamSeasonId: current.homeTeamSeasonId,
+        awayTeamSeasonId: current.awayTeamSeasonId,
+        score: current.score,
+        date,
+        round: current.round,
+        status: current.status,
+      });
+      updatedCount += 1;
+    }
+    return updatedCount;
   }
 }

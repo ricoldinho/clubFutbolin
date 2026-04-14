@@ -487,7 +487,7 @@ export async function playersRoutes(
             );
           }
           return reply
-            .code(statusCode as 200 | 400 | 401 | 403 | 404 | 409 | 500)
+            .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
             .send({ message });
         }
 
@@ -506,7 +506,7 @@ export async function playersRoutes(
           );
         }
         return reply
-          .code(statusCode as 200 | 400 | 401 | 403 | 404 | 409 | 500)
+          .code(statusCode as 400 | 401 | 403 | 404 | 409 | 500)
           .send({ message });
       }
     },

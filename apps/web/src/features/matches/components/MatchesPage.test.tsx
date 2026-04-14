@@ -10,6 +10,7 @@ const mockUseMatchById = vi.fn();
 const mockUseGenerateSeasonCalendar = vi.fn();
 const mockUseUpdateMatchScore = vi.fn();
 const mockUseUpdateMatchStatus = vi.fn();
+const mockUseUpdateSeasonRoundDate = vi.fn();
 const mockUseVerifiedAdmin = vi.fn();
 
 vi.mock('@/features/matches/api', () => ({
@@ -18,6 +19,7 @@ vi.mock('@/features/matches/api', () => ({
   useGenerateSeasonCalendar: () => mockUseGenerateSeasonCalendar(),
   useUpdateMatchScore: () => mockUseUpdateMatchScore(),
   useUpdateMatchStatus: () => mockUseUpdateMatchStatus(),
+  useUpdateSeasonRoundDate: () => mockUseUpdateSeasonRoundDate(),
 }));
 
 vi.mock('@/features/auth/api/useVerifiedAdmin', () => ({
@@ -97,6 +99,13 @@ const setupDefaultMocks = () => {
     isError: false,
     error: null,
   });
+  mockUseUpdateSeasonRoundDate.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+  });
 };
 
 const renderPage = (initialPath = '/matches') =>
@@ -165,12 +174,52 @@ describe('MatchesPage', () => {
     // Act
     renderPage();
     await user.type(screen.getByLabelText('Season ID'), 'season-xyz');
+    await user.type(screen.getByLabelText('Inicio de season'), '2026-01-06');
     await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await user.click(screen.getByLabelText('Ida y vuelta (doble de partidos)'));
     await user.click(screen.getByRole('button', { name: 'Generar calendario' }));
 
     // Assert
-    expect(mutateGenerate).toHaveBeenCalledWith({ seasonId: 'season-xyz' });
+    expect(mutateGenerate).toHaveBeenCalledWith({
+      seasonId: 'season-xyz',
+      startDate: '2026-01-06T12:00:00.000Z',
+      doubleRoundRobin: true,
+    });
     confirmSpy.mockRestore();
+  });
+
+  it('permite actualizar fecha manual de una jornada para admin', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mutateRoundDate = vi.fn();
+    setupDefaultMocks();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+    mockUseUpdateSeasonRoundDate.mockReturnValue({
+      mutate: mutateRoundDate,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+    });
+
+    // Act
+    renderPage('/matches?seasonId=season-1');
+    const roundDateInput = screen.getByDisplayValue(defaultSeasonResponse.data[0].date.slice(0, 10));
+    await user.clear(roundDateInput);
+    await user.type(roundDateInput, '2026-01-13');
+    await user.click(screen.getByRole('button', { name: 'Guardar fecha' }));
+
+    // Assert
+    expect(mutateRoundDate).toHaveBeenCalledWith({
+      seasonId: 'season-1',
+      round: 3,
+      date: '2026-01-13T12:00:00.000Z',
+    });
   });
 
   it('permite actualizar marcador y estado para admin verificado', async () => {

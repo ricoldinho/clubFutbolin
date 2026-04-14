@@ -4,3 +4,4 @@ export * from './useMatchById';
 export * from './useSeasonMatches';
 export * from './useUpdateMatchScore';
 export * from './useUpdateMatchStatus';
+export * from './useUpdateSeasonRoundDate';

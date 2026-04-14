@@ -16,6 +16,7 @@ import type { TeamSeasonId } from '@/domain/rosters/TeamSeasonId.value-object';
 export interface GenerateSeasonCalendarInput {
   readonly seasonId: SeasonId;
   readonly startDate?: Date;
+  readonly doubleRoundRobin?: boolean;
 }
 
 type GenerateSeasonCalendarError =
@@ -24,7 +25,8 @@ type GenerateSeasonCalendarError =
   | InsufficientTeamsForCalendarError;
 
 /**
- * Genera el calendario (round-robin ida simple) de una temporada.
+ * Genera el calendario round-robin de una temporada.
+ * Por defecto crea ida simple; opcionalmente ida y vuelta.
  * Obtiene los equipos inscritos y crea partidos por ronda separados 7 días.
  * Devuelve Result.fail en:
  * - NotFoundError: temporada inexistente
@@ -57,7 +59,10 @@ export class GenerateSeasonCalendar {
     }
 
     const startDate = input.startDate ?? new Date();
-    const rounds = this.generateRoundRobin(teamSeasons.map((r) => r.teamSeasonId));
+    const rounds = this.generateRoundRobin(
+      teamSeasons.map((r) => r.teamSeasonId),
+      input.doubleRoundRobin ?? false,
+    );
     const matches = rounds.flatMap((roundMatches, roundIndex) =>
       roundMatches.map(([homeTeamSeasonId, awayTeamSeasonId]) =>
         Match.create({
@@ -86,7 +91,10 @@ export class GenerateSeasonCalendar {
    * Algoritmo circle method para round-robin de ida simple.
    * Cuando el número de equipos es impar añade un BYE (null) y omite ese cruce.
    */
-  private generateRoundRobin(teamSeasonIds: readonly TeamSeasonId[]): TeamSeasonId[][][] {
+  private generateRoundRobin(
+    teamSeasonIds: readonly TeamSeasonId[],
+    doubleRoundRobin: boolean,
+  ): TeamSeasonId[][][] {
     const entries = [...teamSeasonIds];
     const BYE = null;
     const participants: Array<TeamSeasonId | null> =
@@ -113,6 +121,13 @@ export class GenerateSeasonCalendar {
       participants.splice(0, participants.length, fixed, ...rotating);
     }
 
-    return rounds;
+    if (!doubleRoundRobin) {
+      return rounds;
+    }
+
+    const reverseRounds = rounds.map((roundMatches) =>
+      roundMatches.map(([home, away]) => [away, home]),
+    );
+    return [...rounds, ...reverseRounds];
   }
 }

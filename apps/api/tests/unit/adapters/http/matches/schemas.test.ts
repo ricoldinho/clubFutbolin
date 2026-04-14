@@ -6,6 +6,8 @@ import {
   matchResponseSchema,
   updateMatchScoreBodySchema,
   updateMatchScoreParamsSchema,
+  updateSeasonRoundDateBodySchema,
+  updateSeasonRoundDateParamsSchema,
   updateMatchStatusBodySchema,
 } from '@/adapters/http/matches/schemas';
 
@@ -20,6 +22,22 @@ describe('matches schemas', () => {
   it('acepta startDate ISO opcional en generate calendar body', () => {
     const result = generateSeasonCalendarBodySchema.safeParse({
       startDate: '2026-04-01T10:00:00.000Z',
+      doubleRoundRobin: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('acepta params de update date de jornada', () => {
+    const result = updateSeasonRoundDateParamsSchema.safeParse({
+      seasonId: validUuid,
+      round: 3,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('acepta body de update date de jornada', () => {
+    const result = updateSeasonRoundDateBodySchema.safeParse({
+      date: '2026-04-08T10:00:00.000Z',
     });
     expect(result.success).toBe(true);
   });

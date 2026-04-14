@@ -119,6 +119,22 @@ describe('matches routes', () => {
     expect(response.json()).toMatchObject({ matchesCount: 1 });
   });
 
+  it('POST /seasons/:seasonId/calendar/generate permite ida y vuelta', async () => {
+    const token = await jwtService.sign({ sub: 'admin-1', role: 'ADMIN' });
+    const response = await server.inject({
+      method: 'POST',
+      url: `/seasons/${seasonId.value}/calendar/generate`,
+      headers: { Authorization: `Bearer ${token}` },
+      payload: {
+        startDate: '2026-04-01T10:00:00.000Z',
+        doubleRoundRobin: true,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ matchesCount: 2 });
+  });
+
   it('GET /seasons/:seasonId/matches devuelve listado paginado', async () => {
     await matchRepository.save(
       Match.create({
@@ -252,5 +268,37 @@ describe('matches routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ matchId: match.id!.value });
+  });
+
+  it('PATCH /seasons/:seasonId/rounds/:round/date actualiza jornada con admin', async () => {
+    const matchA = Match.create({
+      id: MatchId.generate(),
+      seasonId,
+      homeTeamSeasonId: teamSeasonAId,
+      awayTeamSeasonId: teamSeasonBId,
+      date: new Date('2026-04-01T10:00:00.000Z'),
+      round: 1,
+    });
+    const matchB = Match.create({
+      id: MatchId.generate(),
+      seasonId,
+      homeTeamSeasonId: teamSeasonBId,
+      awayTeamSeasonId: teamSeasonAId,
+      date: new Date('2026-04-01T10:00:00.000Z'),
+      round: 1,
+    });
+    await matchRepository.save(matchA);
+    await matchRepository.save(matchB);
+    const token = await jwtService.sign({ sub: 'admin-1', role: 'ADMIN' });
+
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/seasons/${seasonId.value}/rounds/1/date`,
+      headers: { Authorization: `Bearer ${token}` },
+      payload: { date: '2026-04-08T10:00:00.000Z' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ updatedMatches: 2 });
   });
 });

@@ -42,6 +42,7 @@ export interface SeasonMatchesFilters {
 export interface GenerateSeasonCalendarInput {
   seasonId: string;
   startDate?: string;
+  doubleRoundRobin?: boolean;
 }
 
 export interface GenerateSeasonCalendarResponseDto {
@@ -61,4 +62,14 @@ export interface UpdateMatchStatusInput {
 
 export interface MatchMutationResponseDto {
   matchId: string;
+}
+
+export interface UpdateSeasonRoundDateInput {
+  seasonId: string;
+  round: number;
+  date: string;
+}
+
+export interface UpdateSeasonRoundDateResponseDto {
+  updatedMatches: number;
 }

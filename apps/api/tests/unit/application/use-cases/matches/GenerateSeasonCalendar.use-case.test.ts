@@ -113,6 +113,42 @@ describe('GenerateSeasonCalendar', () => {
     expect(dates).toContain('2-2026-04-08');
     expect(dates).toContain('3-2026-04-15');
   });
+
+  it('genera calendario ida y vuelta cuando se solicita doubleRoundRobin', async () => {
+    // Arrange
+    const seasonRepository = new InMemorySeasonRepository();
+    const rosterRepository = new InMemoryRosterRepository();
+    const matchRepository = new InMemoryMatchRepository();
+    const season = Season.create({
+      id: SeasonId.generate(),
+      year: 2026,
+      leagueId: LeagueId.generate(),
+    });
+    await seasonRepository.save(season);
+    await rosterRepository.saveTeamSeason(createRoster(season.id!, TeamSeasonId.generate()));
+    await rosterRepository.saveTeamSeason(createRoster(season.id!, TeamSeasonId.generate()));
+    await rosterRepository.saveTeamSeason(createRoster(season.id!, TeamSeasonId.generate()));
+    await rosterRepository.saveTeamSeason(createRoster(season.id!, TeamSeasonId.generate()));
+    const useCase = new GenerateSeasonCalendar(
+      matchRepository,
+      rosterRepository,
+      seasonRepository,
+    );
+
+    // Act
+    const result = await useCase.execute({
+      seasonId: season.id!,
+      startDate: new Date('2026-04-01T10:00:00.000Z'),
+      doubleRoundRobin: true,
+    });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toHaveLength(12);
+    const rounds = new Set(result.value.map((match) => match.round));
+    expect(rounds).toEqual(new Set([1, 2, 3, 4, 5, 6]));
+  });
 });
 
 function createRoster(seasonId: SeasonId, teamSeasonId: TeamSeasonId): TeamRoster {

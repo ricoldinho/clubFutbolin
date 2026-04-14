@@ -9,6 +9,7 @@ import { GenerateSeasonCalendar } from '@/application/use-cases/matches/Generate
 import { GetMatchById } from '@/application/use-cases/matches/GetMatchById.use-case';
 import { UpdateMatchScore } from '@/application/use-cases/matches/UpdateMatchScore.use-case';
 import { UpdateMatchStatus } from '@/application/use-cases/matches/UpdateMatchStatus.use-case';
+import { UpdateSeasonRoundDate } from '@/application/use-cases/matches/UpdateSeasonRoundDate.use-case';
 import { MatchStatus } from '@/domain/matches/MatchStatus';
 import { Team } from '@/domain/teams/Team.entity';
 import { InfrastructureError } from '@/domain/shared/errors';
@@ -32,6 +33,9 @@ import {
   updateMatchScoreBodySchema,
   updateMatchScoreParamsSchema,
   updateMatchScoreResponseSchema,
+  updateSeasonRoundDateBodySchema,
+  updateSeasonRoundDateParamsSchema,
+  updateSeasonRoundDateResponseSchema,
   updateMatchStatusBodySchema,
 } from './schemas';
 
@@ -62,12 +66,14 @@ interface MatchesRoutesOptions extends FastifyPluginOptions {
   getMatchById?: GetMatchById;
   updateMatchScore?: UpdateMatchScore;
   updateMatchStatus?: UpdateMatchStatus;
+  updateSeasonRoundDate?: UpdateSeasonRoundDate;
 }
 
 /**
  * Plugin HTTP para las rutas de Matches.
  *
  * - POST /seasons/:seasonId/calendar/generate -> Generar calendario de temporada (ADMIN)
+ * - PATCH /seasons/:seasonId/rounds/:round/date -> Ajustar fecha de jornada (ADMIN)
  * - PATCH /matches/:matchId/score -> Actualizar marcador de partido (ADMIN)
  * - GET /seasons/:seasonId/matches -> Listar partidos de temporada (paginado + filtro round)
  */
@@ -106,6 +112,11 @@ export async function matchesRoutes(
     (options.repository
       ? new UpdateMatchStatus(options.repository)
       : request.container.cradle.updateMatchStatus);
+  const resolveUpdateSeasonRoundDate = (request: FastifyRequest): UpdateSeasonRoundDate =>
+    options.updateSeasonRoundDate ??
+    (options.repository
+      ? new UpdateSeasonRoundDate(options.repository)
+      : request.container.cradle.updateSeasonRoundDate);
 
   /**
    * POST /seasons/:seasonId/calendar/generate
@@ -147,6 +158,9 @@ export async function matchesRoutes(
         const result = await generateSeasonCalendar.execute({
           seasonId: SeasonId.fromString(seasonId),
           ...(body?.startDate ? { startDate: new Date(body.startDate) } : {}),
+          ...(body?.doubleRoundRobin !== undefined
+            ? { doubleRoundRobin: body.doubleRoundRobin }
+            : {}),
         });
         if (!result.ok) {
           const { statusCode, message } = mapDomainErrorToHttp(result.error);
@@ -209,6 +223,57 @@ export async function matchesRoutes(
           return reply.code(statusCode as 400 | 401 | 403 | 404 | 500).send({ message });
         }
         return reply.code(200).send({ matchId: result.value.matchId });
+      } catch (error) {
+        const { statusCode, message } = mapDomainErrorToHttp(error);
+        return reply.code(statusCode as 400 | 401 | 403 | 404 | 500).send({ message });
+      }
+    },
+  );
+
+  /**
+   * PATCH /seasons/:seasonId/rounds/:round/date
+   *
+   * Ajusta manualmente la fecha de todos los partidos de una jornada.
+   * - 200: Jornada actualizada
+   * - 401: Token ausente o inválido
+   * - 403: Usuario no admin
+   * - 404: Season/jornada sin partidos
+   */
+  zodServer.patch(
+    '/seasons/:seasonId/rounds/:round/date',
+    {
+      preHandler: [requireAdmin],
+      schema: {
+        params: updateSeasonRoundDateParamsSchema,
+        body: updateSeasonRoundDateBodySchema,
+        response: {
+          200: updateSeasonRoundDateResponseSchema,
+          400: httpErrorResponseSchema,
+          401: httpErrorResponseSchema,
+          403: httpErrorResponseSchema,
+          404: httpErrorResponseSchema,
+          500: httpErrorResponseSchema,
+        },
+        tags: ['matches'],
+        summary: 'Actualizar fecha de jornada',
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      try {
+        const updateSeasonRoundDate = resolveUpdateSeasonRoundDate(request);
+        const params = request.params as { seasonId: string; round: number };
+        const body = request.body as { date: string };
+        const result = await updateSeasonRoundDate.execute({
+          seasonId: SeasonId.fromString(params.seasonId),
+          round: params.round,
+          date: new Date(body.date),
+        });
+        if (!result.ok) {
+          const { statusCode, message } = mapDomainErrorToHttp(result.error);
+          return reply.code(statusCode as 400 | 401 | 403 | 404 | 500).send({ message });
+        }
+        return reply.code(200).send({ updatedMatches: result.value.updatedMatches });
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
         return reply.code(statusCode as 400 | 401 | 403 | 404 | 500).send({ message });

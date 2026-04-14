@@ -40,6 +40,7 @@ import { GenerateSeasonCalendar } from "@/application/use-cases/matches/Generate
 import { GetMatchById } from "@/application/use-cases/matches/GetMatchById.use-case";
 import { UpdateMatchScore } from "@/application/use-cases/matches/UpdateMatchScore.use-case";
 import { UpdateMatchStatus } from "@/application/use-cases/matches/UpdateMatchStatus.use-case";
+import { UpdateSeasonRoundDate } from "@/application/use-cases/matches/UpdateSeasonRoundDate.use-case";
 import type { Envs } from "@/shared/config/env";
 
 export interface AppContainerCradle {
@@ -79,6 +80,7 @@ export interface AppContainerCradle {
   getMatchById: GetMatchById;
   updateMatchScore: UpdateMatchScore;
   updateMatchStatus: UpdateMatchStatus;
+  updateSeasonRoundDate: UpdateSeasonRoundDate;
 }
 
 interface BuildContainerParams {
@@ -141,6 +143,7 @@ export function buildContainer({
     getMatchById: asClass(GetMatchById).classic().scoped(),
     updateMatchScore: asClass(UpdateMatchScore).classic().scoped(),
     updateMatchStatus: asClass(UpdateMatchStatus).classic().scoped(),
+    updateSeasonRoundDate: asClass(UpdateSeasonRoundDate).classic().scoped(),
     prisma: asValue(prisma),
   });
 

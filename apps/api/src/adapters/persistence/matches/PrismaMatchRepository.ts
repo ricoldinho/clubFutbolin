@@ -125,6 +125,17 @@ export class PrismaMatchRepository implements IMatchRepository {
     });
   }
 
+  async updateRoundDate(seasonId: SeasonId, round: number, date: Date): Promise<number> {
+    const result = await this.prisma.match.updateMany({
+      where: {
+        seasonId: seasonId.value,
+        round,
+      },
+      data: { date },
+    });
+    return result.count;
+  }
+
   private toDomain(row: {
     id: string;
     seasonId: string;
