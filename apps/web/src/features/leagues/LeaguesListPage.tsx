@@ -10,6 +10,8 @@ import {
   useLeagues,
   useUpdateLeague,
 } from '@/features/leagues/api';
+import type { CreatedLeagueDto } from '@/features/leagues/api';
+import { AssociateTeamsModal } from '@/features/leagues/components/AssociateTeamsModal';
 
 const PAGE_SIZE = 20;
 
@@ -22,6 +24,11 @@ export const LeaguesListPage = () => {
   const [editingLeagueName, setEditingLeagueName] = useState('');
   const [editingLeagueCategory, setEditingLeagueCategory] =
     useState<(typeof LEAGUE_CATEGORIES)[number]>('TERCERA');
+  const [associateModalState, setAssociateModalState] = useState<{
+    leagueId: string;
+    seasonId: string;
+    seasonYear: number;
+  } | null>(null);
   const query = useLeagues(page, PAGE_SIZE);
   const createLeague = useCreateLeague();
   const updateLeague = useUpdateLeague();
@@ -30,7 +37,21 @@ export const LeaguesListPage = () => {
 
   const onSubmitCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    createLeague.mutate({ name: newLeagueName, leagueCategory: newLeagueCategory });
+    createLeague.mutate(
+      { name: newLeagueName, leagueCategory: newLeagueCategory },
+      {
+        onSuccess: (created: CreatedLeagueDto) => {
+          setNewLeagueName('');
+          if (created.id !== null && created.initialSeason.id !== null) {
+            setAssociateModalState({
+              leagueId: created.id,
+              seasonId: created.initialSeason.id,
+              seasonYear: created.initialSeason.year,
+            });
+          }
+        },
+      },
+    );
   };
 
   const onSubmitUpdate = (event: FormEvent<HTMLFormElement>, leagueId: string) => {
@@ -166,6 +187,17 @@ export const LeaguesListPage = () => {
             onNext={() => setPage((p) => p + 1)}
           />
         </>
+      )}
+
+      {associateModalState && (
+        <AssociateTeamsModal
+          isOpen
+          leagueId={associateModalState.leagueId}
+          seasonId={associateModalState.seasonId}
+          seasonYear={associateModalState.seasonYear}
+          existingTeamIds={[]}
+          onClose={() => setAssociateModalState(null)}
+        />
       )}
     </section>
   );

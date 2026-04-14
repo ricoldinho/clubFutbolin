@@ -16,9 +16,39 @@ export interface LeagueDto {
   leagueCategory: LeagueCategory;
 }
 
+export interface SeasonDto {
+  id: string | null;
+  year: number;
+  leagueId: string;
+  championId: string | null;
+  secondId: string | null;
+}
+
+export interface CreatedLeagueDto extends LeagueDto {
+  initialSeason: SeasonDto;
+}
+
 export interface CreateLeagueInput {
   name: string;
   leagueCategory: LeagueCategory;
+}
+
+export interface CreateSeasonInput {
+  leagueId: string;
+  year: number;
+}
+
+export interface RegisterTeamToSeasonInput {
+  leagueId: string;
+  teamId: string;
+  seasonId: string;
+}
+
+export interface RegisterTeamToSeasonResponseDto {
+  teamSeasonId: string;
+  teamId: string;
+  seasonId: string;
+  membersCount: number;
 }
 
 export interface UpdateLeagueInput {

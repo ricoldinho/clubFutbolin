@@ -27,6 +27,17 @@ export const leagueResponseSchema = z.object({
   leagueCategory: z.enum(LEAGUE_CATEGORIES as unknown as [string, ...string[]]),
 });
 
+export const createdLeagueResponseSchema = z.object({
+  ...leagueResponseSchema.shape,
+  initialSeason: z.object({
+    id: z.string().uuid().nullable(),
+    year: z.number().int(),
+    leagueId: z.string().uuid(),
+    championId: z.string().uuid().nullable(),
+    secondId: z.string().uuid().nullable(),
+  }),
+});
+
 const paginationMetaResponseSchema = z.object({
   total: z.number().int().nonnegative(),
   page: z.number().int().positive(),

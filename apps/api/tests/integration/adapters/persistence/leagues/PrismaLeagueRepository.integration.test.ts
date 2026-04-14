@@ -114,4 +114,23 @@ describe('PrismaLeagueRepository (integración)', () => {
     const count = await repository.countSeasonsByLeagueId(id);
     expect(count).toBe(2);
   });
+
+  it('createWithInitialSeason: crea liga y season inicial en una operación atómica', async () => {
+    const leagueId = LeagueId.generate();
+    const league = League.create({
+      id: leagueId,
+      name: 'Liga Atomic',
+      leagueCategory: 'MASTER',
+    });
+
+    const initialSeason = await repository.createWithInitialSeason(league, 2026);
+
+    const foundLeague = await repository.findById(leagueId);
+    expect(foundLeague).not.toBeNull();
+    expect(foundLeague!.name).toBe('Liga Atomic');
+    expect(initialSeason.year).toBe(2026);
+    expect(initialSeason.leagueId.value).toBe(leagueId.value);
+    const count = await repository.countSeasonsByLeagueId(leagueId);
+    expect(count).toBe(1);
+  });
 });

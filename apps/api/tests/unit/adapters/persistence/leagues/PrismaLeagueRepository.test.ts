@@ -18,6 +18,9 @@ describe('PrismaLeagueRepository', () => {
   const mockUpsert = vi.fn();
   const mockDeleteMany = vi.fn();
   const mockCount = vi.fn();
+  const mockCreateLeague = vi.fn();
+  const mockCreateSeason = vi.fn();
+  const mockTransaction = vi.fn();
 
   const mockPrisma = {
     league: {
@@ -26,8 +29,13 @@ describe('PrismaLeagueRepository', () => {
       count: mockCount,
       upsert: mockUpsert,
       deleteMany: mockDeleteMany,
+      create: mockCreateLeague,
     },
-    season: { count: mockCount },
+    season: {
+      count: mockCount,
+      create: mockCreateSeason,
+    },
+    $transaction: mockTransaction,
   };
 
   let repository: PrismaLeagueRepository;
@@ -129,5 +137,56 @@ describe('PrismaLeagueRepository', () => {
     const id = LeagueId.fromString('123e4567-e89b-12d3-a456-426614174000');
     const result = await repository.countSeasonsByLeagueId(id);
     expect(result).toBe(3);
+  });
+
+  it('createWithInitialSeason crea league + season dentro de transacción', async () => {
+    // Arrange
+    const leagueId = LeagueId.fromString('123e4567-e89b-12d3-a456-426614174000');
+    const league = League.create({
+      id: leagueId,
+      name: 'Liga Atomica',
+      leagueCategory: 'PRIMERA',
+    });
+    mockCreateSeason.mockResolvedValue({
+      id: '223e4567-e89b-12d3-a456-426614174000',
+      year: 2026,
+      leagueId: leagueId.value,
+      championId: null,
+      secondId: null,
+    });
+    mockTransaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => unknown) =>
+      cb({
+        league: { create: mockCreateLeague },
+        season: { create: mockCreateSeason },
+      } as never),
+    );
+
+    // Act
+    const season = await repository.createWithInitialSeason(league, 2026);
+
+    // Assert
+    expect(mockTransaction).toHaveBeenCalledOnce();
+    expect(mockCreateLeague).toHaveBeenCalledWith({
+      data: {
+        id: leagueId.value,
+        name: 'Liga Atomica',
+        leagueCategory: 'PRIMERA',
+      },
+    });
+    expect(mockCreateSeason).toHaveBeenCalledWith({
+      data: {
+        year: 2026,
+        leagueId: leagueId.value,
+      },
+      select: {
+        id: true,
+        year: true,
+        leagueId: true,
+        championId: true,
+        secondId: true,
+      },
+    });
+    expect(season.year).toBe(2026);
+    expect(season.leagueId.value).toBe(leagueId.value);
   });
 });

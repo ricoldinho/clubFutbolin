@@ -16,7 +16,7 @@ describe('UpdateLeague', () => {
       leagueCategory: 'PRIMERA',
     });
     if (!isOk(createResult)) throw new Error('Expected create to succeed');
-    const leagueId = createResult.value.id!;
+    const leagueId = createResult.value.league.id!;
 
     const result = await updateLeague.execute({
       id: leagueId,

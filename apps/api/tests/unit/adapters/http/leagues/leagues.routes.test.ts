@@ -7,6 +7,7 @@ import {
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { leaguesRoutes } from '@/adapters/http/leagues/leagues.routes';
 import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepository';
+import { InMemorySeasonRepository } from '../../../../doubles/InMemorySeasonRepository';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
 
 const TEST_JWT_SECRET = 'test-secret';
@@ -16,10 +17,11 @@ function buildServer() {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  const repository = new InMemoryLeagueRepository();
+  const seasonRepository = new InMemorySeasonRepository();
+  const repository = new InMemoryLeagueRepository(seasonRepository);
   const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
-  app.register(leaguesRoutes, { repository, jwtService });
-  return { app, jwtService, repository };
+  app.register(leaguesRoutes, { repository, seasonRepository, jwtService });
+  return { app, jwtService, repository, seasonRepository };
 }
 
 async function adminHeaders(jwtService: JoseJwtService) {
@@ -60,10 +62,18 @@ describe('leagues routes', () => {
       payload: { name: 'Liga Provincial', leagueCategory: 'PRIMERA' },
     });
     expect(response.statusCode).toBe(201);
-    const body = response.json() as { id: string; name: string; leagueCategory: string };
+    const body = response.json() as {
+      id: string;
+      name: string;
+      leagueCategory: string;
+      initialSeason: { id: string; year: number; leagueId: string };
+    };
     expect(body.name).toBe('Liga Provincial');
     expect(body.leagueCategory).toBe('PRIMERA');
     expect(body.id).toBeDefined();
+    expect(body.initialSeason.id).toBeDefined();
+    expect(body.initialSeason.year).toBe(new Date().getFullYear());
+    expect(body.initialSeason.leagueId).toBe(body.id);
   });
 
   it('POST /leagues devuelve 401 sin token', async () => {
@@ -84,6 +94,36 @@ describe('leagues routes', () => {
       payload: { name: 'Liga', leagueCategory: 'ELITE' },
     });
     expect(response.statusCode).toBe(403);
+  });
+
+  it('POST /leagues crea automáticamente la season inicial de la liga', async () => {
+    // Arrange
+    const headers = await adminHeaders(jwtService);
+
+    // Act
+    const createResponse = await server.inject({
+      method: 'POST',
+      url: '/leagues',
+      headers,
+      payload: { name: 'Liga Con Season', leagueCategory: 'MASTER' },
+    });
+    const created = createResponse.json() as { id: string };
+    const seasonsResponse = await server.inject({
+      method: 'GET',
+      url: `/leagues/${created.id}/seasons`,
+    });
+
+    // Assert
+    expect(createResponse.statusCode).toBe(201);
+    expect(seasonsResponse.statusCode).toBe(200);
+    expect(seasonsResponse.json()).toMatchObject({
+      data: [
+        {
+          year: new Date().getFullYear(),
+          leagueId: created.id,
+        },
+      ],
+    });
   });
 
   it('GET /leagues/:leagueId devuelve 200 cuando existe', async () => {
@@ -130,7 +170,7 @@ describe('leagues routes', () => {
     expect(patchRes.json()).toMatchObject({ name: 'Liga Modificada', leagueCategory: 'TERCERA' });
   });
 
-  it('DELETE /leagues/:leagueId elimina y requiere admin', async () => {
+  it('DELETE /leagues/:leagueId devuelve 400 si la liga ya tiene seasons', async () => {
     const headers = await adminHeaders(jwtService);
     const createRes = await server.inject({
       method: 'POST',
@@ -144,9 +184,7 @@ describe('leagues routes', () => {
       url: `/leagues/${created.id}`,
       headers,
     });
-    expect(deleteRes.statusCode).toBe(204);
-    const getRes = await server.inject({ method: 'GET', url: `/leagues/${created.id}` });
-    expect(getRes.statusCode).toBe(404);
+    expect(deleteRes.statusCode).toBe(400);
   });
 
   it('DELETE /leagues/:leagueId devuelve 404 cuando la liga no existe', async () => {

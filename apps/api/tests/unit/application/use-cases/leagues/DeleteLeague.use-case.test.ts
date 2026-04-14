@@ -4,22 +4,26 @@ import { DeleteLeague } from '@/application/use-cases/leagues/DeleteLeague.use-c
 import { InMemoryLeagueRepository } from '../../../../doubles/InMemoryLeagueRepository';
 import { NotFoundError, DomainValidationError } from '@/domain/shared/errors';
 import { isOk } from '@/shared/result';
+import { League } from '@/domain/leagues/League.entity';
 import { LeagueId } from '@/domain/leagues/LeagueId.value-object';
 
 describe('DeleteLeague', () => {
   it('elimina una liga y devuelve Result.ok', async () => {
+    // Arrange
     const repository = new InMemoryLeagueRepository();
-    const createLeague = new CreateLeague(repository);
     const deleteLeague = new DeleteLeague(repository);
-    const createResult = await createLeague.execute({
+    await repository.save(League.create({
+      id: LeagueId.generate(),
       name: 'Liga Provincial',
       leagueCategory: 'PRIMERA',
-    });
-    if (!isOk(createResult)) throw new Error('Expected create to succeed');
-    const leagueId = createResult.value.id!;
+    }));
+    const created = await repository.findAll();
+    const leagueId = created[0]!.id!;
 
+    // Act
     const result = await deleteLeague.execute(leagueId);
 
+    // Assert
     expect(isOk(result)).toBe(true);
     const found = await repository.findById(leagueId);
     expect(found).toBeNull();
@@ -46,7 +50,7 @@ describe('DeleteLeague', () => {
       leagueCategory: 'ELITE',
     });
     if (!isOk(createResult)) throw new Error('Expected create to succeed');
-    const leagueId = createResult.value.id!;
+    const leagueId = createResult.value.league.id!;
     repository.setSeasonCount(leagueId, 2);
 
     const result = await deleteLeague.execute(leagueId);

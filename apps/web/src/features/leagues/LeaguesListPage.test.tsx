@@ -9,6 +9,7 @@ const mockUseLeagues = vi.fn();
 const mockCreateMutate = vi.fn();
 const mockUpdateMutate = vi.fn();
 const mockDeleteMutate = vi.fn();
+const mockRegisterTeamToSeasonMutate = vi.fn();
 
 vi.mock('@/features/auth/api/useVerifiedAdmin', () => ({
   useVerifiedAdmin: () => mockUseVerifiedAdmin(),
@@ -35,6 +36,21 @@ vi.mock('@/features/leagues/api', () => ({
     isError: false,
     error: null,
   }),
+  useRegisterTeamToSeason: () => ({
+    mutate: mockRegisterTeamToSeasonMutate,
+    reset: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
+vi.mock('@/features/teams/api', () => ({
+  useTeams: () => ({
+    data: { data: [] },
+    isPending: false,
+    isFetching: false,
+  }),
 }));
 
 const setupListMock = () => {
@@ -53,6 +69,8 @@ const setupListMock = () => {
 describe('LeaguesListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCreateMutate.mockImplementation(() => {});
+    mockRegisterTeamToSeasonMutate.mockImplementation(() => {});
   });
 
   it('muestra controles de escritura para admin verificado', async () => {
@@ -79,6 +97,45 @@ describe('LeaguesListPage', () => {
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Borrar' })).toBeInTheDocument();
     expect(mockCreateMutate).toHaveBeenCalled();
+  });
+
+  it('abre modal de asociar equipos tras crear liga con season inicial', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    setupListMock();
+    mockUseVerifiedAdmin.mockReturnValue({
+      token: 'token-admin',
+      isAdminClaim: true,
+      isVerifiedAdmin: true,
+      isVerifyingAdmin: false,
+    });
+    mockCreateMutate.mockImplementation((_input, options) => {
+      options?.onSuccess?.({
+        id: 'league-2',
+        name: 'Liga Centro',
+        leagueCategory: 'SEGUNDA',
+        initialSeason: {
+          id: 'season-2',
+          year: 2026,
+          leagueId: 'league-2',
+          championId: null,
+          secondId: null,
+        },
+      });
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <LeaguesListPage />
+      </MemoryRouter>,
+    );
+    await user.type(screen.getByPlaceholderText('Nombre de la liga'), 'Liga Centro');
+    await user.click(screen.getByRole('button', { name: 'Crear liga' }));
+
+    // Assert
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Asociar equipos a la season 2026')).toBeInTheDocument();
   });
 
   it('oculta controles de escritura cuando no es admin', () => {

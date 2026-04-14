@@ -26,6 +26,7 @@ import {
   leagueSeasonsResponseSchema,
   seasonTeamsByCategoryResponseSchema,
   leagueResponseSchema,
+  createdLeagueResponseSchema,
   type CreateLeagueBody,
   type UpdateLeagueBody,
 } from './schemas';
@@ -111,7 +112,7 @@ export async function leaguesRoutes(
       schema: {
         body: createLeagueBodySchema,
         response: {
-          201: leagueResponseSchema,
+          201: createdLeagueResponseSchema,
           400: httpErrorResponseSchema,
           401: httpErrorResponseSchema,
           403: httpErrorResponseSchema,
@@ -137,7 +138,16 @@ export async function leaguesRoutes(
             .code(statusCode as 400 | 401 | 403 | 409 | 500)
             .send({ message });
         }
-        return reply.code(201).send(toLeagueResponse(result.value));
+        return reply.code(201).send({
+          ...toLeagueResponse(result.value.league),
+          initialSeason: {
+            id: result.value.initialSeason.id?.value ?? null,
+            year: result.value.initialSeason.year,
+            leagueId: result.value.initialSeason.leagueId.value,
+            championId: result.value.initialSeason.championId?.value ?? null,
+            secondId: result.value.initialSeason.secondId?.value ?? null,
+          },
+        });
       } catch (error) {
         const { statusCode, message } = mapDomainErrorToHttp(error);
         return reply

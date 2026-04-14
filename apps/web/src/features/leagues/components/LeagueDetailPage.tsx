@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '@/api/client';
-import { useLeagueSeasons, useSeasonTeamsByCategory } from '@/features/leagues/api';
+import { useVerifiedAdmin } from '@/features/auth/api/useVerifiedAdmin';
+import {
+  useCreateSeason,
+  useLeagueSeasons,
+  useSeasonTeamsByCategory,
+} from '@/features/leagues/api';
 import { useSeasonMatches } from '@/features/matches/api';
 import type { MatchDto } from '@/features/matches/api/types';
+import { AssociateTeamsModal } from '@/features/leagues/components/AssociateTeamsModal';
 
 type LeagueSeasonView = 'classification' | 'calendar';
 
@@ -65,6 +71,10 @@ export const LeagueDetailPage = () => {
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const seasons = seasonsQuery.data?.data ?? [];
   const selectedSeasonId = selectedSeasonIdState || seasons[0]?.id || '';
+  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) ?? null;
+  const [associateModalOpen, setAssociateModalOpen] = useState(false);
+  const createSeason = useCreateSeason();
+  const { isVerifiedAdmin } = useVerifiedAdmin();
   const teamsByCategoryQuery = useSeasonTeamsByCategory(leagueId, selectedSeasonId);
   const seasonMatchesQuery = useSeasonMatches(selectedSeasonId, { page: 1, limit: 100 });
 
@@ -86,7 +96,43 @@ export const LeagueDetailPage = () => {
       </header>
 
       <article className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-        <h2 className="mb-3 text-lg font-medium">Seasons</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-medium">Seasons</h2>
+          {isVerifiedAdmin && (
+            <button
+              type="button"
+              disabled={createSeason.isPending}
+              onClick={() => {
+                const maxExistingYear = seasons.reduce(
+                  (max, season) => (season.year > max ? season.year : max),
+                  0,
+                );
+                const baseYear = Math.max(new Date().getFullYear(), maxExistingYear + 1);
+                createSeason.mutate(
+                  { leagueId, year: baseYear },
+                  {
+                    onSuccess: (newSeason) => {
+                      if (newSeason.id !== null) {
+                        setSelectedSeasonId(newSeason.id);
+                        setAssociateModalOpen(true);
+                      }
+                    },
+                  },
+                );
+              }}
+              className="rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            >
+              {createSeason.isPending ? 'Creando...' : 'Crear season'}
+            </button>
+          )}
+        </div>
+        {createSeason.isError && (
+          <p className="mb-3 text-xs text-red-400">
+            {createSeason.error instanceof ApiError
+              ? createSeason.error.message
+              : 'No se pudo crear la season.'}
+          </p>
+        )}
         {seasons.length === 0 ? (
           <p className="text-sm text-zinc-400">Esta liga no tiene seasons.</p>
         ) : (
@@ -113,7 +159,18 @@ export const LeagueDetailPage = () => {
       </article>
 
       <article className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-        <h2 className="mb-3 text-lg font-medium">Equipos por categoría</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-medium">Equipos por categoría</h2>
+          {isVerifiedAdmin && selectedSeason !== null && (
+            <button
+              type="button"
+              onClick={() => setAssociateModalOpen(true)}
+              className="rounded-md border border-sky-700/70 bg-sky-900/40 px-3 py-1.5 text-sm font-medium text-sky-200 hover:bg-sky-900/70"
+            >
+              Asociar equipos
+            </button>
+          )}
+        </div>
         {!selectedSeasonId || teamsByCategoryQuery.isLoading ? (
           <p className="text-sm text-zinc-400">Cargando equipos...</p>
         ) : teamsByCategoryQuery.isError ? (
@@ -264,6 +321,23 @@ export const LeagueDetailPage = () => {
           <p className="text-sm text-zinc-400">No hay datos de partidos para esta season.</p>
         )}
       </article>
+
+      {selectedSeason !== null && (
+        <AssociateTeamsModal
+          isOpen={associateModalOpen}
+          leagueId={leagueId}
+          seasonId={selectedSeason.id}
+          seasonYear={selectedSeason.year}
+          existingTeamIds={
+            teamsByCategoryQuery.data
+              ? teamsByCategoryQuery.data.categories.flatMap((category) =>
+                  category.teams.map((team) => team.id),
+                )
+              : []
+          }
+          onClose={() => setAssociateModalOpen(false)}
+        />
+      )}
     </section>
   );
 };
