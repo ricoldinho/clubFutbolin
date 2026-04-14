@@ -16,14 +16,11 @@ coverage/
 # ------------------------------------------------------
 # 3. SEGURIDAD Y VARIABLES DE ENTORNO (CRÍTICO)
 # ------------------------------------------------------
-# Bloquea todos los archivos de entorno
+# Bloquea cualquier .env con secretos locales o de CI
 .env
-.env.development
-.env.test
-.env.production
-.env.local
-
-# NOTA: Crearemos un .env.template que SÍ se subirá (sin valores reales)
+.env.*
+# Permite ejemplos versionados sin secretos
+!.env.example
 
 # ------------------------------------------------------
 # 4. LOGS Y DEPURACIÓN

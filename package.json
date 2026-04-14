@@ -10,12 +10,16 @@
     "dev": "npm run dev -w @clubfutbolin/api",
     "dev:api": "npm run dev -w @clubfutbolin/api",
     "dev:web": "npm run dev -w @clubfutbolin/web",
-    "build": "npm run build -w @clubfutbolin/api",
+    "build": "npm run build:api && npm run build:web",
     "build:api": "npm run build -w @clubfutbolin/api",
     "build:web": "npm run build -w @clubfutbolin/web",
     "start": "npm run start -w @clubfutbolin/api",
-    "test": "npm run test -w @clubfutbolin/api",
-    "test:run": "npm run test:run -w @clubfutbolin/api",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "npm run test -w @clubfutbolin/api",
+    "test:web": "npm run test -w @clubfutbolin/web",
+    "test:run": "npm run test:run:api && npm run test:run:web",
+    "test:run:api": "npm run test:run -w @clubfutbolin/api",
+    "test:run:web": "npm run test:run -w @clubfutbolin/web",
     "test:coverage": "npm run test:coverage -w @clubfutbolin/api",
     "clean:coverage": "node -e \"const fs=require('node:fs');const paths=['coverage','coverage 2','coverage 3','apps/api/coverage','apps/api/coverage 2','apps/api/coverage 3','apps/web/coverage','apps/web/coverage 2','apps/web/coverage 3'];for(const p of paths){fs.rmSync(p,{recursive:true,force:true});}console.log('Coverage folders cleaned');\"",
     "test:integration": "npm run test:integration -w @clubfutbolin/api",
@@ -33,6 +37,11 @@
     "format:check": "prettier --check .",
     "preview:web": "npm run preview -w @clubfutbolin/web"
   },
+  "engines": {
+    "node": ">=20 <26",
+    "npm": ">=10 <12"
+  },
+  "packageManager": "npm@10.9.2",
   "overrides": {
     "vite": "6.4.1"
   },
