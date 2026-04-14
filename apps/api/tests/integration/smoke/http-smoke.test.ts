@@ -130,7 +130,7 @@ describe('HTTP smoke (integración)', () => {
       payload: { year: 2027, leagueId: createdLeague.id },
     });
     expect(createSeasonRes.statusCode).toBe(201);
-    const createdSeason = createSeasonRes.json() as { id: string };
+    createSeasonRes.json() as { id: string };
 
     // 6) Crear dos jugadores (público) — hacen falta para crear equipo con plantilla
     const createPlayer1Res = await server.inject({

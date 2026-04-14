@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { PaginationBar } from '@/app/components/PaginationBar';
@@ -69,9 +69,10 @@ export const PlayersListPage = () => {
   const authRequired =
     query.isError && query.error instanceof ApiError && query.error.status === 401;
 
-  useEffect(() => {
+  const handleSearchChange = (value: string) => {
+    setSearchText(value);
     setPage(1);
-  }, [debouncedSearch]);
+  };
 
   const onSubmitCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -129,7 +130,7 @@ export const PlayersListPage = () => {
             type="search"
             enterKeyHint="search"
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Nombre, apellidos o alias…"
             maxLength={100}
             aria-label="Buscar jugadores por nombre, apellidos o alias"

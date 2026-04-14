@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ApiError } from '@/api/client';
 import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
 import { useRegisterTeamToSeason } from '@/features/leagues/api';
@@ -31,13 +31,12 @@ export const AssociateTeamsModal = ({
   const registerTeamToSeason = useRegisterTeamToSeason();
   const teamsQuery = useTeams(1, SEARCH_PAGE_SIZE, debouncedSearch);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchText('');
-      setSessionAssociatedIds([]);
-      registerTeamToSeason.reset();
-    }
-  }, [isOpen]);
+  const handleClose = () => {
+    setSearchText('');
+    setSessionAssociatedIds([]);
+    registerTeamToSeason.reset();
+    onClose();
+  };
 
   const disabledTeamIds = useMemo(
     () => new Set([...existingTeamIds, ...sessionAssociatedIds]),
@@ -55,7 +54,7 @@ export const AssociateTeamsModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={handleClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -67,7 +66,7 @@ export const AssociateTeamsModal = ({
           Asociar equipos a la season {seasonYear}
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Busca equipos por nombre y pulsa "Asociar". No se permiten asociaciones duplicadas.
+          Busca equipos por nombre y pulsa &quot;Asociar&quot;. No se permiten asociaciones duplicadas.
         </p>
 
         <div className="mt-4 flex flex-col gap-2">
@@ -141,7 +140,7 @@ export const AssociateTeamsModal = ({
         <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
           >
             Cerrar

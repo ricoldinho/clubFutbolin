@@ -272,9 +272,9 @@ describe('PrismaRosterRepository (integración)', () => {
       });
     }
 
-    let rOld = (await repository.findById(tsOld))!;
+    const rOld = (await repository.findById(tsOld))!;
     await repository.saveRoster(rOld.addPlayer(pOld, 'PORTERO'));
-    let rNew = (await repository.findById(tsNew))!;
+    const rNew = (await repository.findById(tsNew))!;
     await repository.saveRoster(rNew.addPlayer(pNew, 'DELANTERO'));
 
     const players = await repository.findPlayersByTeamId(teamId);

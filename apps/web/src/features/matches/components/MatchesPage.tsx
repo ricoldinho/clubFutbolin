@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ApiError,
@@ -54,22 +54,6 @@ export const MatchesPage = () => {
       .sort((a, b) => a.round - b.round);
   }, [seasonMatches.data]);
 
-  useEffect(() => {
-    if (roundsWithDates.length === 0) {
-      setRoundDateDrafts({});
-      return;
-    }
-    setRoundDateDrafts((prev) => {
-      const next = { ...prev };
-      for (const item of roundsWithDates) {
-        if (!next[item.round]) {
-          next[item.round] = item.date;
-        }
-      }
-      return next;
-    });
-  }, [roundsWithDates]);
-
   const applyFilters = () => {
     setSeasonId(draftSeasonId.trim());
     setPage(1);
@@ -89,9 +73,9 @@ export const MatchesPage = () => {
     generateCalendar.mutate({ seasonId, startDate, doubleRoundRobin });
   };
 
-  const handleUpdateRoundDate = (round: number) => {
+  const handleUpdateRoundDate = (round: number, defaultDate: string) => {
     if (!seasonId) return;
-    const draftDate = roundDateDrafts[round];
+    const draftDate = roundDateDrafts[round] ?? defaultDate;
     if (!draftDate) return;
     const [year, month, day] = draftDate.split('-').map(Number);
     const date = new Date(Date.UTC(year!, month! - 1, day!, 12, 0, 0)).toISOString();
@@ -232,12 +216,14 @@ export const MatchesPage = () => {
             Puedes cambiar manualmente la fecha de cualquier jornada visible.
           </p>
           <div className="mt-3 space-y-2">
-            {roundsWithDates.map(({ round }) => (
+            {roundsWithDates.map(({ round, date }) => {
+              const roundDate = roundDateDrafts[round] ?? date;
+              return (
               <div key={round} className="flex flex-wrap items-center gap-2">
                 <span className="min-w-28 text-sm text-zinc-700">Jornada {round}</span>
                 <input
                   type="date"
-                  value={roundDateDrafts[round] ?? ''}
+                  value={roundDate}
                   onChange={(event) =>
                     setRoundDateDrafts((prev) => ({ ...prev, [round]: event.target.value }))
                   }
@@ -245,14 +231,15 @@ export const MatchesPage = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => handleUpdateRoundDate(round)}
-                  disabled={!roundDateDrafts[round] || updateRoundDate.isPending}
+                  onClick={() => handleUpdateRoundDate(round, date)}
+                  disabled={!roundDate || updateRoundDate.isPending}
                   className="rounded-md border border-sky-700/70 bg-sky-900/40 px-3 py-1.5 text-sm font-medium text-sky-200 hover:bg-sky-900/70 disabled:opacity-40"
                 >
                   Guardar fecha
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

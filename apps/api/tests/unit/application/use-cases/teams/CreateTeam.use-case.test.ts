@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { CreateTeam } from '@/application/use-cases/teams/CreateTeam.use-case';
 import { InMemoryTeamRepository } from '../../../../doubles/InMemoryTeamRepository';
 import { InMemorySeasonRepository } from '../../../../doubles/InMemorySeasonRepository';
 import { InMemoryRosterRepository } from '../../../../doubles/InMemoryRosterRepository';

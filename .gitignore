@@ -61,3 +61,7 @@ Thumbs.db
 uploads/
 tmp/
 apps/api/src/generated/prisma
+apps/api/tsconfig.app.tsbuildinfo
+package-MacAirRico.json
+package-lock-MacAirRico.json
+package-lock-PisCis.json

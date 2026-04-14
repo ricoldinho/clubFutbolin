@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { PaginationBar } from '@/app/components/PaginationBar';
@@ -47,9 +47,10 @@ export const TeamsListPage = () => {
   const deleteTeam = useDeleteTeam();
   const { isVerifiedAdmin, isVerifyingAdmin } = useVerifiedAdmin();
 
-  useEffect(() => {
+  const handleSearchChange = (value: string) => {
+    setSearchText(value);
     setPage(1);
-  }, [debouncedSearch]);
+  };
 
   const displayedTeams = useMemo(() => {
     if (!query.data) return [];
@@ -126,7 +127,7 @@ export const TeamsListPage = () => {
           type="search"
           enterKeyHint="search"
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Nombre del equipo…"
           maxLength={100}
           aria-label="Buscar equipos por nombre"
