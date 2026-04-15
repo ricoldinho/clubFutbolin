@@ -1,8 +1,8 @@
-# Migración a bundler (pendiente)
+# Migración a bundler (completada)
 
-Actualmente el paquete **@clubfutbolin/api** usa **tsconfig-paths** en tiempo de ejecución para resolver el alias `@/` en desarrollo (`npm run dev` desde la raíz) y en producción (`npm start`). El build es `tsc` y el resultado queda en **`apps/api/dist/`**, con referencias a `@/`, por eso hace falta `-r tsconfig-paths/register` al ejecutar Node.
+El paquete **@clubfutbolin/api** ya compila con **tsup** (`apps/api/tsup.config.ts`) y `npm start` ejecuta `node dist/main.js` sin depender de `tsconfig-paths/register` en runtime.
 
-**Objetivo:** En el futuro migrar a un **bundler** que resuelva los path aliases en **build time** y genere un artefacto que Node pueda ejecutar sin tsconfig-paths. Así el despliegue es más estándar y se puede eliminar la dependencia de tsconfig-paths en producción.
+**Resultado:** Los aliases se resuelven en **build time** y el artefacto de `dist` es ejecutable de forma directa en producción.
 
 ---
 
@@ -46,4 +46,4 @@ Para una API Node con Fastify y Prisma, **tsup** es la opción más equilibrada:
 
 ## Recordatorio
 
-Cuando se retome el tema de **build**, **despliegue** o **optimización del arranque en producción**, revisar esta doc y valorar la migración a bundler (por ejemplo tsup) para dejar de depender de `tsconfig-paths` en `npm start`.
+Mantener typecheck separado (`tsc --noEmit`) en CI, ya que `tsup` no sustituye la verificación de tipos.

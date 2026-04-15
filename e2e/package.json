@@ -1,0 +1,14 @@
+{
+  "name": "clubfutbolin-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=./.playwright playwright test",
+    "test:e2e:ui": "PLAYWRIGHT_BROWSERS_PATH=./.playwright playwright test --ui",
+    "install:browsers": "PLAYWRIGHT_BROWSERS_PATH=./.playwright playwright install --with-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

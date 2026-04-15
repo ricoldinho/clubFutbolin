@@ -6,6 +6,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ### Added
 
+- **Hardening API HTTP:** Registro de `@fastify/cors`, `@fastify/helmet`, `@fastify/rate-limit` y `@fastify/cookie`. Configuración por entorno de `CORS_ORIGINS`, límites globales y específicos de auth (`AUTH_RATE_LIMIT_*`), y test `429` en login.
+- **Sesión por cookies con refresh rotation:** `POST /auth/login` ahora setea cookies `httpOnly` (access + refresh), nuevos endpoints `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/session`, y compatibilidad de `createRequireAuth` con cookie o Bearer token.
+- **Observabilidad básica API:** hooks de request/response con `x-request-id`, contadores en memoria de 4xx/5xx/latencia y endpoint `/metrics`; endpoints separados `/health` y `/ready`.
+- **E2E Playwright:** nueva carpeta `e2e/` con `playwright.config.ts`, paquete dedicado y specs iniciales de navegación/login/registro; scripts raíz `test:e2e`, `test:e2e:ui`, `e2e:install`; job CI dedicado para E2E.
+- **Dependabot:** configuración semanal para `npm` y `github-actions` en `.github/dependabot.yml`.
 - **Dimensionalidad temporal y Ligas/Equipos:** Nuevos módulos con vertical slicing (domain, ports, use-cases, adapters): `leagues`, `teams`, `seasons`, `rosters`. Schema Prisma: League, Team, Season, TeamSeason, RosterPlayer; enum Position (PORTERO, DELANTERO). Player sin campo `league`; relación 1-N con RosterPlayer. Rutas HTTP: /leagues, /teams, /seasons, /rosters (register, add/remove players). Admin-only con `createRequireAdmin`. Aggregate Root `TeamRoster` con reglas: max 4 jugadores, sin duplicados. Season con `setWinners(championId, secondId)` (ids distintos). Migración `20260315000001_add_leagues_teams_seasons_rosters` (después de `init`). Error `AlreadyExistsError` (409).
 - **Seguridad y roles:** Autenticación con email + contraseña; JWT (jose) para sesión; roles USER y ADMIN en Player. Registro público con role USER por defecto; solo un ADMIN puede asignar role ADMIN a otro. POST /auth/login (body: email, password) devuelve `{ token, expiresIn }`. Rutas GET /players, GET /players/:id, PATCH, DELETE requieren header `Authorization: Bearer <token>`. Puertos `IPasswordHasher` (bcrypt) e `IJwtService`; errores `InvalidCredentialsError` (401) y `ForbiddenError` (403). Variables de entorno `JWT_SECRET` y `JWT_EXPIRES_IN`.
 - **Tests:** Test unitario para `LoginPlayer` (credenciales inválidas y éxito) y para regla "USER no puede asignar ADMIN" en UpdatePlayer.
@@ -20,6 +25,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ### Changed
 
+- **Autenticación frontend:** `apps/web/src/api/client.ts` pasa a `credentials: include` y deja de depender de `localStorage` para tokens. `useLogin`, `useVerifiedAdmin`, `LoginPage` y `RootLayout` migrados a flujo de sesión por cookies.
+- **Calidad frontend:** nuevo script `test:coverage` en `apps/web` y umbrales en `apps/web/vitest.config.ts` (`lines/functions/statements >= 70`, `branches >= 60`).
+- **Build API:** migración de `apps/api` de `tsc` a `tsup` (`tsup.config.ts`), con `npm start` ejecutando `node dist/main.js` sin `tsconfig-paths` en runtime.
+- **CI:** `npm audit` diferenciando PR (informativo) y ramas principales (bloqueante), cobertura web como gate y job E2E separado con arranque de API+web.
+- **Variables de entorno:** `JWT_SECRET` exigido en schema con longitud mínima; nuevas variables para refresh token, cookies y seguridad HTTP en `.env.example` y `env.template`.
 - **AGENT.md:** Phase y Next Task actualizados (persistencia con Prisma hecha; siguiente: doc/tests pendientes y valorar bundler/E2E). Calidad: se documentan `test:coverage` y `test:integration` y la ubicación de tests (`tests/unit/`, `tests/integration/`). Tech Debt: Docker Compose e integración Prisma marcados como hechos; añadido "Bundler pendiente" con referencia a `docs/bundler-pendiente.md`.
 - **RegisterPlayer:** Acepta `password` en el input; la contraseña se hashea (bcrypt) y se persiste; el nuevo Player tiene siempre role USER.
 - **UpdatePlayer, GetPlayerById, DeletePlayer:** Reciben un "actor" (id + role) y devuelven `ForbiddenError` (403) cuando el actor no tiene permiso (p. ej. USER intentando asignar ADMIN, o ver/eliminar otro jugador sin ser ADMIN).

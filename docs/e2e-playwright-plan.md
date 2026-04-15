@@ -1,6 +1,6 @@
-# Plan E2E con Playwright (Fase 10 — reservado)
+# Plan E2E con Playwright
 
-**Estado:** no implementado en la primera iteración del monorepo. Este documento fija el hueco y los criterios para cuando se añadan pruebas end-to-end del navegador contra front + API.
+**Estado:** implementado en layout `e2e/` en la raíz, con specs iniciales y job CI dedicado. Este documento queda como referencia de criterios y evolución.
 
 ## Objetivo
 
@@ -41,10 +41,11 @@ Cubrir flujos críticos de usuario (login, navegación, formularios) contra la S
 
 **Servicios:** si los E2E necesitan datos persistentes, reutilizar el patrón de Postgres del job de integración (`DATABASE_URL` / `DATABASE_URL_TEST`) y semilla mínima si aplica.
 
-## 40. Alcance de esta fase (documentación solamente)
+## 40. Alcance actual
 
-- **No** añadir aún `@playwright/test`, ni `playwright.config`, ni jobs en CI.
-- Al implementar: actualizar este documento con rutas y nombres de workspace definitivos, y enlazar desde `README.md` y `AGENT.md` en la tabla de comandos / calidad.
+- `@playwright/test` está añadido en `e2e/package.json`.
+- Configuración activa en `e2e/playwright.config.ts`.
+- Job E2E activo en CI con arranque de API + web preview.
 
 ## Referencias
 
