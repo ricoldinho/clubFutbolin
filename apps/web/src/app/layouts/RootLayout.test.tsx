@@ -1,27 +1,41 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
-import { AUTH_TOKEN_STORAGE_KEY } from '@/api/client';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { AppProviders } from '@/app/providers';
 import { RootLayout } from './RootLayout';
 
 const renderLayout = () =>
   render(
-    <MemoryRouter initialEntries={['/']}>
-      <Routes>
-        <Route path="/" element={<RootLayout />}>
-          <Route index element={<div>Home content</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <AppProviders>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<RootLayout />}>
+            <Route index element={<div>Home content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </AppProviders>,
   );
 
 describe('RootLayout', () => {
-  it('muestra botón Registro cuando no hay autenticación', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('muestra botón Registro cuando no hay autenticación', async () => {
     // Arrange
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Token de autenticación requerido' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
 
     // Act
     renderLayout();
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled();
+    });
 
     // Assert
     expect(screen.getByRole('link', { name: 'Registro' })).toBeInTheDocument();
@@ -29,12 +43,20 @@ describe('RootLayout', () => {
     expect(screen.queryByRole('button', { name: 'Logout' })).not.toBeInTheDocument();
   });
 
-  it('oculta botón Registro cuando hay sesión iniciada', () => {
+  it('oculta botón Registro cuando hay sesión iniciada', async () => {
     // Arrange
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ playerId: 'player-1', role: 'USER' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
 
     // Act
     renderLayout();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Logout' })).toBeInTheDocument();
+    });
 
     // Assert
     expect(screen.queryByRole('link', { name: 'Registro' })).not.toBeInTheDocument();

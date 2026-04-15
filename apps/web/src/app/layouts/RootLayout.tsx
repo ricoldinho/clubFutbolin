@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import {
-  AUTH_TOKEN_CHANGED_EVENT,
-  AUTH_TOKEN_STORAGE_KEY,
-  clearStoredAuthToken,
-  getStoredAuthToken,
-} from '@/api/client';
+import { AUTH_SESSION_CHANGED_EVENT, apiJson, notifyAuthSessionChanged } from '@/api/client';
+import { queryKeys } from '@/api/query-keys';
 import { cn } from '@/lib/cn';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -19,27 +16,27 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
  */
 export const RootLayout = () => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(() => getStoredAuthToken() !== null);
+  const queryClient = useQueryClient();
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.auth.session(0),
+    queryFn: () => apiJson<{ playerId: string; role: string }>('/auth/session'),
+    retry: false,
+  });
+  const isAuthenticated = sessionQuery.isSuccess;
 
   useEffect(() => {
-    const syncAuth = () => setIsAuthenticated(getStoredAuthToken() !== null);
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === AUTH_TOKEN_STORAGE_KEY) {
-        syncAuth();
-      }
+    const onSessionChanged = () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
     };
-
-    window.addEventListener('storage', onStorage);
-    window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, syncAuth);
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, onSessionChanged);
     return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener(AUTH_TOKEN_CHANGED_EVENT, syncAuth);
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, onSessionChanged);
     };
-  }, []);
+  }, [queryClient]);
 
-  const handleLogout = () => {
-    clearStoredAuthToken();
+  const handleLogout = async () => {
+    await apiJson<void>('/auth/logout', { method: 'POST' });
+    notifyAuthSessionChanged();
     void navigate('/');
   };
 

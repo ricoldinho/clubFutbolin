@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiJson, setStoredAuthToken } from '@/api/client';
+import { apiJson, notifyAuthSessionChanged } from '@/api/client';
 import { queryKeys } from '@/api/query-keys';
 
 export interface LoginInput {
@@ -8,7 +8,8 @@ export interface LoginInput {
 }
 
 export interface LoginResponse {
-  token: string;
+  playerId: string;
+  role: string;
   expiresIn: string;
 }
 
@@ -29,7 +30,8 @@ export const useLogin = (options: UseLoginOptions = {}) => {
         body: { email: input.email, password: input.password },
       }),
     onSuccess: (data) => {
-      setStoredAuthToken(data.token);
+      notifyAuthSessionChanged();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.leagues.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.players.all });
       options.onSuccess?.(data);

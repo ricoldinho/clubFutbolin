@@ -19,19 +19,14 @@ vi.mock('@/features/auth/api/useLogin', () => ({
   useLogin: (...args: unknown[]) => mockUseLogin(...args),
 }));
 
-const buildJwtWithSub = (sub: string): string => {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ sub, role: 'USER' }));
-  return `${header}.${payload}.signature`;
-};
-
 describe('LoginPage', () => {
   it('redirige al perfil del jugador tras login exitoso', async () => {
     const user = userEvent.setup();
 
-    mockUseLogin.mockImplementation((options?: { onSuccess?: (data: { token: string }) => void }) => ({
+    mockUseLogin.mockImplementation(
+      (options?: { onSuccess?: (data: { playerId: string; role: string; expiresIn: string }) => void }) => ({
       mutate: () => {
-        options?.onSuccess?.({ token: buildJwtWithSub('player-123') });
+        options?.onSuccess?.({ playerId: 'player-123', role: 'USER', expiresIn: '1h' });
       },
       isPending: false,
       isError: false,

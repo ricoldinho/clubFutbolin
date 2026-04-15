@@ -2,20 +2,10 @@
  * Cliente HTTP hacia el API (baseURL desde VITE_API_BASE, proxy /api en dev).
  */
 
-export const AUTH_TOKEN_STORAGE_KEY = 'clubfutbolin.auth.token';
-export const AUTH_TOKEN_CHANGED_EVENT = 'clubfutbolin:auth-token-changed';
+export const AUTH_SESSION_CHANGED_EVENT = 'clubfutbolin:auth-session-changed';
 
-export const getStoredAuthToken = (): string | null =>
-  typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) : null;
-
-export const setStoredAuthToken = (token: string): void => {
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-  window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
-};
-
-export const clearStoredAuthToken = (): void => {
-  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-  window.dispatchEvent(new Event(AUTH_TOKEN_CHANGED_EVENT));
+export const notifyAuthSessionChanged = (): void => {
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
 };
 
 export class ApiError extends Error {
@@ -38,12 +28,7 @@ export const apiUrl = (path: string): string => {
 };
 
 const mergeHeaders = (init: RequestInit): Headers => {
-  const headers = new Headers(init.headers);
-  const token = getStoredAuthToken();
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  return headers;
+  return new Headers(init.headers);
 };
 
 /**
@@ -58,7 +43,7 @@ export const apiFetch = async (path: string, init: RequestInit = {}): Promise<Re
   ) {
     headers.set('Content-Type', 'application/json');
   }
-  return fetch(apiUrl(path), { ...init, headers });
+  return fetch(apiUrl(path), { ...init, headers, credentials: init.credentials ?? 'include' });
 };
 
 const parseJsonSafe = (text: string): unknown => {
@@ -88,7 +73,7 @@ export type ApiJsonInit = Omit<RequestInit, 'body'> & {
 };
 
 /**
- * Petición JSON: serializa `body` objeto plano, añade `Authorization` si hay token,
+ * Petición JSON: serializa `body` objeto plano y envía cookies de sesión (`credentials: include`),
  * y lanza `ApiError` si la respuesta no es OK.
  */
 export const apiJson = async <T>(path: string, init: ApiJsonInit = {}): Promise<T> => {

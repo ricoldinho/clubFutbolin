@@ -4,7 +4,7 @@
 export const queryKeys = {
   auth: {
     all: ['auth'] as const,
-    verifyAdmin: (tokenHash: string) => ['auth', 'verify-admin', tokenHash] as const,
+    session: (version: number) => ['auth', 'session', version] as const,
   },
   players: {
     all: ['players'] as const,

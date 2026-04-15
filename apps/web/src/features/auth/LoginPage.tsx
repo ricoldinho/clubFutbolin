@@ -1,7 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '@/api/client';
-import { parseAuthTokenPayload } from '@/api/auth-token';
 import { useLogin } from '@/features/auth/api/useLogin';
 import { cn } from '@/lib/cn';
 
@@ -13,11 +12,8 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useLogin({
-    onSuccess: ({ token }) => {
-      const payload = parseAuthTokenPayload(token);
-      if (payload?.sub) {
-        void navigate(`/players/${payload.sub}`);
-      }
+    onSuccess: ({ playerId }) => {
+      void navigate(`/players/${playerId}`);
     },
   });
 
@@ -68,7 +64,7 @@ export const LoginPage = () => {
         </p>
       )}
       {login.isSuccess && (
-        <p className="text-sm text-emerald-400">Sesión iniciada. Token guardado.</p>
+        <p className="text-sm text-emerald-400">Sesión iniciada.</p>
       )}
 
       <div className="flex gap-4 text-sm">

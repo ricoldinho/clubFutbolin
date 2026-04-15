@@ -1,49 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  AUTH_TOKEN_CHANGED_EVENT,
-  AUTH_TOKEN_STORAGE_KEY,
-  apiJson,
-  getStoredAuthToken,
-} from '@/api/client';
-import { parseAuthTokenPayload } from '@/api/auth-token';
+import { useEffect, useState } from 'react';
+import { AUTH_SESSION_CHANGED_EVENT, apiJson } from '@/api/client';
 import { queryKeys } from '@/api/query-keys';
 
-const readToken = (): string | null => getStoredAuthToken();
+export interface AuthSessionResponse {
+  playerId: string;
+  role: string;
+}
 
 export const useVerifiedAdmin = () => {
-  const [token, setToken] = useState<string | null>(() => readToken());
+  const [sessionVersion, setSessionVersion] = useState(0);
 
   useEffect(() => {
-    const syncToken = () => setToken(readToken());
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === AUTH_TOKEN_STORAGE_KEY) {
-        syncToken();
-      }
+    const onSessionChanged = () => {
+      setSessionVersion((previous) => previous + 1);
     };
-
-    window.addEventListener('storage', onStorage);
-    window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, syncToken);
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, onSessionChanged);
     return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener(AUTH_TOKEN_CHANGED_EVENT, syncToken);
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, onSessionChanged);
     };
   }, []);
 
-  const isAdminClaim = useMemo(() => parseAuthTokenPayload(token)?.role === 'ADMIN', [token]);
-
   const verificationQuery = useQuery({
-    queryKey: queryKeys.auth.verifyAdmin(token ?? 'no-token'),
-    queryFn: () => apiJson('/players?page=1&limit=1'),
-    enabled: Boolean(token) && isAdminClaim,
+    queryKey: queryKeys.auth.session(sessionVersion),
+    queryFn: () => apiJson<AuthSessionResponse>('/auth/session'),
+    enabled: true,
     retry: false,
   });
 
+  const session = verificationQuery.data;
+  const isAdminClaim = session?.role === 'ADMIN';
+
   return {
-    token,
+    session,
     isAdminClaim,
-    isVerifiedAdmin: isAdminClaim && verificationQuery.isSuccess,
+    isVerifiedAdmin: verificationQuery.isSuccess && isAdminClaim,
     isVerifyingAdmin: isAdminClaim && verificationQuery.isPending,
   };
 };
