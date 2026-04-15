@@ -21,7 +21,7 @@
     "lint": "eslint ."
   },
   "prisma": {
-    "seed": "ts-node --transpile-only -r tsconfig-paths/register prisma/seed.ts"
+    "seed": "ts-node --project tsconfig.app.json --transpile-only -r tsconfig-paths/register prisma/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

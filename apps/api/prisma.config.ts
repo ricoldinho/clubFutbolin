@@ -12,7 +12,7 @@ export default defineConfig({
   migrations: {
     path: 'prisma/migrations',
     // Required by Prisma 7 when using `prisma db seed`
-    seed: 'ts-node --transpile-only -r tsconfig-paths/register prisma/seed.ts',
+    seed: 'ts-node --project tsconfig.app.json --transpile-only -r tsconfig-paths/register prisma/seed.ts',
   },
   datasource: {
     url: env('DATABASE_URL'),
