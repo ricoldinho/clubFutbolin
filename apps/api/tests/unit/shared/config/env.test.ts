@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { schema } from '@/shared/config/env';
+import { INSECURE_JWT_SECRETS, schema } from '@/shared/config/env';
 
 describe('env schema', () => {
   it('debe declarar PORT, NODE_ENV y LOG_LEVEL como requeridos', () => {
@@ -117,5 +117,19 @@ describe('env schema', () => {
       cookieSameSite: 'lax',
       cookieSecure: false,
     });
+  });
+
+  it('debe incluir secretos JWT inseguros conocidos para bloquearlos en producción', () => {
+    // Arrange
+    const legacySecret = 'dev-secret-change-in-production';
+    const templateSecret = 'dev-secret-change-in-production-1234567890';
+
+    // Act
+    const hasLegacy = INSECURE_JWT_SECRETS.has(legacySecret);
+    const hasTemplate = INSECURE_JWT_SECRETS.has(templateSecret);
+
+    // Assert
+    expect(hasLegacy).toBe(true);
+    expect(hasTemplate).toBe(true);
   });
 });

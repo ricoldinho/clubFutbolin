@@ -16,7 +16,7 @@ import { seasonsRoutes } from './adapters/http/seasons/seasons.routes';
 import { rostersRoutes } from './adapters/http/rosters/rosters.routes';
 import { matchesRoutes } from './adapters/http/matches/matches.routes';
 import { registerOpenApi } from './adapters/http/register-openapi';
-import { options } from './shared/config/env';
+import { INSECURE_JWT_SECRETS, options } from './shared/config/env';
 import { buildContainer } from './shared/di/container';
 import { registerRequestScope } from './shared/di/request-scope';
 
@@ -48,7 +48,7 @@ export async function buildServer() {
     await server.register(fastifyCookie);
     if (
       server.config.NODE_ENV === 'production' &&
-      server.config.JWT_SECRET === 'dev-secret-change-in-production'
+      INSECURE_JWT_SECRETS.has(server.config.JWT_SECRET)
     ) {
       throw new Error(
         'JWT_SECRET inseguro en producción. Define un secreto robusto mediante variables de entorno.',

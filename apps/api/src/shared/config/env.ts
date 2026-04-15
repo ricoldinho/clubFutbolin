@@ -4,6 +4,14 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 
 /**
+ * Secretos JWT inseguros conocidos (plantillas/legacy) que nunca deben usarse en producción.
+ */
+export const INSECURE_JWT_SECRETS = new Set<string>([
+  'dev-secret-change-in-production',
+  'dev-secret-change-in-production-1234567890',
+]);
+
+/**
  * `.env` del monorepo (raíz del repo). Este archivo está en `apps/api/src/shared/config/`
  * → 5 niveles arriba. Tras `tsc`, queda en `dist/shared/config/` con la misma profundidad.
  */
