@@ -62,3 +62,5 @@ apps/api/tsconfig.app.tsbuildinfo
 package-MacAirRico.json
 package-lock-MacAirRico.json
 package-lock-PisCis.json
+.playwright/
+e2e/test-results/
