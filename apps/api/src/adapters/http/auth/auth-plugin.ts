@@ -6,16 +6,26 @@ import type { IJwtService } from '@/application/ports/auth/JwtService.port';
  * Si no hay token o es inválido, responde 401.
  */
 export function createRequireAuth(jwtService: IJwtService) {
+  const getBearerToken = (authHeader: string | undefined): string | null => {
+    if (!authHeader?.startsWith('Bearer ')) {
+      return null;
+    }
+    return authHeader.slice(7);
+  };
+
   return async function requireAuth(
     request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> {
-    const authHeader = request.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
+    const authHeaderToken = getBearerToken(request.headers.authorization);
+    const accessCookieName =
+      request.server.config?.AUTH_ACCESS_COOKIE_NAME ?? 'clubfutbolin_at';
+    const cookieToken = request.cookies?.[accessCookieName];
+    const token = authHeaderToken ?? cookieToken;
+    if (!token) {
       return reply.code(401).send({ message: 'Token de autenticación requerido' });
     }
-    const token = authHeader.slice(7);
-    const payload = await jwtService.verify(token);
+    const payload = await jwtService.verify(token, 'access');
     if (payload === null) {
       return reply.code(401).send({ message: 'Token inválido o caducado' });
     }

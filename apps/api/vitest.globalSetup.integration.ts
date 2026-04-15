@@ -30,6 +30,15 @@ function loadEnv(): void {
 export default function globalSetup(): void {
   loadEnv();
 
+  // Defaults mínimos para levantar Fastify con env-schema durante integración.
+  process.env.PORT = process.env.PORT ?? '3000';
+  process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
+  process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? 'silent';
+  process.env.JWT_SECRET =
+    process.env.JWT_SECRET ?? 'dev-secret-change-in-production-1234567890';
+  process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '7d';
+  process.env.JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN ?? '14d';
+
   const urlTest = process.env.DATABASE_URL_TEST;
   if (!urlTest) {
     throw new Error(

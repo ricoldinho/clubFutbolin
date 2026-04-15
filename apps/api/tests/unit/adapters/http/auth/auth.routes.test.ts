@@ -1,4 +1,6 @@
 import Fastify from 'fastify';
+import fastifyCookie from '@fastify/cookie';
+import fastifyRateLimit from '@fastify/rate-limit';
 import {
   ZodTypeProvider,
   validatorCompiler,
@@ -14,21 +16,64 @@ import type { IPlayerRepository } from '@/application/ports/players/Player.repos
 
 const TEST_JWT_SECRET = 'test-secret';
 const TEST_JWT_EXPIRES = '1h';
+const TEST_JWT_REFRESH_EXPIRES = '14d';
+const TEST_SERVER_CONFIG = {
+  PORT: 3000,
+  NODE_ENV: 'test',
+  LOG_LEVEL: 'silent',
+  JWT_SECRET: TEST_JWT_SECRET,
+  JWT_EXPIRES_IN: TEST_JWT_EXPIRES,
+  JWT_REFRESH_EXPIRES_IN: TEST_JWT_REFRESH_EXPIRES,
+  CORS_ORIGINS: '*',
+  RATE_LIMIT_MAX: 100,
+  RATE_LIMIT_WINDOW_MS: 60000,
+  AUTH_RATE_LIMIT_MAX: 2,
+  AUTH_RATE_LIMIT_WINDOW_MS: 60000,
+  AUTH_ACCESS_COOKIE_NAME: 'clubfutbolin_at',
+  AUTH_REFRESH_COOKIE_NAME: 'clubfutbolin_rt',
+  AUTH_ACCESS_COOKIE_MAX_AGE_SEC: 900,
+  AUTH_REFRESH_COOKIE_MAX_AGE_SEC: 1209600,
+  AUTH_COOKIE_SAME_SITE: 'lax',
+  AUTH_COOKIE_SECURE: false,
+};
 
 function buildApp() {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+  app.decorate('config', TEST_SERVER_CONFIG);
 
   const repository = new InMemoryPlayerRepository();
   const passwordHasher = new FakePasswordHasher();
   const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
 
+  app.register(fastifyCookie);
+  app.register(fastifyRateLimit, {
+    max: TEST_SERVER_CONFIG.RATE_LIMIT_MAX,
+    timeWindow: TEST_SERVER_CONFIG.RATE_LIMIT_WINDOW_MS,
+  });
   app.register(authRoutes, { repository, passwordHasher, jwtService });
   app.register(playersRoutes, { repository, passwordHasher, jwtService });
 
   return { app, repository, passwordHasher, jwtService };
 }
+
+const registerTestPlayer = async (app: ReturnType<typeof buildApp>['app']) => {
+  await app.inject({
+    method: 'POST',
+    url: '/players',
+    payload: {
+      name: 'Ana',
+      lastname: 'García',
+      nickname: null,
+      email: 'ana@example.com',
+      phoneNumber: '600111222',
+      birthdate: '1995-05-05',
+      category: 'PRIMERA',
+      password: 'mipassword123',
+    },
+  });
+};
 
 describe('auth routes', () => {
   let app: ReturnType<typeof buildApp>['app'];
@@ -43,82 +88,78 @@ describe('auth routes', () => {
     await app.close();
   });
 
-  it('POST /auth/login devuelve 200 con token y expiresIn cuando las credenciales son correctas', async () => {
-    await app.inject({
-      method: 'POST',
-      url: '/players',
-      payload: {
-        name: 'Ana',
-        lastname: 'García',
-        nickname: null,
-        email: 'ana@example.com',
-        phoneNumber: '600111222',
-        birthdate: '1995-05-05',
-        category: 'PRIMERA',
-        password: 'mipassword123',
-      },
-    });
+  it('POST /auth/login devuelve 200 con cookies de sesión cuando las credenciales son correctas', async () => {
+    // Arrange
+    await registerTestPlayer(app);
 
+    // Act
     const response = await app.inject({
       method: 'POST',
       url: '/auth/login',
       payload: { email: 'ana@example.com', password: 'mipassword123' },
     });
 
+    // Assert
     expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body).toHaveProperty('token');
-    expect(body).toHaveProperty('expiresIn', TEST_JWT_EXPIRES);
-    expect(typeof body.token).toBe('string');
+    expect(response.json()).toMatchObject({
+      playerId: expect.any(String),
+      role: 'USER',
+      expiresIn: TEST_JWT_EXPIRES,
+    });
+    const setCookie = response.headers['set-cookie'];
+    const cookiesAsText = Array.isArray(setCookie) ? setCookie.join(' ') : setCookie;
+    expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME);
+    expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME);
   });
 
   it('POST /auth/login devuelve 401 cuando la contraseña es incorrecta', async () => {
-    await app.inject({
-      method: 'POST',
-      url: '/players',
-      payload: {
-        name: 'Ana',
-        lastname: 'García',
-        nickname: null,
-        email: 'ana@example.com',
-        phoneNumber: '600111222',
-        birthdate: '1995-05-05',
-        category: 'PRIMERA',
-        password: 'mipassword123',
-      },
-    });
+    // Arrange
+    await registerTestPlayer(app);
 
+    // Act
     const response = await app.inject({
       method: 'POST',
       url: '/auth/login',
       payload: { email: 'ana@example.com', password: 'wrongpassword' },
     });
 
+    // Assert
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ message: expect.any(String) });
   });
 
   it('POST /auth/login devuelve 401 cuando el email no existe', async () => {
+    // Arrange
+    // (sin jugador registrado)
+
+    // Act
     const response = await app.inject({
       method: 'POST',
       url: '/auth/login',
       payload: { email: 'noexiste@example.com', password: 'anypass' },
     });
 
+    // Assert
     expect(response.statusCode).toBe(401);
   });
 
   it('POST /auth/login devuelve 400 cuando el body es inválido (sin email)', async () => {
+    // Arrange
+    // body incompleto
+
+    // Act
     const response = await app.inject({
       method: 'POST',
       url: '/auth/login',
       payload: { password: 'secret' },
     });
 
+    // Assert
     expect(response.statusCode).toBe(400);
   });
 
   it('POST /auth/login devuelve 500 cuando el repositorio lanza (infra error)', async () => {
+    // Arrange
     const throwingRepo: IPlayerRepository = {
       findByEmail: async () => null,
       findById: async () => null,
@@ -129,10 +170,15 @@ describe('auth routes', () => {
       save: async () => {},
       delete: async () => {},
     };
-
     const appWithFailingRepo = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
     appWithFailingRepo.setValidatorCompiler(validatorCompiler);
     appWithFailingRepo.setSerializerCompiler(serializerCompiler);
+    appWithFailingRepo.decorate('config', TEST_SERVER_CONFIG);
+    appWithFailingRepo.register(fastifyCookie);
+    appWithFailingRepo.register(fastifyRateLimit, {
+      max: TEST_SERVER_CONFIG.RATE_LIMIT_MAX,
+      timeWindow: TEST_SERVER_CONFIG.RATE_LIMIT_WINDOW_MS,
+    });
     const passwordHasher = new FakePasswordHasher();
     const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
     appWithFailingRepo.register(authRoutes, {
@@ -142,13 +188,142 @@ describe('auth routes', () => {
     });
     await appWithFailingRepo.ready();
 
+    // Act
     const response = await appWithFailingRepo.inject({
       method: 'POST',
       url: '/auth/login',
       payload: { email: 'any@example.com', password: 'any' },
     });
 
+    // Assert
     expect(response.statusCode).toBe(500);
     await appWithFailingRepo.close();
+  });
+
+  it('POST /auth/login devuelve 429 cuando se supera el rate limit de login', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+
+    // Act
+    const first = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'wrongpassword' },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'wrongpassword' },
+    });
+    const third = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'wrongpassword' },
+    });
+
+    // Assert
+    expect(first.statusCode).toBe(401);
+    expect(second.statusCode).toBe(401);
+    expect(third.statusCode).toBe(429);
+  });
+
+  it('POST /auth/refresh devuelve 200 y rota cookies cuando la refresh cookie es válida', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'mipassword123' },
+    });
+    const refreshCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME,
+    );
+
+    // Act
+    const response = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: {
+        [TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME]: refreshCookie?.value ?? '',
+      },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      playerId: expect.any(String),
+      role: 'USER',
+      expiresIn: TEST_JWT_EXPIRES,
+    });
+    const setCookie = response.headers['set-cookie'];
+    const cookiesAsText = Array.isArray(setCookie) ? setCookie.join(' ') : setCookie;
+    expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME);
+    expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME);
+  });
+
+  it('POST /auth/refresh devuelve 401 si no existe refresh cookie', async () => {
+    // Arrange
+    // sin cookie
+
+    // Act
+    const response = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('GET /auth/session devuelve 200 usando access cookie', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'mipassword123' },
+    });
+    const accessCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME,
+    );
+
+    // Act
+    const response = await app.inject({
+      method: 'GET',
+      url: '/auth/session',
+      cookies: {
+        [TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME]: accessCookie?.value ?? '',
+      },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      playerId: expect.any(String),
+      role: 'USER',
+    });
+  });
+
+  it('POST /auth/logout devuelve 204 y limpia cookies', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+    await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'mipassword123' },
+    });
+
+    // Act
+    const response = await app.inject({
+      method: 'POST',
+      url: '/auth/logout',
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(204);
+    const setCookie = response.headers['set-cookie'];
+    const cookiesAsText = Array.isArray(setCookie) ? setCookie.join(' ') : setCookie;
+    expect(cookiesAsText).toContain(`${TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME}=`);
+    expect(cookiesAsText).toContain(`${TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME}=`);
   });
 });

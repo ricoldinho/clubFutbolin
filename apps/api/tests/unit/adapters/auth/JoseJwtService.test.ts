@@ -27,6 +27,7 @@ describe('JoseJwtService', () => {
     expect(payload).not.toBeNull();
     expect(payload!.sub).toBe('player-uuid-456');
     expect(payload!.role).toBe('ADMIN');
+    expect(payload!.tokenType).toBe('access');
   });
 
   it('verify devuelve null cuando el token es inválido', async () => {
@@ -70,5 +71,29 @@ describe('JoseJwtService', () => {
 
   it('getExpiresIn devuelve el valor configurado', () => {
     expect(jwtService.getExpiresIn()).toBe(EXPIRES_IN);
+  });
+
+  it('verify respeta expectedTokenType y devuelve null si no coincide', async () => {
+    // Arrange
+    const refreshToken = await jwtService.sign(
+      {
+        sub: 'player-uuid-789',
+        role: 'USER',
+        tokenType: 'refresh',
+      },
+      { expiresIn: '14d' },
+    );
+
+    // Act
+    const shouldFail = await jwtService.verify(refreshToken, 'access');
+    const shouldPass = await jwtService.verify(refreshToken, 'refresh');
+
+    // Assert
+    expect(shouldFail).toBeNull();
+    expect(shouldPass).toMatchObject({
+      sub: 'player-uuid-789',
+      role: 'USER',
+      tokenType: 'refresh',
+    });
   });
 });

@@ -14,6 +14,7 @@ const ADMIN_PASSWORD = process.env.PRISMA_SEED_ADMIN_PASSWORD ?? 'admin123456';
 async function clearDb(prisma: PrismaClient): Promise<void> {
   // Orden para respetar FK:
   // RosterPlayer -> TeamSeason -> Season -> League -> Team -> Player
+  await prisma.match.deleteMany({});
   await prisma.rosterPlayer.deleteMany({});
   await prisma.teamSeason.deleteMany({});
   await prisma.season.deleteMany({});
@@ -43,7 +44,8 @@ async function seedAdmin(prisma: PrismaClient): Promise<void> {
 }
 
 type LoginResponse = {
-  token: string;
+  playerId: string;
+  role: string;
   expiresIn: string;
 };
 
@@ -94,11 +96,12 @@ describe('HTTP smoke (integración)', () => {
     });
     expect(loginRes.statusCode).toBe(200);
     const loginBody = loginRes.json() as LoginResponse;
-    expect(loginBody.token.length).toBeGreaterThan(0);
+    expect(loginBody.playerId.length).toBeGreaterThan(0);
+    expect(loginBody.role).toBe('ADMIN');
     expect(loginBody.expiresIn.length).toBeGreaterThan(0);
 
-    const token = loginBody.token;
-    const authHeaders = { Authorization: `Bearer ${token}` };
+    const accessCookie = loginRes.cookies.find((cookie) => cookie.name === 'clubfutbolin_at');
+    const authCookies = { clubfutbolin_at: accessCookie?.value ?? '' };
 
     // 3) Listado paginado (público): GET /leagues
     const leaguesRes = await server.inject({
@@ -116,7 +119,7 @@ describe('HTTP smoke (integración)', () => {
     const createLeagueRes = await server.inject({
       method: 'POST',
       url: '/leagues',
-      headers: authHeaders,
+      cookies: authCookies,
       payload: { name: 'Liga Smoke', leagueCategory: 'PRIMERA' },
     });
     expect(createLeagueRes.statusCode).toBe(201);
@@ -126,7 +129,7 @@ describe('HTTP smoke (integración)', () => {
     const createSeasonRes = await server.inject({
       method: 'POST',
       url: '/seasons',
-      headers: authHeaders,
+      cookies: authCookies,
       payload: { year: 2027, leagueId: createdLeague.id },
     });
     expect(createSeasonRes.statusCode).toBe(201);
@@ -171,7 +174,7 @@ describe('HTTP smoke (integración)', () => {
     const createTeamRes = await server.inject({
       method: 'POST',
       url: '/teams',
-      headers: authHeaders,
+      cookies: authCookies,
       payload: {
         name: 'Equipo Smoke',
         playerIds: [createdPlayer1.id, createdPlayer2.id],
@@ -185,7 +188,7 @@ describe('HTTP smoke (integración)', () => {
     const listPlayersRes = await server.inject({
       method: 'GET',
       url: '/players?page=1&limit=20',
-      headers: authHeaders,
+      cookies: authCookies,
     });
     expect(listPlayersRes.statusCode).toBe(200);
     const listPlayersBody = listPlayersRes.json() as {

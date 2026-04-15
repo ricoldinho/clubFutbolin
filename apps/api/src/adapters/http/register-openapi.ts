@@ -36,6 +36,11 @@ export async function registerOpenApi(server: FastifyInstance): Promise<void> {
             scheme: 'bearer',
             bearerFormat: 'JWT',
           },
+          sessionCookie: {
+            type: 'apiKey',
+            in: 'cookie',
+            name: 'clubfutbolin_at',
+          },
         },
       },
     },

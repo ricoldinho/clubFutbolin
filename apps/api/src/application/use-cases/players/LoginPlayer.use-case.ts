@@ -12,6 +12,8 @@ export interface LoginPlayerInput {
 
 export interface LoginPlayerOutput {
   token: string;
+  playerId: string;
+  role: string;
   expiresIn: string;
 }
 
@@ -43,9 +45,12 @@ export class LoginPlayer {
     const token = await this.jwtService.sign({
       sub: loginData.playerId.value,
       role: loginData.role,
+      tokenType: 'access',
     });
     return Result.ok({
       token,
+      playerId: loginData.playerId.value,
+      role: loginData.role,
       expiresIn: this.jwtService.getExpiresIn(),
     });
   }

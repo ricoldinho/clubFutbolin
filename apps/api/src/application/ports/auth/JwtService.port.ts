@@ -1,3 +1,5 @@
+export type JwtTokenType = 'access' | 'refresh';
+
 /**
  * Payload que se incluye en el JWT (claims).
  */
@@ -5,6 +7,7 @@ export interface JwtPayload {
   sub: string; // playerId (UUID)
   email?: string;
   role: string;
+  tokenType?: JwtTokenType;
 }
 
 /**
@@ -13,6 +16,11 @@ export interface JwtPayload {
 export interface JwtVerifyResult {
   sub: string;
   role: string;
+  tokenType: JwtTokenType;
+}
+
+export interface JwtSignOptions {
+  expiresIn?: string;
 }
 
 /**
@@ -20,8 +28,8 @@ export interface JwtVerifyResult {
  * La implementación (jose, jsonwebtoken) vive en adapters.
  */
 export interface IJwtService {
-  sign(payload: JwtPayload): Promise<string>;
-  verify(token: string): Promise<JwtVerifyResult | null>;
+  sign(payload: JwtPayload, options?: JwtSignOptions): Promise<string>;
+  verify(token: string, expectedTokenType?: JwtTokenType): Promise<JwtVerifyResult | null>;
   /** Ej. "7d" para incluir en la respuesta de login. */
   getExpiresIn(): string;
 }

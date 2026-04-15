@@ -13,6 +13,7 @@ const repository = new PrismaLeagueRepository(prisma);
 
 describe('PrismaLeagueRepository (integración)', () => {
   beforeEach(async () => {
+    await prisma.match.deleteMany({});
     await prisma.rosterPlayer.deleteMany({});
     await prisma.teamSeason.deleteMany({});
     await prisma.season.deleteMany({});

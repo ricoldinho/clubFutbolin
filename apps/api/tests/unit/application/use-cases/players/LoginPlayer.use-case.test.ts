@@ -85,9 +85,12 @@ describe('LoginPlayer', () => {
     if (!isOk(result)) return;
     expect(result.value.token).toBeDefined();
     expect(typeof result.value.token).toBe('string');
+    expect(result.value.playerId).toBeDefined();
+    expect(result.value.role).toBe('USER');
     expect(result.value.expiresIn).toBe(JWT_EXPIRES);
     const payload = await jwtService.verify(result.value.token);
     expect(payload).not.toBeNull();
     expect(payload?.role).toBe('USER');
+    expect(payload?.tokenType).toBe('access');
   });
 });

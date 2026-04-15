@@ -18,7 +18,7 @@ const dotenvPath = existsSync(monorepoRootEnvPath)
 // Esto validará que las variables existan y tengan el tipo correcto.
 export const schema = {
   type: 'object',
-  required: ['PORT', 'NODE_ENV', 'LOG_LEVEL'],
+  required: ['PORT', 'NODE_ENV', 'LOG_LEVEL', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'JWT_REFRESH_EXPIRES_IN'],
   properties: {
     PORT: {
       type: 'integer',
@@ -34,11 +34,59 @@ export const schema = {
     },
     JWT_SECRET: {
       type: 'string',
-      default: 'dev-secret-change-in-production',
+      minLength: 32,
     },
     JWT_EXPIRES_IN: {
       type: 'string',
       default: '7d',
+    },
+    JWT_REFRESH_EXPIRES_IN: {
+      type: 'string',
+      default: '14d',
+    },
+    CORS_ORIGINS: {
+      type: 'string',
+      default: 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173',
+    },
+    RATE_LIMIT_MAX: {
+      type: 'integer',
+      default: 200,
+    },
+    RATE_LIMIT_WINDOW_MS: {
+      type: 'integer',
+      default: 60000,
+    },
+    AUTH_RATE_LIMIT_MAX: {
+      type: 'integer',
+      default: 10,
+    },
+    AUTH_RATE_LIMIT_WINDOW_MS: {
+      type: 'integer',
+      default: 60000,
+    },
+    AUTH_ACCESS_COOKIE_NAME: {
+      type: 'string',
+      default: 'clubfutbolin_at',
+    },
+    AUTH_REFRESH_COOKIE_NAME: {
+      type: 'string',
+      default: 'clubfutbolin_rt',
+    },
+    AUTH_ACCESS_COOKIE_MAX_AGE_SEC: {
+      type: 'integer',
+      default: 900,
+    },
+    AUTH_REFRESH_COOKIE_MAX_AGE_SEC: {
+      type: 'integer',
+      default: 1209600,
+    },
+    AUTH_COOKIE_SAME_SITE: {
+      type: 'string',
+      default: 'lax',
+    },
+    AUTH_COOKIE_SECURE: {
+      type: 'boolean',
+      default: false,
     },
   },
 };
@@ -51,6 +99,18 @@ export interface Envs {
   LOG_LEVEL: string;
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
+  JWT_REFRESH_EXPIRES_IN: string;
+  CORS_ORIGINS: string;
+  RATE_LIMIT_MAX: number;
+  RATE_LIMIT_WINDOW_MS: number;
+  AUTH_RATE_LIMIT_MAX: number;
+  AUTH_RATE_LIMIT_WINDOW_MS: number;
+  AUTH_ACCESS_COOKIE_NAME: string;
+  AUTH_REFRESH_COOKIE_NAME: string;
+  AUTH_ACCESS_COOKIE_MAX_AGE_SEC: number;
+  AUTH_REFRESH_COOKIE_MAX_AGE_SEC: number;
+  AUTH_COOKIE_SAME_SITE: string;
+  AUTH_COOKIE_SECURE: boolean;
 }
 
 // 3. Opciones para el plugin de Fastify
