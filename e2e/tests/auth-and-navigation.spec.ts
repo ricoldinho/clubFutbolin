@@ -44,6 +44,22 @@ test.describe('Flujos críticos web', () => {
     await expect(page.getByText(/Necesitas/i)).toBeVisible();
   });
 
+  test('logout mantiene estado en UI aunque falle /auth/logout', async ({ page }) => {
+    await registerAndLogin(page);
+
+    await page.route('**/auth/logout', async (route) => {
+      await route.abort('failed');
+    });
+
+    await page.getByRole('button', { name: 'Logout' }).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
+
+    await page.goto('/players');
+    await expect(page.getByText(/Necesitas/i)).toBeVisible();
+  });
+
   test('la sesión por cookie se mantiene tras recargar', async ({ page }) => {
     await registerAndLogin(page);
     await page.reload();

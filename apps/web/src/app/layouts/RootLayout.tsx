@@ -35,7 +35,11 @@ export const RootLayout = () => {
   }, [queryClient]);
 
   const handleLogout = async () => {
-    await apiJson<void>('/auth/logout', { method: 'POST' });
+    try {
+      await apiJson<void>('/auth/logout', { method: 'POST' });
+    } catch {
+      // Best effort: aunque falle el backend, cerramos la sesión local del cliente.
+    }
     notifyAuthSessionChanged();
     void navigate('/');
   };
