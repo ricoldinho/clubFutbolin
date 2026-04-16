@@ -176,7 +176,7 @@ jobs:
           exit 1
 
       - name: Run E2E tests
-        run: npm run test:e2e -- --workers=1
+        run: npm run test:e2e -- --workers=1 --reporter=line
 
       - name: Upload Playwright report
         if: always()
