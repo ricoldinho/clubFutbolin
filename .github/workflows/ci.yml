@@ -140,6 +140,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        run: npm run db:generate -w @clubfutbolin/api
+
       - name: Install Playwright browsers
         run: npm run e2e:install
 
