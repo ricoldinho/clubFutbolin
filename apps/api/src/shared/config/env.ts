@@ -12,15 +12,20 @@ export const INSECURE_JWT_SECRETS = new Set<string>([
 ]);
 
 /**
- * `.env` del monorepo (raíz del repo). Este archivo está en `apps/api/src/shared/config/`
- * → 5 niveles arriba. Tras `tsc`, queda en `dist/shared/config/` con la misma profundidad.
+ * Ruta del `.env` con fallback robusto para distintos contextos de ejecución:
+ * - `npm run ... -w @clubfutbolin/api` (cwd = `apps/api`)
+ * - ejecución desde raíz del monorepo
+ * - build bundled (tsup), donde `__dirname` cambia respecto a `src/`
  */
-const monorepoRootEnvPath = path.resolve(__dirname, '..', '..', '..', '..', '..', '.env');
+const dotenvCandidates = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '..', '.env'),
+  path.resolve(process.cwd(), '..', '..', '.env'),
+  path.resolve(__dirname, '..', '..', '..', '..', '..', '.env'),
+];
 
-/** Si no hay `.env` en la raíz, se intenta el del cwd (p. ej. `apps/api/.env`). */
-const dotenvPath = existsSync(monorepoRootEnvPath)
-  ? monorepoRootEnvPath
-  : path.resolve(process.cwd(), '.env');
+const dotenvPath = dotenvCandidates.find((candidate) => existsSync(candidate))
+  ?? path.resolve(process.cwd(), '.env');
 
 // 1. Definimos el Schema JSON estándar
 // Esto validará que las variables existan y tengan el tipo correcto.

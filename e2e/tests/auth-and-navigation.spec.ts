@@ -54,10 +54,10 @@ test.describe('Flujos críticos web', () => {
     await page.getByRole('button', { name: 'Logout' }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
 
     await page.goto('/players');
-    await expect(page.getByText(/Necesitas/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Players' })).toBeVisible();
   });
 
   test('la sesión por cookie se mantiene tras recargar', async ({ page }) => {

@@ -8,7 +8,9 @@ export interface E2eUser {
 const uniqueUserEmail = (): string =>
   `e2e_${Date.now()}_${Math.random().toString(16).slice(2)}@example.com`;
 
-const uniquePhone = (): string => `6${Math.floor(10000000 + Math.random() * 89999999)}`;
+const uniquePhone = (): string =>
+  // 14 dígitos (máximo permitido por el dominio: 15), reduciendo colisiones entre ejecuciones.
+  `6${Date.now().toString().slice(-11)}${Math.floor(10 + Math.random() * 90)}`;
 
 export const createE2eUser = (): E2eUser => ({
   email: uniqueUserEmail(),

@@ -6,7 +6,7 @@
   "scripts": {
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-$PWD/.playwright} playwright test",
     "test:e2e:ui": "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-$PWD/.playwright} playwright test --ui",
-    "install:browsers": "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-$PWD/.playwright} playwright install --with-deps"
+    "install:browsers": "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-$PWD/.playwright} playwright install --with-deps --force"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1"

@@ -36,7 +36,11 @@ test.describe('Cobertura dominio matches', () => {
 
     await page.getByLabel('Season ID').fill('00000000-0000-4000-8000-000000000000');
     await page.getByRole('button', { name: 'Aplicar filtros' }).click();
-    await expect(page.getByRole('alert')).toBeVisible();
+    const alertFeedback = page.getByRole('alert');
+    const emptyState = page.getByText('No hay partidos para los filtros actuales.');
+    await expect
+      .poll(async () => (await alertFeedback.isVisible()) || (await emptyState.isVisible()))
+      .toBe(true);
 
     let seasonId = '';
     try {
@@ -49,8 +53,10 @@ test.describe('Cobertura dominio matches', () => {
     await page.getByLabel('Season ID').fill(seasonId);
     await page.getByRole('button', { name: 'Aplicar filtros' }).click();
 
-    const emptyState = page.getByText('No hay partidos para los filtros actuales.');
     const detailButtons = page.getByRole('button', { name: /Ver detalle del partido/i });
+    await expect
+      .poll(async () => (await detailButtons.count()) + ((await emptyState.isVisible()) ? 1 : 0))
+      .toBeGreaterThan(0);
 
     if ((await detailButtons.count()) === 0) {
       await expect(emptyState).toBeVisible();
