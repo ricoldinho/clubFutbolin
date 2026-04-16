@@ -1,0 +1,849 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fastify_1 = __importDefault(require("fastify"));
+const fastify_type_provider_zod_1 = require("fastify-type-provider-zod");
+const vitest_1 = require("vitest");
+const players_routes_1 = require("@/adapters/http/players/players.routes");
+const InMemoryPlayerRepository_1 = require("../../../../doubles/InMemoryPlayerRepository");
+const InMemoryRosterRepository_1 = require("../../../../doubles/InMemoryRosterRepository");
+const FakePasswordHasher_1 = require("../../../../doubles/FakePasswordHasher");
+const JoseJwtService_1 = require("@/adapters/auth/JoseJwtService");
+const PlayerId_value_object_1 = require("@/domain/players/value-objects/PlayerId.value-object");
+const result_1 = require("@/shared/result");
+const errors_1 = require("@/domain/shared/errors");
+const TEST_JWT_SECRET = 'test-secret';
+const TEST_JWT_EXPIRES = '1h';
+function buildServer() {
+    const app = (0, fastify_1.default)({ logger: false }).withTypeProvider();
+    app.setValidatorCompiler(fastify_type_provider_zod_1.validatorCompiler);
+    app.setSerializerCompiler(fastify_type_provider_zod_1.serializerCompiler);
+    const repository = new InMemoryPlayerRepository_1.InMemoryPlayerRepository();
+    const rosterRepository = new InMemoryRosterRepository_1.InMemoryRosterRepository();
+    const passwordHasher = new FakePasswordHasher_1.FakePasswordHasher();
+    const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    app.register(players_routes_1.playersRoutes, { repository, rosterRepository, passwordHasher, jwtService });
+    return { app, jwtService };
+}
+async function authHeaders(jwtService, playerId, role = 'USER') {
+    const token = await jwtService.sign({ sub: playerId, role });
+    return { Authorization: `Bearer ${token}` };
+}
+class FailingRepository {
+    async findByEmail() {
+        throw new Error('Infra error in findByEmail');
+    }
+    async findById() {
+        throw new Error('Infra error in findById');
+    }
+    async findAll(_pagination, _filters) {
+        throw new Error('Infra error in findAll');
+    }
+    async findLoginDataByEmail() {
+        return null;
+    }
+    async save() {
+        throw new Error('Infra error in save');
+    }
+    async delete() {
+        throw new Error('Infra error in delete');
+    }
+}
+function buildServerWithFailingRepository() {
+    const app = (0, fastify_1.default)({ logger: false }).withTypeProvider();
+    app.setValidatorCompiler(fastify_type_provider_zod_1.validatorCompiler);
+    app.setSerializerCompiler(fastify_type_provider_zod_1.serializerCompiler);
+    const repository = new FailingRepository();
+    const rosterRepository = new InMemoryRosterRepository_1.InMemoryRosterRepository();
+    const passwordHasher = new FakePasswordHasher_1.FakePasswordHasher();
+    const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+    app.register(players_routes_1.playersRoutes, { repository, rosterRepository, passwordHasher, jwtService });
+    return app;
+}
+(0, vitest_1.describe)('players routes - Zod + Fastify integration', () => {
+    let server;
+    let jwtService;
+    (0, vitest_1.beforeEach)(async () => {
+        const built = buildServer();
+        server = built.app;
+        jwtService = built.jwtService;
+        await server.ready();
+    });
+    (0, vitest_1.afterEach)(async () => {
+        await server.close();
+    });
+    (0, vitest_1.it)('devuelve 400 cuando el body de POST /players es inválido (email incorrecto)', async () => {
+        const response = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'no-es-email',
+                phoneNumber: '60012345678',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('crea un player válido en POST /players y devuelve 201', async () => {
+        const response = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'test@example.com',
+                phoneNumber: '600123123',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(201);
+        const body = response.json();
+        (0, vitest_1.expect)(body).toMatchObject({
+            name: 'Manuel',
+            lastname: 'Rico',
+            email: 'test@example.com',
+        });
+        (0, vitest_1.expect)(body.id).toBeDefined();
+    });
+    (0, vitest_1.it)('devuelve 401 en GET /players sin token', async () => {
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players',
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(401);
+    });
+    (0, vitest_1.it)('devuelve 200 y lista vacía en GET /players cuando no hay registros', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(200);
+        const body = response.json();
+        (0, vitest_1.expect)(body).toEqual({
+            data: [],
+            meta: { total: 0, page: 1, lastPage: 0 },
+        });
+    });
+    (0, vitest_1.it)('devuelve 400 en GET /players cuando page es inválida', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players?page=0',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 400 en GET /players cuando limit supera el máximo', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players?limit=101',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 400 en GET /players cuando q supera 100 caracteres', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: `/players?q=${encodeURIComponent('a'.repeat(101))}`,
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 200 en GET /players con query de paginación válida', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players?page=1&limit=10',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(200);
+    });
+    (0, vitest_1.it)('GET /players con limit=1 devuelve solo un jugador cuando hay dos', async () => {
+        const p1 = {
+            name: 'A',
+            lastname: 'Uno',
+            nickname: null,
+            email: 'a1@example.com',
+            phoneNumber: '600111111',
+            birthdate: '1990-01-01',
+            category: 'PRIMERA',
+            password: 'password12',
+        };
+        const p2 = {
+            name: 'B',
+            lastname: 'Dos',
+            nickname: null,
+            email: 'b2@example.com',
+            phoneNumber: '600222222',
+            birthdate: '1991-02-02',
+            category: 'PRIMERA',
+            password: 'password12',
+        };
+        await server.inject({ method: 'POST', url: '/players', payload: p1 });
+        await server.inject({ method: 'POST', url: '/players', payload: p2 });
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players?limit=1',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(200);
+        const body = response.json();
+        (0, vitest_1.expect)(Array.isArray(body.data)).toBe(true);
+        (0, vitest_1.expect)(body.data).toHaveLength(1);
+        (0, vitest_1.expect)(body.meta).toMatchObject({ total: 2, page: 1, lastPage: 2 });
+    });
+    (0, vitest_1.it)('GET /players con q filtra por nombre o apellidos', async () => {
+        const p1 = {
+            name: 'Carlos',
+            lastname: 'Uno',
+            nickname: null,
+            email: 'carlos.uno@example.com',
+            phoneNumber: '600111111',
+            birthdate: '1990-01-01',
+            category: 'PRIMERA',
+            password: 'password12',
+        };
+        const p2 = {
+            name: 'Diana',
+            lastname: 'Dos',
+            nickname: null,
+            email: 'diana.dos@example.com',
+            phoneNumber: '600222222',
+            birthdate: '1991-02-02',
+            category: 'PRIMERA',
+            password: 'password12',
+        };
+        await server.inject({ method: 'POST', url: '/players', payload: p1 });
+        await server.inject({ method: 'POST', url: '/players', payload: p2 });
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players?q=Carlos',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(200);
+        const body = response.json();
+        (0, vitest_1.expect)(body.meta.total).toBe(1);
+        (0, vitest_1.expect)(body.data).toHaveLength(1);
+        (0, vitest_1.expect)(body.data[0].name).toBe('Carlos');
+    });
+    (0, vitest_1.it)('devuelve 200 y lista con players en GET /players', async () => {
+        const payload = {
+            name: 'Manuel',
+            lastname: 'Rico',
+            nickname: null,
+            email: 'list@example.com',
+            phoneNumber: '600123123',
+            birthdate: '1990-01-01',
+            category: 'PRIMERA',
+            password: 'password123',
+        };
+        const createResponse = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload,
+        });
+        (0, vitest_1.expect)(createResponse.statusCode).toBe(201);
+        const headers = await authHeaders(jwtService, createResponse.json().id);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(200);
+        const body = response.json();
+        (0, vitest_1.expect)(Array.isArray(body.data)).toBe(true);
+        (0, vitest_1.expect)(body.data).toHaveLength(1);
+        (0, vitest_1.expect)(body.meta).toMatchObject({ total: 1, page: 1, lastPage: 1 });
+        (0, vitest_1.expect)(body.data[0]).toMatchObject({
+            name: 'Manuel',
+            lastname: 'Rico',
+            email: 'list@example.com',
+        });
+    });
+    (0, vitest_1.it)('devuelve 401 en GET /players/:playerId sin token', async () => {
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(401);
+    });
+    (0, vitest_1.it)('devuelve 400 cuando playerId de GET /players/:playerId no es UUID', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players/not-a-uuid',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 404 cuando el player no existe en GET /players/:playerId', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(404);
+    });
+    (0, vitest_1.it)('devuelve 403 en GET /players/:playerId cuando un USER pide otro jugador', async () => {
+        const [r1, r2] = await Promise.all([
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Usuario',
+                    lastname: 'Uno',
+                    nickname: null,
+                    email: 'user1-forbidden@example.com',
+                    phoneNumber: '600111111',
+                    birthdate: '1990-01-01',
+                    category: 'PRIMERA',
+                    password: 'password123',
+                },
+            }),
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Otro',
+                    lastname: 'Jugador',
+                    nickname: null,
+                    email: 'user2-forbidden@example.com',
+                    phoneNumber: '600222222',
+                    birthdate: '1991-01-01',
+                    category: 'PRIMERA',
+                    password: 'password456',
+                },
+            }),
+        ]);
+        (0, vitest_1.expect)(r1.statusCode).toBe(201);
+        (0, vitest_1.expect)(r2.statusCode).toBe(201);
+        const id1 = r1.json().id;
+        const id2 = r2.json().id;
+        const headers = await authHeaders(jwtService, id1, 'USER');
+        const response = await server.inject({
+            method: 'GET',
+            url: `/players/${id2}`,
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(403);
+    });
+    (0, vitest_1.it)('devuelve 200 en GET /players/:playerId/memberships con lista vacía', async () => {
+        const createResponse = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Membresias',
+                lastname: 'Vacio',
+                nickname: null,
+                email: 'memberships-empty@example.com',
+                phoneNumber: '699111111',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(createResponse.statusCode).toBe(201);
+        const created = createResponse.json();
+        const headers = await authHeaders(jwtService, created.id, 'USER');
+        const response = await server.inject({
+            method: 'GET',
+            url: `/players/${created.id}/memberships`,
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(200);
+        (0, vitest_1.expect)(response.json()).toEqual({ data: [] });
+    });
+    (0, vitest_1.it)('devuelve 403 en GET /players/:playerId/memberships cuando un USER pide otro jugador', async () => {
+        const [r1, r2] = await Promise.all([
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Usuario',
+                    lastname: 'Uno',
+                    nickname: null,
+                    email: 'user1-memberships-forbidden@example.com',
+                    phoneNumber: '600111119',
+                    birthdate: '1990-01-01',
+                    category: 'PRIMERA',
+                    password: 'password123',
+                },
+            }),
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Otro',
+                    lastname: 'Jugador',
+                    nickname: null,
+                    email: 'user2-memberships-forbidden@example.com',
+                    phoneNumber: '600222229',
+                    birthdate: '1991-01-01',
+                    category: 'PRIMERA',
+                    password: 'password456',
+                },
+            }),
+        ]);
+        (0, vitest_1.expect)(r1.statusCode).toBe(201);
+        (0, vitest_1.expect)(r2.statusCode).toBe(201);
+        const id1 = r1.json().id;
+        const id2 = r2.json().id;
+        const headers = await authHeaders(jwtService, id1, 'USER');
+        const response = await server.inject({
+            method: 'GET',
+            url: `/players/${id2}/memberships`,
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(403);
+    });
+    (0, vitest_1.it)('actualiza un player existente en PATCH /players/:playerId y devuelve 200', async () => {
+        const createResponse = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'patch@example.com',
+                phoneNumber: '600123123',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(createResponse.statusCode).toBe(201);
+        const created = createResponse.json();
+        const headers = await authHeaders(jwtService, created.id);
+        const patchResponse = await server.inject({
+            method: 'PATCH',
+            url: `/players/${created.id}`,
+            headers,
+            payload: {
+                name: 'Manuel Actualizado',
+                nickname: 'Manny',
+            },
+        });
+        (0, vitest_1.expect)(patchResponse.statusCode).toBe(200);
+        const body = patchResponse.json();
+        (0, vitest_1.expect)(body.name).toBe('Manuel Actualizado');
+        (0, vitest_1.expect)(body.nickname).toBe('Manny');
+    });
+    (0, vitest_1.it)('devuelve 404 en PATCH /players/:playerId cuando el player no existe', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'PATCH',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+            headers,
+            payload: {
+                name: 'No existe',
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(404);
+    });
+    (0, vitest_1.it)('devuelve 403 en PATCH /players/:playerId cuando un USER intenta actualizar otro jugador', async () => {
+        const [r1, r2] = await Promise.all([
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Usuario',
+                    lastname: 'Uno',
+                    nickname: null,
+                    email: 'user1-patch-forbidden@example.com',
+                    phoneNumber: '600111111',
+                    birthdate: '1990-01-01',
+                    category: 'PRIMERA',
+                    password: 'password123',
+                },
+            }),
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Otro',
+                    lastname: 'Jugador',
+                    nickname: null,
+                    email: 'user2-patch-forbidden@example.com',
+                    phoneNumber: '600222222',
+                    birthdate: '1991-01-01',
+                    category: 'PRIMERA',
+                    password: 'password456',
+                },
+            }),
+        ]);
+        (0, vitest_1.expect)(r1.statusCode).toBe(201);
+        (0, vitest_1.expect)(r2.statusCode).toBe(201);
+        const id1 = r1.json().id;
+        const id2 = r2.json().id;
+        const headers = await authHeaders(jwtService, id1, 'USER');
+        const response = await server.inject({
+            method: 'PATCH',
+            url: `/players/${id2}`,
+            headers,
+            payload: { name: 'Intentando cambiar otro' },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(403);
+    });
+    (0, vitest_1.it)('devuelve 400 cuando el body de PATCH /players/:playerId es inválido (email incorrecto)', async () => {
+        const createResponse = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'patch-invalid@example.com',
+                phoneNumber: '600123123',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(createResponse.statusCode).toBe(201);
+        const created = createResponse.json();
+        const headers = await authHeaders(jwtService, created.id);
+        const response = await server.inject({
+            method: 'PATCH',
+            url: `/players/${created.id}`,
+            headers,
+            payload: {
+                email: 'no-es-email',
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 400 en PATCH /players/:playerId cuando birthdate no es una fecha válida de dominio', async () => {
+        const createResponse = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'patch-birth-invalid@example.com',
+                phoneNumber: '600123123',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(createResponse.statusCode).toBe(201);
+        const created = createResponse.json();
+        const headers = await authHeaders(jwtService, created.id);
+        const response = await server.inject({
+            method: 'PATCH',
+            url: `/players/${created.id}`,
+            headers,
+            payload: {
+                birthdate: 'fecha-no-valida',
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 409 cuando el email ya está en uso en PATCH /players/:playerId', async () => {
+        const payload1 = {
+            name: 'Jugador 1',
+            lastname: 'Uno',
+            nickname: null,
+            email: 'one-patch@example.com',
+            phoneNumber: '600000001',
+            birthdate: '1990-01-01',
+            category: 'PRIMERA',
+            password: 'password1',
+        };
+        const payload2 = {
+            name: 'Jugador 2',
+            lastname: 'Dos',
+            nickname: null,
+            email: 'two-patch@example.com',
+            phoneNumber: '600000002',
+            birthdate: '1991-02-02',
+            category: 'SEGUNDA',
+            password: 'password2',
+        };
+        const r1 = await server.inject({ method: 'POST', url: '/players', payload: payload1 });
+        const r2 = await server.inject({ method: 'POST', url: '/players', payload: payload2 });
+        (0, vitest_1.expect)(r1.statusCode).toBe(201);
+        (0, vitest_1.expect)(r2.statusCode).toBe(201);
+        const created2 = r2.json();
+        const headers = await authHeaders(jwtService, created2.id);
+        const response = await server.inject({
+            method: 'PATCH',
+            url: `/players/${created2.id}`,
+            headers,
+            payload: {
+                email: payload1.email,
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(409);
+    });
+    (0, vitest_1.it)('elimina un player existente en DELETE /players/:playerId y devuelve 204', async () => {
+        const createResponse = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'delete@example.com',
+                phoneNumber: '600123123',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        (0, vitest_1.expect)(createResponse.statusCode).toBe(201);
+        const created = createResponse.json();
+        const headers = await authHeaders(jwtService, created.id);
+        const deleteResponse = await server.inject({
+            method: 'DELETE',
+            url: `/players/${created.id}`,
+            headers,
+        });
+        (0, vitest_1.expect)(deleteResponse.statusCode).toBe(204);
+        const getAfterDelete = await server.inject({
+            method: 'GET',
+            url: `/players/${created.id}`,
+            headers,
+        });
+        (0, vitest_1.expect)(getAfterDelete.statusCode).toBe(404);
+    });
+    (0, vitest_1.it)('devuelve 404 en DELETE /players/:playerId cuando el player no existe', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'DELETE',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(404);
+    });
+    (0, vitest_1.it)('devuelve 403 en DELETE /players/:playerId cuando un USER intenta eliminar otro jugador', async () => {
+        const [r1, r2] = await Promise.all([
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Usuario',
+                    lastname: 'Uno',
+                    nickname: null,
+                    email: 'user1-delete-forbidden@example.com',
+                    phoneNumber: '600111111',
+                    birthdate: '1990-01-01',
+                    category: 'PRIMERA',
+                    password: 'password123',
+                },
+            }),
+            server.inject({
+                method: 'POST',
+                url: '/players',
+                payload: {
+                    name: 'Otro',
+                    lastname: 'Jugador',
+                    nickname: null,
+                    email: 'user2-delete-forbidden@example.com',
+                    phoneNumber: '600222222',
+                    birthdate: '1991-01-01',
+                    category: 'PRIMERA',
+                    password: 'password456',
+                },
+            }),
+        ]);
+        (0, vitest_1.expect)(r1.statusCode).toBe(201);
+        (0, vitest_1.expect)(r2.statusCode).toBe(201);
+        const id1 = r1.json().id;
+        const id2 = r2.json().id;
+        const headers = await authHeaders(jwtService, id1, 'USER');
+        const response = await server.inject({
+            method: 'DELETE',
+            url: `/players/${id2}`,
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(403);
+    });
+    (0, vitest_1.it)('devuelve 400 cuando playerId de PATCH /players/:playerId no es UUID', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'PATCH',
+            url: '/players/not-a-uuid',
+            headers,
+            payload: {
+                name: 'Nuevo nombre',
+            },
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 400 cuando playerId de DELETE /players/:playerId no es UUID', async () => {
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'DELETE',
+            url: '/players/not-a-uuid',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+    });
+    (0, vitest_1.it)('devuelve 409 cuando el email ya está en uso en POST /players', async () => {
+        const payload = {
+            name: 'Manuel',
+            lastname: 'Rico',
+            nickname: null,
+            email: 'duplicado@example.com',
+            phoneNumber: '600123123',
+            birthdate: '1990-01-01',
+            category: 'PRIMERA',
+            password: 'password123',
+        };
+        const first = await server.inject({ method: 'POST', url: '/players', payload });
+        (0, vitest_1.expect)(first.statusCode).toBe(201);
+        const second = await server.inject({ method: 'POST', url: '/players', payload });
+        (0, vitest_1.expect)(second.statusCode).toBe(409);
+        (0, vitest_1.expect)(second.json()).toMatchObject({ message: vitest_1.expect.stringContaining('email') });
+    });
+});
+(0, vitest_1.describe)('players routes - errores de infraestructura', () => {
+    (0, vitest_1.it)('devuelve 500 cuando el repositorio falla en POST /players', async () => {
+        const server = buildServerWithFailingRepository();
+        await server.ready();
+        const response = await server.inject({
+            method: 'POST',
+            url: '/players',
+            payload: {
+                name: 'Manuel',
+                lastname: 'Rico',
+                nickname: null,
+                email: 'infra@example.com',
+                phoneNumber: '600123123',
+                birthdate: '1990-01-01',
+                category: 'PRIMERA',
+                password: 'password123',
+            },
+        });
+        await server.close();
+        (0, vitest_1.expect)(response.statusCode).toBe(500);
+    });
+    (0, vitest_1.it)('devuelve 500 cuando el repositorio falla en GET /players/:playerId', async () => {
+        const server = buildServerWithFailingRepository();
+        await server.ready();
+        const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+        const headers = await authHeaders(jwtService, '123e4567-e89b-12d3-a456-426614174000');
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+            headers,
+        });
+        await server.close();
+        (0, vitest_1.expect)(response.statusCode).toBe(500);
+    });
+    (0, vitest_1.it)('devuelve 500 cuando el repositorio falla en DELETE /players/:playerId', async () => {
+        const server = buildServerWithFailingRepository();
+        await server.ready();
+        const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+        const headers = await authHeaders(jwtService, '123e4567-e89b-12d3-a456-426614174000');
+        const response = await server.inject({
+            method: 'DELETE',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+            headers,
+        });
+        await server.close();
+        (0, vitest_1.expect)(response.statusCode).toBe(500);
+    });
+    (0, vitest_1.it)('devuelve 500 cuando el repositorio falla en GET /players', async () => {
+        const server = buildServerWithFailingRepository();
+        await server.ready();
+        const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await server.inject({
+            method: 'GET',
+            url: '/players',
+            headers,
+        });
+        await server.close();
+        (0, vitest_1.expect)(response.statusCode).toBe(500);
+    });
+    (0, vitest_1.it)('devuelve 500 cuando el repositorio falla en PATCH /players/:playerId', async () => {
+        const server = buildServerWithFailingRepository();
+        await server.ready();
+        const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+        const headers = await authHeaders(jwtService, '123e4567-e89b-12d3-a456-426614174000');
+        const response = await server.inject({
+            method: 'PATCH',
+            url: '/players/123e4567-e89b-12d3-a456-426614174000',
+            headers,
+            payload: { name: 'Test' },
+        });
+        await server.close();
+        (0, vitest_1.expect)(response.statusCode).toBe(500);
+    });
+});
+(0, vitest_1.describe)('players routes - ramas adicionales', () => {
+    (0, vitest_1.it)('GET /players devuelve estado mapeado cuando listPlayers responde Result.fail', async () => {
+        const app = (0, fastify_1.default)({ logger: false }).withTypeProvider();
+        app.setValidatorCompiler(fastify_type_provider_zod_1.validatorCompiler);
+        app.setSerializerCompiler(fastify_type_provider_zod_1.serializerCompiler);
+        const repository = new InMemoryPlayerRepository_1.InMemoryPlayerRepository();
+        const passwordHasher = new FakePasswordHasher_1.FakePasswordHasher();
+        const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+        const listPlayers = {
+            execute: async () => result_1.Result.fail(new errors_1.DomainValidationError('error de dominio en list players')),
+        };
+        app.register(players_routes_1.playersRoutes, {
+            repository,
+            passwordHasher,
+            jwtService,
+            listPlayers: listPlayers,
+        });
+        await app.ready();
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/players',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+        await app.close();
+    });
+    (0, vitest_1.it)('GET /players devuelve 400 cuando listPlayers lanza DomainValidationError', async () => {
+        const app = (0, fastify_1.default)({ logger: false }).withTypeProvider();
+        app.setValidatorCompiler(fastify_type_provider_zod_1.validatorCompiler);
+        app.setSerializerCompiler(fastify_type_provider_zod_1.serializerCompiler);
+        const repository = new InMemoryPlayerRepository_1.InMemoryPlayerRepository();
+        const passwordHasher = new FakePasswordHasher_1.FakePasswordHasher();
+        const jwtService = new JoseJwtService_1.JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+        const listPlayers = {
+            execute: async () => {
+                throw new errors_1.DomainValidationError('error domain catch list players');
+            },
+        };
+        app.register(players_routes_1.playersRoutes, {
+            repository,
+            passwordHasher,
+            jwtService,
+            listPlayers: listPlayers,
+        });
+        await app.ready();
+        const headers = await authHeaders(jwtService, PlayerId_value_object_1.PlayerId.generate().value);
+        const response = await app.inject({
+            method: 'GET',
+            url: '/players',
+            headers,
+        });
+        (0, vitest_1.expect)(response.statusCode).toBe(400);
+        await app.close();
+    });
+});
