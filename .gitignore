@@ -12,6 +12,14 @@ node_modules/
 dist/
 build/
 coverage/  
+apps/api/src/*.js
+apps/api/src/*.js.map
+apps/api/src/**/*.js
+apps/api/src/**/*.js.map
+apps/api/tests/*.js
+apps/api/tests/*.js.map
+apps/api/tests/**/*.js
+apps/api/tests/**/*.js.map
 
 # ------------------------------------------------------
 # 3. SEGURIDAD Y VARIABLES DE ENTORNO (CRÍTICO)

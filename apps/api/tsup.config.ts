@@ -3,6 +3,7 @@ import { tsconfigPathsPlugin } from 'esbuild-plugin-tsconfig-paths';
 
 export default defineConfig({
   entry: ['src/main.ts'],
+  tsconfig: 'tsconfig.app.json',
   outDir: 'dist',
   format: ['cjs'],
   target: 'node20',
