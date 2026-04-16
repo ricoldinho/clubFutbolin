@@ -39,6 +39,7 @@
     "lint:web": "npm run lint -w @clubfutbolin/web",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "audit:ci": "node scripts/ci-audit.js",
     "preview:web": "npm run preview -w @clubfutbolin/web"
   },
   "engines": {
@@ -47,7 +48,7 @@
   },
   "packageManager": "npm@10.9.2",
   "overrides": {
-    "vite": "6.4.1"
+    "vite": "6.4.2"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

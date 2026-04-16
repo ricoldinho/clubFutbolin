@@ -56,12 +56,12 @@ jobs:
 
       - name: Audit dependencies (PR)
         if: github.event_name == 'pull_request'
-        run: npm audit --audit-level=high
+        run: npm run audit:ci
         continue-on-error: true
 
       - name: Audit dependencies (main/modules blocking)
         if: github.event_name != 'pull_request'
-        run: npm audit --audit-level=high
+        run: npm run audit:ci
 
       - name: Generate Prisma Client
         run: npm run db:generate -w @clubfutbolin/api
