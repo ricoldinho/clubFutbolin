@@ -38,7 +38,7 @@
     "fastify": "^5.7.4",
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^6.1.0",
-    "jose": "^6.2.1",
+    "jose": "^6.2.2",
     "tsconfig-paths": "^4.2.0",
     "uuid": "^13.0.0",
     "zod": "^4.0.0"
