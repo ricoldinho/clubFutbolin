@@ -28,6 +28,8 @@ describe('JoseJwtService', () => {
     expect(payload!.sub).toBe('player-uuid-456');
     expect(payload!.role).toBe('ADMIN');
     expect(payload!.tokenType).toBe('access');
+    expect(payload!.jti).toEqual(expect.any(String));
+    expect(payload!.tokenFamily).toBeNull();
   });
 
   it('verify devuelve null cuando el token es inválido', async () => {
@@ -94,6 +96,7 @@ describe('JoseJwtService', () => {
       sub: 'player-uuid-789',
       role: 'USER',
       tokenType: 'refresh',
+      jti: expect.any(String),
     });
   });
 });
