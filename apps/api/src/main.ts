@@ -76,6 +76,9 @@ export async function buildServer() {
     });
 
     await server.register(fastifyHelmet, {
+      xFrameOptions: {
+        action: 'deny',
+      },
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],

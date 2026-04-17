@@ -252,7 +252,7 @@ describe('HTTP smoke (integración)', () => {
       url: '/health',
     });
     expect(health.statusCode).toBe(200);
-    expect(health.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(health.headers['x-frame-options']).toBe('DENY');
     expect(health.headers['x-content-type-options']).toBe('nosniff');
     expect(health.headers['referrer-policy']).toBeDefined();
 
