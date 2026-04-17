@@ -18,7 +18,7 @@ interface UseLoginOptions {
 }
 
 /**
- * Login: guarda el JWT y invalida listas que dependen del usuario autenticado (p. ej. ligas).
+ * Login de sesión basada en cookies httpOnly y posterior invalidación de queries.
  */
 export const useLogin = (options: UseLoginOptions = {}) => {
   const queryClient = useQueryClient();

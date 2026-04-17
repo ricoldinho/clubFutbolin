@@ -31,6 +31,17 @@ const mergeHeaders = (init: RequestInit): Headers => {
   return new Headers(init.headers);
 };
 
+const readCookie = (name: string): string | null => {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+};
+
 /**
  * `fetch` con base URL y cabeceras comunes. No lanza por status HTTP; usar `apiJson` para eso.
  */
@@ -43,6 +54,15 @@ export const apiFetch = async (path: string, init: RequestInit = {}): Promise<Re
   ) {
     headers.set('Content-Type', 'application/json');
   }
+  const method = (init.method ?? 'GET').toUpperCase();
+  const isStateChangingMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  if (isStateChangingMethod && !headers.has('x-csrf-token')) {
+    const csrfToken = readCookie('clubfutbolin_csrf');
+    if (csrfToken) {
+      headers.set('x-csrf-token', csrfToken);
+    }
+  }
+
   return fetch(apiUrl(path), { ...init, headers, credentials: init.credentials ?? 'include' });
 };
 
