@@ -41,6 +41,11 @@ export async function registerOpenApi(server: FastifyInstance): Promise<void> {
             in: 'cookie',
             name: 'clubfutbolin_at',
           },
+          csrfHeader: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'x-csrf-token',
+          },
         },
       },
     },

@@ -101,6 +101,18 @@ export const schema = {
       type: 'boolean',
       default: false,
     },
+    TRUST_PROXY: {
+      type: 'boolean',
+      default: false,
+    },
+    AUTH_CSRF_COOKIE_NAME: {
+      type: 'string',
+      default: 'clubfutbolin_csrf',
+    },
+    AUTH_CSRF_HEADER_NAME: {
+      type: 'string',
+      default: 'x-csrf-token',
+    },
   },
 };
 
@@ -124,6 +136,9 @@ export interface Envs {
   AUTH_REFRESH_COOKIE_MAX_AGE_SEC: number;
   AUTH_COOKIE_SAME_SITE: string;
   AUTH_COOKIE_SECURE: boolean;
+  TRUST_PROXY: boolean;
+  AUTH_CSRF_COOKIE_NAME: string;
+  AUTH_CSRF_HEADER_NAME: string;
 }
 
 // 3. Opciones para el plugin de Fastify

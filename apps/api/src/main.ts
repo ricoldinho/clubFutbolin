@@ -38,6 +38,7 @@ export async function buildServer() {
   try {
     const server = Fastify({
       logger: true,
+      trustProxy: process.env.TRUST_PROXY === 'true',
     }).withTypeProvider<ZodTypeProvider>();
 
     server.setValidatorCompiler(validatorCompiler);
@@ -52,6 +53,11 @@ export async function buildServer() {
     ) {
       throw new Error(
         'JWT_SECRET inseguro en producción. Define un secreto robusto mediante variables de entorno.',
+      );
+    }
+    if (server.config.NODE_ENV === 'production' && !server.config.AUTH_COOKIE_SECURE) {
+      throw new Error(
+        'AUTH_COOKIE_SECURE debe ser true en producción para proteger cookies de sesión bajo HTTPS.',
       );
     }
 
@@ -70,8 +76,17 @@ export async function buildServer() {
     });
 
     await server.register(fastifyHelmet, {
-      // Swagger UI inyecta scripts inline; CSP estricta aquí rompería /documentation.
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          imgSrc: ["'self'", 'data:'],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+        },
+      },
     });
 
     await server.register(fastifyRateLimit, {
@@ -90,6 +105,33 @@ export async function buildServer() {
     server.addHook('onRequest', async (request, reply) => {
       requestStartTimes.set(request, Date.now());
       reply.header('x-request-id', request.id);
+    });
+
+    server.addHook('preHandler', async (request, reply) => {
+      const isStateChangingMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
+      if (!isStateChangingMethod) {
+        return;
+      }
+
+      const accessCookie = request.cookies?.[server.config.AUTH_ACCESS_COOKIE_NAME];
+      const refreshCookie = request.cookies?.[server.config.AUTH_REFRESH_COOKIE_NAME];
+      const hasSessionCookies = Boolean(accessCookie || refreshCookie);
+      if (!hasSessionCookies) {
+        return;
+      }
+
+      const csrfCookie = request.cookies?.[server.config.AUTH_CSRF_COOKIE_NAME];
+      const csrfHeaderRaw = request.headers[server.config.AUTH_CSRF_HEADER_NAME.toLowerCase()];
+      const csrfHeader = Array.isArray(csrfHeaderRaw) ? csrfHeaderRaw[0] : csrfHeaderRaw;
+      if (
+        typeof csrfCookie !== 'string'
+        || csrfCookie.length === 0
+        || typeof csrfHeader !== 'string'
+        || csrfHeader.length === 0
+        || csrfHeader !== csrfCookie
+      ) {
+        return reply.code(403).send({ message: 'CSRF token inválido o ausente' });
+      }
     });
 
     server.addHook('onResponse', async (request, reply) => {
