@@ -11,6 +11,7 @@ import { PrismaTeamRepository } from "@/adapters/persistence/teams/PrismaTeamRep
 import { PrismaSeasonRepository } from "@/adapters/persistence/seasons/PrismaSeasonRepository";
 import { PrismaRosterRepository } from "@/adapters/persistence/rosters/PrismaRosterRepository";
 import { PrismaMatchRepository } from "@/adapters/persistence/matches/PrismaMatchRepository";
+import { PrismaRefreshTokenSessionRepository } from "@/adapters/persistence/auth/PrismaRefreshTokenSessionRepository";
 import { BcryptPasswordHasher } from "@/adapters/auth/BcryptPasswordHasher";
 import { JoseJwtService } from "@/adapters/auth/JoseJwtService";
 import { LoginPlayer } from "@/application/use-cases/players/LoginPlayer.use-case";
@@ -51,6 +52,7 @@ export interface AppContainerCradle {
   seasonRepository: PrismaSeasonRepository;
   rosterRepository: PrismaRosterRepository;
   matchRepository: PrismaMatchRepository;
+  refreshTokenSessionRepository: PrismaRefreshTokenSessionRepository;
   passwordHasher: BcryptPasswordHasher;
   jwtService: JoseJwtService;
   loginPlayer: LoginPlayer;
@@ -102,6 +104,7 @@ export function buildContainer({
     seasonRepository: asClass(PrismaSeasonRepository).classic().singleton(),
     rosterRepository: asClass(PrismaRosterRepository).classic().singleton(),
     matchRepository: asClass(PrismaMatchRepository).classic().singleton(),
+    refreshTokenSessionRepository: asClass(PrismaRefreshTokenSessionRepository).classic().singleton(),
 
     // Servicios (no dependientes salvo config para JWT).
     passwordHasher: asClass(BcryptPasswordHasher).classic().singleton(),

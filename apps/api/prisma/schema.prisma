@@ -68,6 +68,24 @@ model Player {
 
   // Relación 1-N con RosterPlayer (plantillas en las que participa)
   rosterPlayers RosterPlayer[]
+  refreshTokenSessions RefreshTokenSession[]
+}
+
+model RefreshTokenSession {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jti           String   @unique @db.Uuid
+  family        String   @db.Uuid
+  playerId      String   @db.Uuid
+  replacedByJti String?  @db.Uuid
+  revokedAt     DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  lastUsedAt    DateTime?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([family])
 }
 
 model League {

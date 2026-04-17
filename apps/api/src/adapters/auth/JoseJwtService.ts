@@ -1,4 +1,5 @@
 import * as jose from 'jose';
+import { randomUUID } from 'node:crypto';
 import type {
   IJwtService,
   JwtPayload,
@@ -20,9 +21,11 @@ export class JoseJwtService implements IJwtService {
       email: payload.email,
       role: payload.role,
       tokenType: payload.tokenType ?? 'access',
+      tokenFamily: payload.tokenFamily,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(payload.sub)
+      .setJti(payload.jti ?? randomUUID())
       .setExpirationTime(options?.expiresIn ?? this.expiresIn)
       .sign(secret);
   }
@@ -34,10 +37,17 @@ export class JoseJwtService implements IJwtService {
       const sub = payload.sub ?? payload['sub'];
       const role = payload.role ?? payload['role'];
       const tokenType = payload.tokenType ?? payload['tokenType'] ?? 'access';
+      const tokenFamily = payload.tokenFamily ?? payload['tokenFamily'] ?? null;
       if (typeof sub !== 'string' || typeof role !== 'string') return null;
       if (tokenType !== 'access' && tokenType !== 'refresh') return null;
       if (expectedTokenType !== undefined && expectedTokenType !== tokenType) return null;
-      return { sub, role, tokenType };
+      return {
+        sub,
+        role,
+        tokenType,
+        jti: typeof payload.jti === 'string' ? payload.jti : null,
+        tokenFamily: typeof tokenFamily === 'string' ? tokenFamily : null,
+      };
     } catch {
       return null;
     }

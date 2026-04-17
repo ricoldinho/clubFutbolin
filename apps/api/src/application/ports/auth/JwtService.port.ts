@@ -8,6 +8,8 @@ export interface JwtPayload {
   email?: string;
   role: string;
   tokenType?: JwtTokenType;
+  jti?: string;
+  tokenFamily?: string;
 }
 
 /**
@@ -17,6 +19,8 @@ export interface JwtVerifyResult {
   sub: string;
   role: string;
   tokenType: JwtTokenType;
+  jti: string | null;
+  tokenFamily: string | null;
 }
 
 export interface JwtSignOptions {
