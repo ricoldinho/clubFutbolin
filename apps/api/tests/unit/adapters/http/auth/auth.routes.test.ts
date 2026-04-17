@@ -13,6 +13,7 @@ import { InMemoryPlayerRepository } from '../../../../doubles/InMemoryPlayerRepo
 import { FakePasswordHasher } from '../../../../doubles/FakePasswordHasher';
 import { JoseJwtService } from '@/adapters/auth/JoseJwtService';
 import type { IPlayerRepository } from '@/application/ports/players/Player.repository';
+import type { IRefreshTokenSessionRepository } from '@/application/ports/auth/RefreshTokenSession.repository';
 
 const TEST_JWT_SECRET = 'test-secret';
 const TEST_JWT_EXPIRES = '1h';
@@ -35,6 +36,9 @@ const TEST_SERVER_CONFIG = {
   AUTH_REFRESH_COOKIE_MAX_AGE_SEC: 1209600,
   AUTH_COOKIE_SAME_SITE: 'lax',
   AUTH_COOKIE_SECURE: false,
+  AUTH_CSRF_COOKIE_NAME: 'clubfutbolin_csrf',
+  AUTH_CSRF_HEADER_NAME: 'x-csrf-token',
+  TRUST_PROXY: false,
 };
 
 function buildApp() {
@@ -46,13 +50,73 @@ function buildApp() {
   const repository = new InMemoryPlayerRepository();
   const passwordHasher = new FakePasswordHasher();
   const jwtService = new JoseJwtService(TEST_JWT_SECRET, TEST_JWT_EXPIRES);
+  const sessions = new Map<
+    string,
+    {
+      jti: string;
+      family: string;
+      playerId: string;
+      expiresAt: Date;
+      revokedAt: Date | null;
+      replacedByJti: string | null;
+      lastUsedAt: Date | null;
+    }
+  >();
+  const refreshTokenSessionRepository: IRefreshTokenSessionRepository = {
+    create: async (input) => {
+      sessions.set(input.jti, {
+        jti: input.jti,
+        family: input.family,
+        playerId: input.playerId,
+        expiresAt: input.expiresAt,
+        revokedAt: null,
+        replacedByJti: null,
+        lastUsedAt: null,
+      });
+    },
+    findByJti: async (jti) => sessions.get(jti) ?? null,
+    rotate: async (currentJti, nextJti, nextExpiresAt) => {
+      const current = sessions.get(currentJti);
+      if (!current) return;
+      current.revokedAt = new Date();
+      current.replacedByJti = nextJti;
+      current.lastUsedAt = new Date();
+      sessions.set(nextJti, {
+        jti: nextJti,
+        family: current.family,
+        playerId: current.playerId,
+        expiresAt: nextExpiresAt,
+        revokedAt: null,
+        replacedByJti: null,
+        lastUsedAt: null,
+      });
+    },
+    revokeFamily: async (family) => {
+      for (const session of sessions.values()) {
+        if (session.family === family) {
+          session.revokedAt = new Date();
+        }
+      }
+    },
+    revokeByJti: async (jti) => {
+      const current = sessions.get(jti);
+      if (current) {
+        current.revokedAt = new Date();
+      }
+    },
+  };
 
   app.register(fastifyCookie);
   app.register(fastifyRateLimit, {
     max: TEST_SERVER_CONFIG.RATE_LIMIT_MAX,
     timeWindow: TEST_SERVER_CONFIG.RATE_LIMIT_WINDOW_MS,
   });
-  app.register(authRoutes, { repository, passwordHasher, jwtService });
+  app.register(authRoutes, {
+    repository,
+    passwordHasher,
+    jwtService,
+    refreshTokenSessionRepository,
+  });
   app.register(playersRoutes, { repository, passwordHasher, jwtService });
 
   return { app, repository, passwordHasher, jwtService };
@@ -110,6 +174,7 @@ describe('auth routes', () => {
     const cookiesAsText = Array.isArray(setCookie) ? setCookie.join(' ') : setCookie;
     expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME);
     expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME);
+    expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME);
   });
 
   it('POST /auth/login devuelve 401 cuando la contraseña es incorrecta', async () => {
@@ -185,6 +250,13 @@ describe('auth routes', () => {
       repository: throwingRepo,
       passwordHasher,
       jwtService,
+      refreshTokenSessionRepository: {
+        create: async () => {},
+        findByJti: async () => null,
+        rotate: async () => {},
+        revokeFamily: async () => {},
+        revokeByJti: async () => {},
+      },
     });
     await appWithFailingRepo.ready();
 
@@ -227,6 +299,33 @@ describe('auth routes', () => {
     expect(third.statusCode).toBe(429);
   });
 
+  it('POST /auth/login permite intentar con otro email sin compartir bucket de rate-limit', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+
+    // Act
+    const firstKnownEmail = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'wrongpassword' },
+    });
+    const secondKnownEmail = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'wrongpassword' },
+    });
+    const firstUnknownEmail = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'other@example.com', password: 'wrongpassword' },
+    });
+
+    // Assert
+    expect(firstKnownEmail.statusCode).toBe(401);
+    expect(secondKnownEmail.statusCode).toBe(401);
+    expect(firstUnknownEmail.statusCode).toBe(401);
+  });
+
   it('POST /auth/refresh devuelve 200 y rota cookies cuando la refresh cookie es válida', async () => {
     // Arrange
     await registerTestPlayer(app);
@@ -238,6 +337,9 @@ describe('auth routes', () => {
     const refreshCookie = login.cookies.find(
       (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME,
     );
+    const csrfCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME,
+    );
 
     // Act
     const response = await app.inject({
@@ -245,6 +347,10 @@ describe('auth routes', () => {
       url: '/auth/refresh',
       cookies: {
         [TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME]: refreshCookie?.value ?? '',
+        [TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME]: csrfCookie?.value ?? '',
+      },
+      headers: {
+        [TEST_SERVER_CONFIG.AUTH_CSRF_HEADER_NAME]: csrfCookie?.value ?? '',
       },
     });
 
@@ -273,6 +379,79 @@ describe('auth routes', () => {
 
     // Assert
     expect(response.statusCode).toBe(401);
+  });
+
+  it('POST /auth/refresh devuelve 403 si falta header CSRF con cookie de sesión', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'mipassword123' },
+    });
+    const refreshCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME,
+    );
+    const csrfCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME,
+    );
+
+    // Act
+    const response = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: {
+        [TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME]: refreshCookie?.value ?? '',
+        [TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME]: csrfCookie?.value ?? '',
+      },
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('POST /auth/refresh devuelve 401 si se reutiliza un refresh token ya rotado', async () => {
+    // Arrange
+    await registerTestPlayer(app);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'ana@example.com', password: 'mipassword123' },
+    });
+    const refreshCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME,
+    );
+    const csrfCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME,
+    );
+    const firstRefresh = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: {
+        [TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME]: refreshCookie?.value ?? '',
+        [TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME]: csrfCookie?.value ?? '',
+      },
+      headers: {
+        [TEST_SERVER_CONFIG.AUTH_CSRF_HEADER_NAME]: csrfCookie?.value ?? '',
+      },
+    });
+    expect(firstRefresh.statusCode).toBe(200);
+
+    // Act
+    const reusedToken = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: {
+        [TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME]: refreshCookie?.value ?? '',
+        [TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME]: csrfCookie?.value ?? '',
+      },
+      headers: {
+        [TEST_SERVER_CONFIG.AUTH_CSRF_HEADER_NAME]: csrfCookie?.value ?? '',
+      },
+    });
+
+    // Assert
+    expect(reusedToken.statusCode).toBe(401);
   });
 
   it('GET /auth/session devuelve 200 usando access cookie', async () => {
@@ -307,16 +486,29 @@ describe('auth routes', () => {
   it('POST /auth/logout devuelve 204 y limpia cookies', async () => {
     // Arrange
     await registerTestPlayer(app);
-    await app.inject({
+    const login = await app.inject({
       method: 'POST',
       url: '/auth/login',
       payload: { email: 'ana@example.com', password: 'mipassword123' },
     });
+    const accessCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME,
+    );
+    const csrfCookie = login.cookies.find(
+      (cookie) => cookie.name === TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME,
+    );
 
     // Act
     const response = await app.inject({
       method: 'POST',
       url: '/auth/logout',
+      cookies: {
+        [TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME]: accessCookie?.value ?? '',
+        [TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME]: csrfCookie?.value ?? '',
+      },
+      headers: {
+        [TEST_SERVER_CONFIG.AUTH_CSRF_HEADER_NAME]: csrfCookie?.value ?? '',
+      },
     });
 
     // Assert
@@ -325,5 +517,26 @@ describe('auth routes', () => {
     const cookiesAsText = Array.isArray(setCookie) ? setCookie.join(' ') : setCookie;
     expect(cookiesAsText).toContain(`${TEST_SERVER_CONFIG.AUTH_ACCESS_COOKIE_NAME}=`);
     expect(cookiesAsText).toContain(`${TEST_SERVER_CONFIG.AUTH_REFRESH_COOKIE_NAME}=`);
+    expect(cookiesAsText).toContain(`${TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME}=`);
+  });
+
+  it('GET /auth/csrf devuelve 200 y setea cookie CSRF', async () => {
+    // Arrange
+    // sin preparación adicional
+
+    // Act
+    const response = await app.inject({
+      method: 'GET',
+      url: '/auth/csrf',
+    });
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      csrfToken: expect.any(String),
+    });
+    const setCookie = response.headers['set-cookie'];
+    const cookiesAsText = Array.isArray(setCookie) ? setCookie.join(' ') : setCookie;
+    expect(cookiesAsText).toContain(TEST_SERVER_CONFIG.AUTH_CSRF_COOKIE_NAME);
   });
 });

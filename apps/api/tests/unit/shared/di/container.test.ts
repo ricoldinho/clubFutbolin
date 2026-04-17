@@ -27,6 +27,9 @@ describe('buildContainer', () => {
         AUTH_REFRESH_COOKIE_MAX_AGE_SEC: 1209600,
         AUTH_COOKIE_SAME_SITE: 'lax',
         AUTH_COOKIE_SECURE: false,
+        TRUST_PROXY: false,
+        AUTH_CSRF_COOKIE_NAME: 'clubfutbolin_csrf',
+        AUTH_CSRF_HEADER_NAME: 'x-csrf-token',
       },
     });
 
@@ -67,6 +70,9 @@ describe('buildContainer', () => {
         AUTH_REFRESH_COOKIE_MAX_AGE_SEC: 1209600,
         AUTH_COOKIE_SAME_SITE: 'lax',
         AUTH_COOKIE_SECURE: false,
+        TRUST_PROXY: false,
+        AUTH_CSRF_COOKIE_NAME: 'clubfutbolin_csrf',
+        AUTH_CSRF_HEADER_NAME: 'x-csrf-token',
       },
     });
     const scopeA = container.createScope();
@@ -107,6 +113,9 @@ describe('buildContainer', () => {
         AUTH_REFRESH_COOKIE_MAX_AGE_SEC: 1209600,
         AUTH_COOKIE_SAME_SITE: 'lax',
         AUTH_COOKIE_SECURE: false,
+        TRUST_PROXY: false,
+        AUTH_CSRF_COOKIE_NAME: 'clubfutbolin_csrf',
+        AUTH_CSRF_HEADER_NAME: 'x-csrf-token',
       },
     });
     const scope = container.createScope();

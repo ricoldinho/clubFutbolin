@@ -24,6 +24,9 @@ const TEST_SERVER_CONFIG = {
   AUTH_REFRESH_COOKIE_MAX_AGE_SEC: 1209600,
   AUTH_COOKIE_SAME_SITE: 'lax',
   AUTH_COOKIE_SECURE: false,
+  TRUST_PROXY: false,
+  AUTH_CSRF_COOKIE_NAME: 'clubfutbolin_csrf',
+  AUTH_CSRF_HEADER_NAME: 'x-csrf-token',
 };
 
 const buildApp = async () => {

@@ -95,6 +95,9 @@ describe('env schema', () => {
     };
     const cookieSameSite = schema.properties?.AUTH_COOKIE_SAME_SITE as { default?: string };
     const cookieSecure = schema.properties?.AUTH_COOKIE_SECURE as { default?: boolean };
+    const trustProxy = schema.properties?.TRUST_PROXY as { default?: boolean };
+    const csrfCookieName = schema.properties?.AUTH_CSRF_COOKIE_NAME as { default?: string };
+    const csrfHeaderName = schema.properties?.AUTH_CSRF_HEADER_NAME as { default?: string };
 
     // Act
     const defaults = {
@@ -105,6 +108,9 @@ describe('env schema', () => {
       refreshCookieMaxAge: refreshCookieMaxAge?.default,
       cookieSameSite: cookieSameSite?.default,
       cookieSecure: cookieSecure?.default,
+      trustProxy: trustProxy?.default,
+      csrfCookieName: csrfCookieName?.default,
+      csrfHeaderName: csrfHeaderName?.default,
     };
 
     // Assert
@@ -116,6 +122,9 @@ describe('env schema', () => {
       refreshCookieMaxAge: 1209600,
       cookieSameSite: 'lax',
       cookieSecure: false,
+      trustProxy: false,
+      csrfCookieName: 'clubfutbolin_csrf',
+      csrfHeaderName: 'x-csrf-token',
     });
   });
 

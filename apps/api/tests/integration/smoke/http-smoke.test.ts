@@ -14,6 +14,7 @@ const ADMIN_PASSWORD = process.env.PRISMA_SEED_ADMIN_PASSWORD ?? 'admin123456';
 async function clearDb(prisma: PrismaClient): Promise<void> {
   // Orden para respetar FK:
   // RosterPlayer -> TeamSeason -> Season -> League -> Team -> Player
+  await prisma.refreshTokenSession.deleteMany({});
   await prisma.match.deleteMany({});
   await prisma.rosterPlayer.deleteMany({});
   await prisma.teamSeason.deleteMany({});
@@ -101,7 +102,12 @@ describe('HTTP smoke (integración)', () => {
     expect(loginBody.expiresIn.length).toBeGreaterThan(0);
 
     const accessCookie = loginRes.cookies.find((cookie) => cookie.name === 'clubfutbolin_at');
-    const authCookies = { clubfutbolin_at: accessCookie?.value ?? '' };
+    const csrfCookie = loginRes.cookies.find((cookie) => cookie.name === 'clubfutbolin_csrf');
+    const authCookies = {
+      clubfutbolin_at: accessCookie?.value ?? '',
+      clubfutbolin_csrf: csrfCookie?.value ?? '',
+    };
+    const csrfHeaders = { 'x-csrf-token': csrfCookie?.value ?? '' };
 
     // 3) Listado paginado (público): GET /leagues
     const leaguesRes = await server.inject({
@@ -120,6 +126,7 @@ describe('HTTP smoke (integración)', () => {
       method: 'POST',
       url: '/leagues',
       cookies: authCookies,
+      headers: csrfHeaders,
       payload: { name: 'Liga Smoke', leagueCategory: 'PRIMERA' },
     });
     expect(createLeagueRes.statusCode).toBe(201);
@@ -130,6 +137,7 @@ describe('HTTP smoke (integración)', () => {
       method: 'POST',
       url: '/seasons',
       cookies: authCookies,
+      headers: csrfHeaders,
       payload: { year: 2027, leagueId: createdLeague.id },
     });
     expect(createSeasonRes.statusCode).toBe(201);
@@ -175,6 +183,7 @@ describe('HTTP smoke (integración)', () => {
       method: 'POST',
       url: '/teams',
       cookies: authCookies,
+      headers: csrfHeaders,
       payload: {
         name: 'Equipo Smoke',
         playerIds: [createdPlayer1.id, createdPlayer2.id],
@@ -233,6 +242,26 @@ describe('HTTP smoke (integración)', () => {
 
     expect(parameterNames).toContain('page');
     expect(parameterNames).toContain('limit');
+  });
+
+  it('health y documentation devuelven cabeceras de seguridad', async () => {
+    if (!server) throw new Error('server no inicializado');
+
+    const health = await server.inject({
+      method: 'GET',
+      url: '/health',
+    });
+    expect(health.statusCode).toBe(200);
+    expect(health.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(health.headers['x-content-type-options']).toBe('nosniff');
+    expect(health.headers['referrer-policy']).toBeDefined();
+
+    const docs = await server.inject({
+      method: 'GET',
+      url: '/documentation',
+    });
+    expect(docs.statusCode).toBe(200);
+    expect(docs.headers['content-security-policy']).toBeDefined();
   });
 });
 
