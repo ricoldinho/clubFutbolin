@@ -310,6 +310,11 @@ async function start() {
   }
 }
 
-if (process.env.NODE_ENV !== 'test') {
+const shouldAutoStart =
+  process.env.NODE_ENV !== 'test'
+  && typeof require !== 'undefined'
+  && require.main === module;
+
+if (shouldAutoStart) {
   void start();
 }
