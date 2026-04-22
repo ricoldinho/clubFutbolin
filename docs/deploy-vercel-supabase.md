@@ -11,11 +11,16 @@ Guia para desplegar `apps/api` y `apps/web` usando Supabase Postgres como base d
 ## 1) Preparar Supabase
 
 1. Crear proyecto en Supabase.
-2. Copiar la cadena de conexion Postgres para aplicaciones (no la de psql local).
+2. Usar la cadena de conexion Postgres para aplicaciones:
+
+```bash
+postgresql://postgres.zvygqjwsfezqkvpqqzqi:[YOUR-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+```
+
 3. Aplicar migraciones desde local:
 
 ```bash
-DATABASE_URL="<SUPABASE_DATABASE_URL>" npm run db:migrate -w @clubfutbolin/api
+DATABASE_URL="postgresql://postgres.zvygqjwsfezqkvpqqzqi:[YOUR-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres" npm run db:migrate -w @clubfutbolin/api
 ```
 
 ## 2) Crear proyecto API en Vercel
@@ -25,7 +30,7 @@ DATABASE_URL="<SUPABASE_DATABASE_URL>" npm run db:migrate -w @clubfutbolin/api
 3. Dejar `vercel.json` activo (en esta carpeta).
 4. Configurar variables de entorno en Vercel (Production, Preview):
 
-- `DATABASE_URL=<SUPABASE_DATABASE_URL>`
+- `DATABASE_URL=postgresql://postgres.zvygqjwsfezqkvpqqzqi:[YOUR-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`
 - `NODE_ENV=production`
 - `PORT=3000`
 - `JWT_SECRET=<secreto_robusto_min_32_chars>`
@@ -34,7 +39,7 @@ DATABASE_URL="<SUPABASE_DATABASE_URL>" npm run db:migrate -w @clubfutbolin/api
 - `AUTH_COOKIE_SECURE=true`
 - `AUTH_COOKIE_SAME_SITE=lax`
 - `TRUST_PROXY=true`
-- `CORS_ORIGINS=https://<tu-web>.vercel.app`
+- `CORS_ORIGINS=https://club-futbolin-api.vercel.app`
 
 Notas:
 - En produccion, la API aborta si `AUTH_COOKIE_SECURE=false`.
@@ -47,7 +52,7 @@ Notas:
 3. Framework preset: `Vite`.
 4. Configurar variable:
 
-- `VITE_API_BASE=https://<tu-api>.vercel.app`
+- `VITE_API_BASE=https://club-futbolin-m7zjx6v3o-ricoldinhos-projects.vercel.app`
 
 5. Mantener `vercel.json` de `apps/web` para rewrite SPA a `index.html`.
 
@@ -57,6 +62,10 @@ Cuando tengas URL final de la web:
 
 - API `CORS_ORIGINS` debe incluir solo dominios oficiales de front (preview/prod).
 - Evitar `*` en produccion cuando hay cookies de sesion.
+
+Valores actuales del proyecto:
+- Web: `https://club-futbolin-api.vercel.app`
+- API: `https://club-futbolin-m7zjx6v3o-ricoldinhos-projects.vercel.app`
 
 ## 5) Validacion post-deploy
 

@@ -1,85 +1,52 @@
-# Quickstart 10 min (API + Web + DB)
+# Quick Readme del proyecto
 
-Versión express para dejar el proyecto funcionando en una máquina nueva.
+Referencia rapida para entender `clubFutbolin` en menos de 2 minutos.
 
-## 0) Requisitos
+## Que es
 
-- Docker
-- Node.js 20+
+Monorepo fullstack para la gestion de un club/liga de futbolin.
 
-## 1) Preparar `.env`
+- API en Fastify + Prisma + PostgreSQL.
+- Web en React + Vite + TanStack Query.
+- Tests unitarios, integracion y E2E.
 
-Si no tienes `.env`, créalo desde `.env.example`:
+## Estructura minima
 
-```bash
-cp .env.example .env
+```text
+apps/api   -> backend HTTP + dominio + persistencia
+apps/web   -> frontend SPA
+e2e/       -> tests end-to-end con Playwright
+docs/      -> documentacion tecnica y operativa
 ```
 
-Asegúrate de que exista al menos:
+## Flujos funcionales principales
 
-```bash
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/clubfutbolin"
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=clubfutbolin
-DB_PORT=5432
-```
+- Auth de jugadores.
+- CRUD de jugadores.
+- Ligas, temporadas y equipos.
+- Roster por equipo/temporada.
+- Partidos.
 
-## 2) Instalar dependencias
+## Primeros comandos utiles
 
 ```bash
 npm install
-```
-
-## 3) Levantar Postgres (Docker)
-
-```bash
-docker compose up -d
-```
-
-## 4) Migrar BD
-
-```bash
-npm run db:migrate
-```
-
-## 5) Cargar seed (datos iniciales)
-
-```bash
-npm run db:seed
-```
-
-Credenciales admin del seed:
-
-- email: `admin@seed.local`
-- password: `admin123456`
-
-Credenciales user del seed:
-
-- email: `user@seed.local`
-- password: `user123456`
-
-## 6) Levantar API (Fastify)
-
-```bash
 npm run dev:api
-```
-
-Abre:
-
-- `http://localhost:3000/documentation` (Swagger UI; JSON en `/documentation/json`)
-
-## 7) Levantar Web (React/Vite)
-
-En otra terminal:
-
-```bash
 npm run dev:web
 ```
 
-## 8) Parar todo al terminar
+Ver guia completa de arranque en `docs/comandos-entorno-local.md`.
 
-```bash
-docker compose down
-```
+## URLs locales
+
+- API: `http://localhost:3000`
+- Swagger: `http://localhost:3000/documentation`
+- Web: `http://localhost:5173`
+
+## Documentos clave de `docs/`
+
+- Arranque completo: `docs/comandos-entorno-local.md`
+- Referencia API: `docs/api-reference.md`
+- Coleccion HTTP: `docs/api.http`
+- Calidad y metricas: `docs/calidad-metricas.md`
 

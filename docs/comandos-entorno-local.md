@@ -1,124 +1,97 @@
-# Comandos para levantar el entorno local (API + Web + Postgres)
+# Arranque local del monorepo (DB + API + Web)
 
-Guía rápida para cualquier máquina nueva (Mac/Windows/Linux) con Docker y Node.js.
+Documento unico para levantar el entorno local completo de `clubFutbolin`.
 
-## 1) Requisitos previos
+## 1) Requisitos
 
-- Docker Desktop (o Docker Engine + Compose)
-- Node.js 20+ y npm
+- Node.js `>=20 <26`
+- npm `>=10 <12`
+- Docker + Docker Compose
 
-## 2) Preparar variables de entorno
+## 2) Variables de entorno
 
-En la raíz del repo, crea `.env` (si no existe) a partir de `.env.example`.
-
-Valores mínimos recomendados para desarrollo local:
+Desde la raiz del repo:
 
 ```bash
-# PostgreSQL de desarrollo (docker-compose.yml)
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=clubfutbolin
-DB_PORT=5432
-
-# Prisma/API
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/clubfutbolin"
-
-# PostgreSQL de tests (docker-compose.test.yml)
-DATABASE_URL_TEST="postgresql://test:test@localhost:5433/clubfutbolin_test"
-
-# JWT (opcional en local)
-JWT_SECRET=dev-secret-change-in-production
-JWT_EXPIRES_IN=7d
+cp env.template .env
 ```
 
-## 3) Instalar dependencias del monorepo
+Valores minimos recomendados para local:
 
-Desde la raíz:
+```bash
+PORT=3000
+DB_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change_me
+POSTGRES_DB=clubfutbolin
+DATABASE_URL="postgresql://postgres:change_me@localhost:5432/clubfutbolin"
+DATABASE_URL_TEST="postgresql://test:test@localhost:5433/clubfutbolin_test"
+JWT_SECRET=dev-secret-change-in-production-1234567890
+```
+
+## 3) Instalar dependencias
 
 ```bash
 npm install
 ```
 
-## 4) Levantar PostgreSQL de desarrollo con Docker
+## 4) Levantar base de datos local
 
 ```bash
-docker compose up -d
+docker compose up -d db
 ```
 
-Comprobar que está arriba:
+Comprobar estado:
 
 ```bash
 docker compose ps
 ```
 
-Parar cuando termines:
+## 5) Preparar Prisma
 
 ```bash
-docker compose down
-```
-
-Si quieres borrar también los datos persistidos:
-
-```bash
-docker compose down -v
-```
-
-## 5) Migrar base de datos de desarrollo
-
-```bash
+npm run db:generate
 npm run db:migrate
 ```
 
-## 6) Cargar datos iniciales (seed)
-
-Esto limpia la BD y genera datos de ejemplo (liga, temporadas, equipos, jugadores, rosters):
+Opcional: cargar datos semilla.
 
 ```bash
 npm run db:seed
 ```
 
-Opcionalmente puedes personalizar el seed:
+Credenciales seed por defecto:
+- Admin: `admin@seed.local` / `admin123456`
+- User: `user@seed.local` / `user123456`
 
-```bash
-PRISMA_SEED_RANDOM_SEED=42 PRISMA_SEED_ADMIN_PASSWORD=admin123456 PRISMA_SEED_USER_PASSWORD=user123456 npm run db:seed
-```
+## 6) Arrancar API y Web
 
-Credenciales útiles tras el seed:
-
-- Admin: `admin@seed.local` / `admin123456` (si no cambiaste `PRISMA_SEED_ADMIN_PASSWORD`)
-- User: `user@seed.local` / `user123456` (si no cambiaste `PRISMA_SEED_USER_PASSWORD`)
-
-## 7) Levantar backend Fastify
+Terminal 1 (API):
 
 ```bash
 npm run dev:api
 ```
 
-URLs útiles del backend:
-
-- API: `http://localhost:3000`
-- Swagger UI: `http://localhost:3000/documentation`
-- OpenAPI JSON: `http://localhost:3000/documentation/json`
-
-## 8) Levantar frontend React (Vite)
-
-En otra terminal:
+Terminal 2 (Web):
 
 ```bash
 npm run dev:web
 ```
 
-Normalmente Vite corre en `http://localhost:5173` (o puerto libre equivalente).
+URLs utiles:
+- API: `http://localhost:3000`
+- Swagger: `http://localhost:3000/documentation`
+- Web: `http://localhost:5173`
 
-## 9) (Opcional) Entorno de tests de integración
+## 7) Entorno de tests de integracion (opcional)
 
-Levantar Postgres exclusivo para tests:
+Levantar Postgres de tests:
 
 ```bash
 docker compose -f docker-compose.test.yml up -d
 ```
 
-Ejecutar tests de integración:
+Ejecutar integracion API:
 
 ```bash
 npm run test:integration
@@ -128,5 +101,19 @@ Parar Postgres de tests:
 
 ```bash
 docker compose -f docker-compose.test.yml down
+```
+
+## 8) Parada del entorno local
+
+Parar DB de desarrollo:
+
+```bash
+docker compose down
+```
+
+Parar y borrar volumenes:
+
+```bash
+docker compose down -v
 ```
 
