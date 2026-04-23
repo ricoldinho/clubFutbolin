@@ -52,7 +52,7 @@
     "@vitest/coverage-v8": "^4.1.0",
     "dotenv": "^16.4.5",
     "esbuild-plugin-tsconfig-paths": "^1.0.2",
-    "eslint": "^10.0.3",
+    "eslint": "^10.2.1",
     "globals": "^17.4.0",
     "prisma": "^7.7.0",
     "ts-node": "^10.9.2",
