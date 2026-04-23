@@ -54,7 +54,7 @@
     "esbuild-plugin-tsconfig-paths": "^1.0.2",
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
-    "prisma": "^7.7.0",
+    "prisma": "^7.8.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsup": "^8.5.1",
